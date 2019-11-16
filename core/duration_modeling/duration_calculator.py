@@ -8,7 +8,7 @@
 
 import torch
 
-import Transformer
+from transformer import Transformer
 from utils.util import pad_list
 
 
