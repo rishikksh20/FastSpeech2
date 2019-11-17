@@ -61,7 +61,7 @@ batch_bins= 910800    # 12 * (870 * 80 + 180 * 35)
                       # resuling in 11 ~ 66 samples (avg 15 samples) in batch (809 batches per epochs) for ljspeech
 
 # training related
-transformer_init= 'pytorch'
+transformer_init= 'pytorch' # choices=["pytorch", "xavier_uniform", "xavier_normal", "kaiming_uniform", "kaiming_normal"]
 transformer_warmup_steps= 4000
 transformer_lr= 1.0
 initial_encoder_alpha= 1.0
@@ -82,6 +82,17 @@ num_layers_applied_guided_attn= 2
 modules_applied_guided_attn= ["encoder_decoder"]
 guided_attn_loss_sigma=0.4
 guided_attn_loss_lambda=1.0
+
+### FastSpeech
+duration_predictor_layers = 2
+duration_predictor_chans = 384
+duration_predictor_kernel_size = 3
+transfer_encoder_from_teacher = True
+duration_predictor_dropout_rate = 0.1
+teacher_model = "exp/train_no_dev_pytorch_train_transformer.v1/results/model.last1.avg.best"
+transferred_encoder_module = "all" # choices=["all", "embed"]
+
+
 # optimization related
 opt= 'noam'
 accum_grad= 5

@@ -179,9 +179,9 @@ class FeedForwardTransformer(torch.nn.Module):
         # store hyperparameters
         self.idim = idim
         self.odim = odim
-        self.reduction_factor = args.reduction_factor
-        self.use_scaled_pos_enc = args.use_scaled_pos_enc
-        self.use_masking = args.use_masking
+        self.reduction_factor = hp.reduction_factor
+        self.use_scaled_pos_enc = hp.use_scaled_pos_enc
+        self.use_masking = hp.use_masking
         # self.spk_embed_dim = args.spk_embed_dim
         # if self.spk_embed_dim is not None:
         #     self.spk_embed_integration_type = args.spk_embed_integration_type
@@ -199,24 +199,24 @@ class FeedForwardTransformer(torch.nn.Module):
         # define encoder
         encoder_input_layer = torch.nn.Embedding(
             num_embeddings=idim,
-            embedding_dim=args.adim,
+            embedding_dim=hp.adim,
             padding_idx=padding_idx
         )
         self.encoder = Encoder(
             idim=idim,
-            attention_dim=args.adim,
-            attention_heads=args.aheads,
-            linear_units=args.eunits,
-            num_blocks=args.elayers,
+            attention_dim=hp.adim,
+            attention_heads=hp.aheads,
+            linear_units=hp.eunits,
+            num_blocks=hp.elayers,
             input_layer=encoder_input_layer,
-            dropout_rate=args.transformer_enc_dropout_rate,
-            positional_dropout_rate=args.transformer_enc_positional_dropout_rate,
-            attention_dropout_rate=args.transformer_enc_attn_dropout_rate,
+            dropout_rate=hp.transformer_enc_dropout_rate,
+            positional_dropout_rate=hp.transformer_enc_positional_dropout_rate,
+            attention_dropout_rate=hp.transformer_enc_attn_dropout_rate,
             pos_enc_class=pos_enc_class,
-            normalize_before=args.encoder_normalize_before,
-            concat_after=args.encoder_concat_after,
-            positionwise_layer_type=args.positionwise_layer_type,
-            positionwise_conv_kernel_size=args.positionwise_conv_kernel_size
+            normalize_before=hp.encoder_normalize_before,
+            concat_after=hp.encoder_concat_after,
+            positionwise_layer_type=hp.positionwise_layer_type,
+            positionwise_conv_kernel_size=hp.positionwise_conv_kernel_size
         )
 
         # define additional projection for speaker embedding
@@ -228,11 +228,11 @@ class FeedForwardTransformer(torch.nn.Module):
 
         # define duration predictor
         self.duration_predictor = DurationPredictor(
-            idim=args.adim,
-            n_layers=args.duration_predictor_layers,
-            n_chans=args.duration_predictor_chans,
-            kernel_size=args.duration_predictor_kernel_size,
-            dropout_rate=args.duration_predictor_dropout_rate,
+            idim=hp.adim,
+            n_layers=hp.duration_predictor_layers,
+            n_chans=hp.duration_predictor_chans,
+            kernel_size=hp.duration_predictor_kernel_size,
+            dropout_rate=hp.duration_predictor_dropout_rate,
         )
 
         # define length regulator
@@ -242,32 +242,32 @@ class FeedForwardTransformer(torch.nn.Module):
         # NOTE: we use encoder as decoder because fastspeech's decoder is the same as encoder
         self.decoder = Encoder(
             idim=0,
-            attention_dim=args.adim,
-            attention_heads=args.aheads,
-            linear_units=args.dunits,
-            num_blocks=args.dlayers,
+            attention_dim=hp.adim,
+            attention_heads=hp.aheads,
+            linear_units=hp.dunits,
+            num_blocks=hp.dlayers,
             input_layer=None,
-            dropout_rate=args.transformer_dec_dropout_rate,
-            positional_dropout_rate=args.transformer_dec_positional_dropout_rate,
-            attention_dropout_rate=args.transformer_dec_attn_dropout_rate,
+            dropout_rate=hp.transformer_dec_dropout_rate,
+            positional_dropout_rate=hp.transformer_dec_positional_dropout_rate,
+            attention_dropout_rate=hp.transformer_dec_attn_dropout_rate,
             pos_enc_class=pos_enc_class,
-            normalize_before=args.decoder_normalize_before,
-            concat_after=args.decoder_concat_after,
-            positionwise_layer_type=args.positionwise_layer_type,
-            positionwise_conv_kernel_size=args.positionwise_conv_kernel_size
+            normalize_before=hp.decoder_normalize_before,
+            concat_after=hp.decoder_concat_after,
+            positionwise_layer_type=hp.positionwise_layer_type,
+            positionwise_conv_kernel_size=hp.positionwise_conv_kernel_size
         )
 
         # define final projection
-        self.feat_out = torch.nn.Linear(args.adim, odim * args.reduction_factor)
+        self.feat_out = torch.nn.Linear(hp.adim, odim * hp.reduction_factor)
 
         # initialize parameters
-        self._reset_parameters(init_type=args.transformer_init,
-                               init_enc_alpha=args.initial_encoder_alpha,
-                               init_dec_alpha=args.initial_decoder_alpha)
+        self._reset_parameters(init_type=hp.transformer_init,
+                               init_enc_alpha=hp.initial_encoder_alpha,
+                               init_dec_alpha=hp.initial_decoder_alpha)
 
         # define teacher model
-        if args.teacher_model is not None:
-            self.teacher = self._load_teacher_model(args.teacher_model)
+        if hp.teacher_model is not None:
+            self.teacher = self._load_teacher_model(hp.teacher_model)
         else:
             self.teacher = None
 
@@ -278,8 +278,8 @@ class FeedForwardTransformer(torch.nn.Module):
             self.duration_calculator = None
 
         # transfer teacher parameters
-        if self.teacher is not None and args.transfer_encoder_from_teacher:
-            self._transfer_from_teacher(args.transferred_encoder_module)
+        if self.teacher is not None and hp.transfer_encoder_from_teacher:
+            self._transfer_from_teacher(hp.transferred_encoder_module)
 
         # define criterions
         self.duration_criterion = DurationPredictorLoss()
@@ -490,7 +490,7 @@ class FeedForwardTransformer(torch.nn.Module):
         # assert dimension is the same between teacher and studnet
         assert idim == self.idim
         assert odim == self.odim
-        assert args.reduction_factor == self.reduction_factor
+        assert hp.reduction_factor == self.reduction_factor
 
         # load teacher model
         model = Transformer(idim, odim, args)
