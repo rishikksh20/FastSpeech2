@@ -15,7 +15,7 @@ import time
 import argparse
 from dataset.audio_processing import reconstruct_waveform
 from dataset.audio_processing import save_wav
-from train import num_params
+from train_transformer import num_params
 
 def synthesis(args):
     """Decode with E2E-TTS model."""

@@ -170,7 +170,7 @@ class FeedForwardTransformer(torch.nn.Module):
 
         """
         # initialize base classes
-        TTSInterface.__init__(self)
+
         torch.nn.Module.__init__(self)
 
         # fill missing arguments
@@ -182,9 +182,9 @@ class FeedForwardTransformer(torch.nn.Module):
         self.reduction_factor = args.reduction_factor
         self.use_scaled_pos_enc = args.use_scaled_pos_enc
         self.use_masking = args.use_masking
-        self.spk_embed_dim = args.spk_embed_dim
-        if self.spk_embed_dim is not None:
-            self.spk_embed_integration_type = args.spk_embed_integration_type
+        # self.spk_embed_dim = args.spk_embed_dim
+        # if self.spk_embed_dim is not None:
+        #     self.spk_embed_integration_type = args.spk_embed_integration_type
 
         # TODO(kan-bayashi): support reduction_factor > 1
         if self.reduction_factor != 1:
@@ -220,11 +220,11 @@ class FeedForwardTransformer(torch.nn.Module):
         )
 
         # define additional projection for speaker embedding
-        if self.spk_embed_dim is not None:
-            if self.spk_embed_integration_type == "add":
-                self.projection = torch.nn.Linear(self.spk_embed_dim, args.adim)
-            else:
-                self.projection = torch.nn.Linear(args.adim + self.spk_embed_dim, args.adim)
+        # if self.spk_embed_dim is not None:
+        #     if self.spk_embed_integration_type == "add":
+        #         self.projection = torch.nn.Linear(self.spk_embed_dim, args.adim)
+        #     else:
+        #         self.projection = torch.nn.Linear(args.adim + self.spk_embed_dim, args.adim)
 
         # define duration predictor
         self.duration_predictor = DurationPredictor(
@@ -286,14 +286,14 @@ class FeedForwardTransformer(torch.nn.Module):
         # TODO(kan-bayashi): support knowledge distillation loss
         self.criterion = torch.nn.L1Loss()
 
-    def _forward(self, xs, ilens, ys=None, olens=None, spembs=None, is_inference=False):
+    def _forward(self, xs, ilens, ys=None, olens=None, is_inference=False):
         # forward encoder
         x_masks = self._source_mask(ilens)
         hs, _ = self.encoder(xs, x_masks)  # (B, Tmax, adim)
 
         # integrate speaker embedding
-        if self.spk_embed_dim is not None:
-            hs = self._integrate_with_spk_embed(hs, spembs)
+        # if self.spk_embed_dim is not None:
+        #     hs = self._integrate_with_spk_embed(hs, spembs)
 
         # forward duration predictor and length regulator
         d_masks = make_pad_mask(ilens).to(xs.device)
@@ -302,7 +302,7 @@ class FeedForwardTransformer(torch.nn.Module):
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
         else:
             with torch.no_grad():
-                ds = self.duration_calculator(xs, ilens, ys, olens, spembs)  # (B, Tmax)
+                ds = self.duration_calculator(xs, ilens, ys, olens)  # (B, Tmax)
             d_outs = self.duration_predictor(hs, d_masks)  # (B, Tmax)
             hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
 
@@ -319,7 +319,7 @@ class FeedForwardTransformer(torch.nn.Module):
         else:
             return outs, ds, d_outs
 
-    def forward(self, xs, ilens, ys, olens, spembs=None, *args, **kwargs):
+    def forward(self, xs, ilens, ys, olens, *args, **kwargs):
         """Calculate forward propagation.
 
         Args:
@@ -338,7 +338,7 @@ class FeedForwardTransformer(torch.nn.Module):
         ys = ys[:, :max(olens)]
 
         # forward propagation
-        outs, ds, d_outs = self._forward(xs, ilens, ys, olens, spembs=spembs, is_inference=False)
+        outs, ds, d_outs = self._forward(xs, ilens, ys, olens, is_inference=False)
 
         # apply mask to remove padded part
         if self.use_masking:
@@ -365,11 +365,11 @@ class FeedForwardTransformer(torch.nn.Module):
                 {"encoder_alpha": self.encoder.embed[-1].alpha.data.item()},
                 {"decoder_alpha": self.decoder.embed[-1].alpha.data.item()},
             ]
-        self.reporter.report(report_keys)
+        #self.reporter.report(report_keys)
 
-        return loss
+        return loss, report_keys
 
-    def calculate_all_attentions(self, xs, ilens, ys, olens, spembs=None, *args, **kwargs):
+    def calculate_all_attentions(self, xs, ilens, ys, olens, *args, **kwargs):
         """Calculate all of the attention weights.
 
         Args:
@@ -389,7 +389,7 @@ class FeedForwardTransformer(torch.nn.Module):
             ys = ys[:, :max(olens)]
 
             # forward propagation
-            outs = self._forward(xs, ilens, ys, olens, spembs=spembs, is_inference=False)[0]
+            outs = self._forward(xs, ilens, ys, olens, is_inference=False)[0]
 
         att_ws_dict = dict()
         for name, m in self.named_modules():
@@ -428,39 +428,39 @@ class FeedForwardTransformer(torch.nn.Module):
         # setup batch axis
         ilens = torch.tensor([x.shape[0]], dtype=torch.long, device=x.device)
         xs = x.unsqueeze(0)
-        if spemb is not None:
-            spembs = spemb.unsqueeze(0)
-        else:
-            spembs = None
+        # if spemb is not None:
+        #     spembs = spemb.unsqueeze(0)
+        # else:
+        #     spembs = None
 
         # inference
-        outs = self._forward(xs, ilens, spembs=spembs, is_inference=True)[0]  # (L, odim)
+        outs = self._forward(xs, ilens, is_inference=True)[0]  # (L, odim)
 
         return outs, None, None
 
-    def _integrate_with_spk_embed(self, hs, spembs):
-        """Integrate speaker embedding with hidden states.
-
-        Args:
-            hs (Tensor): Batch of hidden state sequences (B, Tmax, adim).
-            spembs (Tensor): Batch of speaker embeddings (B, spk_embed_dim).
-
-        Returns:
-            Tensor: Batch of integrated hidden state sequences (B, Tmax, adim)
-
-        """
-        if self.spk_embed_integration_type == "add":
-            # apply projection and then add to hidden states
-            spembs = self.projection(F.normalize(spembs))
-            hs = hs + spembs.unsqueeze(1)
-        elif self.spk_embed_integration_type == "concat":
-            # concat hidden states with spk embeds and then apply projection
-            spembs = F.normalize(spembs).unsqueeze(1).expand(-1, hs.size(1), -1)
-            hs = self.projection(torch.cat([hs, spembs], dim=-1))
-        else:
-            raise NotImplementedError("support only add or concat.")
-
-        return hs
+    # def _integrate_with_spk_embed(self, hs, spembs):
+    #     """Integrate speaker embedding with hidden states.
+    #
+    #     Args:
+    #         hs (Tensor): Batch of hidden state sequences (B, Tmax, adim).
+    #         spembs (Tensor): Batch of speaker embeddings (B, spk_embed_dim).
+    #
+    #     Returns:
+    #         Tensor: Batch of integrated hidden state sequences (B, Tmax, adim)
+    #
+    #     """
+    #     if self.spk_embed_integration_type == "add":
+    #         # apply projection and then add to hidden states
+    #         spembs = self.projection(F.normalize(spembs))
+    #         hs = hs + spembs.unsqueeze(1)
+    #     elif self.spk_embed_integration_type == "concat":
+    #         # concat hidden states with spk embeds and then apply projection
+    #         spembs = F.normalize(spembs).unsqueeze(1).expand(-1, hs.size(1), -1)
+    #         hs = self.projection(torch.cat([hs, spembs], dim=-1))
+    #     else:
+    #         raise NotImplementedError("support only add or concat.")
+    #
+    #     return hs
 
     def _source_mask(self, ilens):
         """Make masks for self-attention.
