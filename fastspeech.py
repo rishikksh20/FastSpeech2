@@ -485,15 +485,17 @@ class FeedForwardTransformer(torch.nn.Module):
 
     def _load_teacher_model(self, model_path):
         # get teacher model config
-        idim, odim, args = get_model_conf(model_path)
+        #idim, odim, args = get_model_conf(model_path)
 
+        idim = hp.symbol_len
+        odim = hp.num_mels
         # assert dimension is the same between teacher and studnet
         assert idim == self.idim
         assert odim == self.odim
         assert hp.reduction_factor == self.reduction_factor
 
         # load teacher model
-        model = Transformer(idim, odim, args)
+        model = Transformer(idim, odim)
         torch_load(model_path, model)
 
         # freeze teacher model parameters
