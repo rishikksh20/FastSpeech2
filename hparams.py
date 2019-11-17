@@ -89,13 +89,13 @@ duration_predictor_chans = 384
 duration_predictor_kernel_size = 3
 transfer_encoder_from_teacher = True
 duration_predictor_dropout_rate = 0.1
-teacher_model = "exp/train_no_dev_pytorch_train_transformer.v1/results/model.last1.avg.best"
+teacher_model = "transformer_chkpt/checkpoint_430k_steps.pyt"
 transferred_encoder_module = "all" # choices=["all", "embed"]
 
 
 # optimization related
 opt= 'noam'
-accum_grad= 5
+accum_grad= 4
 grad_clip= 1.0
 weight_decay= 0.0
 patience= 0
@@ -108,6 +108,7 @@ tts_cleaner_names = ['english_cleaners']
 # other
 save_interval = 5000
 chkpt_dir = './checkpoints'
+#fastspeech_chkpt = './fastspeech_checkpoints'
 log_dir = './logs'
 data_dir = './data/'
 summary_interval = 1000
