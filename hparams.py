@@ -41,6 +41,8 @@ elayers= 6
 eunits= 1536
 dlayers= 6
 dunits= 1536
+positionwise_layer_type = "linear" # conv1d
+positionwise_conv_kernel_size = 1 # 3
 postnet_layers= 5
 postnet_filts= 5
 postnet_chans= 256
@@ -91,6 +93,7 @@ transfer_encoder_from_teacher = True
 duration_predictor_dropout_rate = 0.1
 teacher_model = "transformer_chkpt/checkpoint_430k_steps.pyt"
 transferred_encoder_module = "all" # choices=["all", "embed"]
+
 
 
 # optimization related
