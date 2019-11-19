@@ -380,8 +380,10 @@ def main(cmd_args):
     logging.info('random seed = %d' % hp.seed)
     random.seed(hp.seed)
     np.random.seed(hp.seed)
-
-    train(args)
+    if hp.GTA:
+        create_gta(args)
+    else:
+        train(args)
 
 
 if __name__ == "__main__":
