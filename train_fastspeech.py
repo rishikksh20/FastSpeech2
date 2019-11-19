@@ -63,7 +63,7 @@ def train(args):
         for data in pbar:
             #start_b = time.time()
             global_step += 1
-            x, input_length, y, _, out_length = data
+            x, input_length, y, _, out_length, _ = data
             # x : [batch , num_char], input_length : [batch], y : [batch, T_in, num_mel]
             #             # stop_token : [batch, T_in], out_length : [batch]
             #print("x : ", x.size())
@@ -151,6 +151,52 @@ def num_params(model, print_out=True):
     parameters = sum([np.prod(p.size()) for p in parameters]) / 1_000_000
     if print_out:
         print('Trainable Parameters: %.3fM' % parameters)
+
+def create_gta(args):
+    os.makedirs(os.path.join(hp.data_dir, 'gta'), exist_ok=True)
+    device = torch.device("cuda" if hp.ngpu > 0 else "cpu")
+
+    dataloader = loader.get_tts_dataset(hp.data_dir, hp.batch_size)
+    validloader = loader.get_tts_dataset(hp.data_dir, 5, True)
+    global_step = 0
+    idim = hp.symbol_len
+    odim = hp.num_mels
+    model = fastspeech.FeedForwardTransformer(idim, odim, args)
+    # set torch device
+    model.eval()
+    model = model.to(device)
+    print("Model is loaded ...")
+    print("Batch Size :",hp.batch_size)
+    num_params(model)
+    pbar = tqdm.tqdm(dataloader, desc='Loading train data')
+    for data in pbar:
+        #start_b = time.time()
+        global_step += 1
+        x, input_length, y, _, out_length, ids = data
+        with torch.no_grad():
+            gta, _, _ = model._forward(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda())
+        gta = gta.cpu().numpy()
+
+        for j in range(len(ids)) :
+            mel = gta[j][:, :out_length[j]]
+            mel = (mel + 4) / 8
+            id = ids[j]
+            np.save('{}/{}.npy'.format(os.path.join(hp.data_dir, 'gta'), id), mel, allow_pickle=False)
+
+    pbar = tqdm.tqdm(validloader, desc='Loading Valid data')
+    for data in pbar:
+        #start_b = time.time()
+        global_step += 1
+        x, input_length, y, _, out_length, ids = data
+        with torch.no_grad():
+            gta, _, _ = model._forward(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda())
+        gta = gta.cpu().numpy()
+
+        for j in range(len(ids)) :
+            mel = gta[j][:, :out_length[j]]
+            mel = (mel + 4) / 8
+            id = ids[j]
+            np.save('{}/{}.npy'.format(os.path.join(hp.data_dir, 'gta'), id), mel, allow_pickle=False)
 
 
 # define function for plot prob and att_ws

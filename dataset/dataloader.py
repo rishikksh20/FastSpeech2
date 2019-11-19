@@ -127,7 +127,7 @@ def collate_tts(batch):
     # get list of lengths (must be tensor for DataParallel)
     ilens = torch.from_numpy(np.array([x[0].shape[0] for x in batch])).long()
     olens = torch.from_numpy(np.array([y[1].shape[0] for y in batch])).long()
-
+    ids = [x[2] for x in batch]
     # perform padding and conversion to tensor
     inputs = pad_list([torch.from_numpy(x[0]).long() for x in batch], 0)
     mels = pad_list([torch.from_numpy(y[1]).float() for y in batch], 0)
@@ -160,7 +160,7 @@ def collate_tts(batch):
     # print("labels : ", labels.size())
     # print("Finish")
     mels = (mels * 8.) - 4.
-    return inputs, ilens, mels, labels, olens
+    return inputs, ilens, mels, labels, olens, ids
 
 class BinnedLengthSampler(Sampler):
     def __init__(self, lengths, batch_size, bin_size):
