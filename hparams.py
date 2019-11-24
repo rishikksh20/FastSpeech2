@@ -103,7 +103,7 @@ grad_clip= 1.0
 weight_decay= 0.0
 patience= 0
 epochs= 1000  # 1,000 epochs * 809 batches / 5 accum_grad = 161,800 iters
-
+GTA = False
 # other
 save_interval_epoch= 10
 

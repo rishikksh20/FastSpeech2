@@ -163,6 +163,12 @@ def create_gta(args):
     odim = hp.num_mels
     model = fastspeech.FeedForwardTransformer(idim, odim, args)
     # set torch device
+    if os.path.exists(args.resume):
+        print('\nSynthesis GTA Session...\n')
+        model.load_state_dict(torch.load(args.resume), strict=False)
+    else:
+        print("Checkpoint not exixts")
+        return None
     model.eval()
     model = model.to(device)
     print("Model is loaded ...")
@@ -380,8 +386,10 @@ def main(cmd_args):
     logging.info('random seed = %d' % hp.seed)
     random.seed(hp.seed)
     np.random.seed(hp.seed)
-
-    train(args)
+    if hp.GTA:
+        create_gta(args)
+    else:
+        train(args)
 
 
 if __name__ == "__main__":
