@@ -122,7 +122,7 @@ def train(args):
                 plot_class = model.attention_plot_class
                 plot_fn = plot_class(args.outdir + '/att_ws',device)
                 for valid in validloader:
-                    x_, input_length_, y_, _, out_length_ = valid
+                    x_, input_length_, y_, _, out_length_, ids_ = valid
                     model.eval()
                     loss_, report_dict_ = model(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda())
                     att_ws = model.calculate_all_attentions(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda())
