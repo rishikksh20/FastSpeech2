@@ -156,8 +156,8 @@ def create_gta(args):
     os.makedirs(os.path.join(hp.data_dir, 'gta'), exist_ok=True)
     device = torch.device("cuda" if hp.ngpu > 0 else "cpu")
 
-    dataloader = loader.get_tts_dataset(hp.data_dir, hp.batch_size)
-    validloader = loader.get_tts_dataset(hp.data_dir, 5, True)
+    dataloader = loader.get_tts_dataset(hp.data_dir, 1)
+    validloader = loader.get_tts_dataset(hp.data_dir, 1, True)
     global_step = 0
     idim = hp.symbol_len
     odim = hp.num_mels
@@ -180,7 +180,8 @@ def create_gta(args):
         global_step += 1
         x, input_length, y, _, out_length, ids = data
         with torch.no_grad():
-            gta, _, _ = model._forward(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda())
+            #gta, _, _ = model._forward(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda())
+            gta = model._forward(x.cuda(), input_length.cuda(), is_inference=True)
         gta = gta.cpu().numpy()
 
         for j in range(len(ids)) :
@@ -195,7 +196,8 @@ def create_gta(args):
         global_step += 1
         x, input_length, y, _, out_length, ids = data
         with torch.no_grad():
-            gta, _, _ = model._forward(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda())
+            #gta, _, _ = model._forward(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda())
+            gta = model._forward(x.cuda(), input_length.cuda(), is_inference=True)
         gta = gta.cpu().numpy()
 
         for j in range(len(ids)) :
