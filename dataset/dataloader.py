@@ -43,10 +43,10 @@ def get_tts_dataset(path, batch_size, valid=False) :
                            shuffle=True)
                            #pin_memory=True)
 
-    longest = mel_lengths.index(max(mel_lengths))
-    attn_example = dataset_ids[longest]
-    print("Longest mels :",longest)
-    print("Attn exp :",attn_example)
+    #longest = mel_lengths.index(max(mel_lengths))
+    #attn_example = dataset_ids[longest]
+    #print("Longest mels :",longest)
+    #print("Attn exp :",attn_example)
     # print(attn_example)
 
     return train_set
@@ -70,8 +70,8 @@ class TTSDataset(Dataset):
         mel = np.load(f'{self.path}mels/{id}.npy')
         #print("x :",type(x))
         #print("len : ",x)
-        mel_len = mel.shape[-1]
-        return np.array(x), mel.T, id, mel_len
+        mel_len = mel.shape[0]
+        return np.array(x), mel, id, mel_len
 
     def __len__(self):
         return len(self._metadata)
@@ -159,7 +159,7 @@ def collate_tts(batch):
     # print("labels see:",labels)
     # print("labels : ", labels.size())
     # print("Finish")
-    mels = (mels * 8.) - 4.
+    #mels = (mels * 8.) - 4.
     return inputs, ilens, mels, labels, olens, ids
 
 class BinnedLengthSampler(Sampler):

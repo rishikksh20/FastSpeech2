@@ -7,7 +7,8 @@ import torch
 import json
 import sys
 from utils.util import set_deterministic_pytorch
-from transformer import Transformer
+#from transformer import Transformer
+from fastspeech import FeedForwardTransformer
 import hparams as hp
 from dataset.texts import text_to_sequence
 import numpy as np
@@ -23,7 +24,8 @@ def synthesis(args):
     # read training config
     idim = hp.symbol_len
     odim = hp.num_mels
-    model = Transformer(idim, odim, args)
+    #model = Transformer(idim, odim, args)
+    model = FeedForwardTransformer(idim, odim, args)
     num_params(model)
     print(model)
     # load trained model parameters
@@ -86,25 +88,26 @@ def synthesis(args):
         idx = input[:5]
         start_time = time.time()
         print("text :", text.size())
+        #outs, probs, att_ws = model.inference(text, args)
         outs, probs, att_ws = model.inference(text, args)
         print("Out size : ",outs.size())
-        print("probs size : ", probs.size())
-        print("attn size : ", att_ws.size())
-
-        logging.info("inference speed = %s msec / frame." % (
-            (time.time() - start_time) / (int(outs.size(0)) * 1000)))
-        if outs.size(0) == text.size(0) * args.maxlenratio:
-            logging.warning("output length reaches maximum length .")
-            
+        # print("probs size : ", probs.size())
+        # print("attn size : ", att_ws.size())
+        #
+        # logging.info("inference speed = %s msec / frame." % (
+        #     (time.time() - start_time) / (int(outs.size(0)) * 1000)))
+        # if outs.size(0) == text.size(0) * args.maxlenratio:
+        #     logging.warning("output length reaches maximum length .")
+        #
         print("mels",outs.size())
         mel = outs.cpu().numpy() # [T_out, num_mel]
         print("numpy ",mel.shape)
-        # plot prob and att_ws
-        if probs is not None:
-            print("plot probs")
-            _plot_and_save(probs.cpu().numpy(),"results/probs/{}_prob.png".format(idx))
-        if att_ws is not None:
-            _plot_and_save(att_ws.cpu().numpy(), "results/att_ws/{}_att_ws.png".format(idx))
+        # # plot prob and att_ws
+        # if probs is not None:
+        #     print("plot probs")
+        #     _plot_and_save(probs.cpu().numpy(),"results/probs/{}_prob.png".format(idx))
+        # if att_ws is not None:
+        #     _plot_and_save(att_ws.cpu().numpy(), "results/att_ws/{}_att_ws.png".format(idx))
 
         return mel
 
@@ -164,11 +167,11 @@ def main(args):
     logging.info('python path = ' + os.environ.get('PYTHONPATH', '(None)'))
 
     audio = synthesis(args)
-    m = audio.T
-    m = (m + 4) / 8
+    m = audio
+    #m = (m + 4) / 8
     np.clip(m, 0, 1, out=m)
     wav = reconstruct_waveform(m, n_iter=60)
-    save_path = '{}/demo_200_v1k.wav'.format(args.out)
+    save_path = '{}/demo_88_v1k.wav'.format(args.out)
     save_wav(wav, save_path)
 
 
