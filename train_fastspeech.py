@@ -32,7 +32,12 @@ def train(args):
     odim = hp.num_mels
     model = fastspeech.FeedForwardTransformer(idim, odim, args)
     # set torch device
-
+    if args.resume is not None and os.path.exists(args.resume):
+        print('\nSynthesis Session...\n')
+        model.load_state_dict(torch.load(args.resume), strict=False)
+    else:
+        print("Checkpoint not exixts")
+        return None
     model = model.to(device)
     print("Model is loaded ...")
     print("Batch Size :",hp.batch_size)
@@ -272,7 +277,7 @@ def get_parser():
                         help='Debugmode')
     parser.add_argument('--seed', default=1, type=int,
                         help='Random seed')
-    parser.add_argument('--resume', '-r', default='', type=str, nargs='?',
+    parser.add_argument('--resume', '-r', default=None, type=str, nargs='?',
                         help='Resume the training from snapshot')
     parser.add_argument('--minibatches', '-N', type=int, default='-1',
                         help='Process only N minibatches (for debug)')
