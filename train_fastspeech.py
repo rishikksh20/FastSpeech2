@@ -102,6 +102,7 @@ def train(args):
             optimizer.zero_grad()
 
             if step % hp.summary_interval == 0:
+                #torch.cuda.empty_cache()
                 pbar.set_description(
                     "Average Loss %.04f Loss %.04f | step %d" % (running_loss / j, loss.item(), step))
                 # print('Steps : {:d}, Gen Loss : {:4.3f}, Disc Loss : {:4.3f}, s/b : {:4.3f}'.
@@ -124,7 +125,8 @@ def train(args):
                 for valid in validloader:
                     x_, input_length_, y_, _, out_length_, ids_ = valid
                     model.eval()
-                    loss_, report_dict_ = model(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda())
+                    with torch.no_grad(): 
+                        loss_, report_dict_ = model(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda())
                     att_ws = model.calculate_all_attentions(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda())
                     model.train()
 
