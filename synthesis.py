@@ -219,31 +219,31 @@ def main(args):
     logging.info('python path = ' + os.environ.get('PYTHONPATH', '(None)'))
 
     audio = synthesis(args, args.text)
-    #m = audio.T
-    #m = (m + 4) / 8
+    m = audio.T
+    m = (m + 4) / 8
     #audio = np.load("0_50_0.npy")
-    scaler = StandardScaler()
-    scaler.mean_ = np.load(stats_file)[0]
-    scaler.scale_ = np.load(stats_file)[1]
-    m = scaler.inverse_transform(audio)
+    # scaler = StandardScaler()
+    # scaler.mean_ = np.load(stats_file)[0]
+    # scaler.scale_ = np.load(stats_file)[1]
+    # m = scaler.inverse_transform(audio)
     #m = m.T
     #print(np.load(stats_file)[1])
     #m = (audio + np.load(stats_file)[0])*np.load(stats_file)[1]
     #np.clip(m, 0, 1, out=m)
     #np.save('test_95k_ext_1.npy', m, allow_pickle=False)
-    #wav = reconstruct_waveform(m, n_iter=60)
-    spc = logmelspc_to_linearspc(
-                m,
-                fs=22050,
-                n_mels=80,
-                n_fft=1024,
-                fmin=0.0,
-                fmax=8000.0)
-    wav = griffin_lim(
-            spc,
-            n_fft=1024,
-            n_shift=256,
-            win_length=1024)
+    wav = reconstruct_waveform(m, n_iter=60)
+    # spc = logmelspc_to_linearspc(
+    #             m,
+    #             fs=22050,
+    #             n_mels=80,
+    #             n_fft=1024,
+    #             fmin=0.0,
+    #             fmax=8000.0)
+    # wav = griffin_lim(
+    #         spc,
+    #         n_fft=1024,
+    #         n_shift=256,
+    #         win_length=1024)
     save_path = '{}/test.wav'.format(args.out)
     save_wav(wav, save_path)
 
