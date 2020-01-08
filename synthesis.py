@@ -405,6 +405,7 @@ def get_parser_tts():
     return parser
 
 def infer(text):
+    args = sys.argv[1:]
     parser = get_parser_tts()
     args = parser.parse_args(args)
 
