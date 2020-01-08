@@ -282,15 +282,15 @@ def synthesis_tts(args, text, path):
     odim = hp.num_mels
     #model = Transformer(idim, odim, args)
     model = FeedForwardTransformer(idim, odim, args)
-    num_params(model)
-    print(model)
+    #num_params(model)
+    #print(model)
     # load trained model parameters
     #logging.info('reading model parameters from ' + args.model)
     if os.path.exists(path):
-        print('\nSynthesis Session...\n')
+        logging.info('\nSynthesis Session...\n')
         model.load_state_dict(torch.load(path), strict=False)
     else:
-        print("Checkpoint not exixts")
+        logging.info("Checkpoint not exixts")
         return None
 
     model.eval()
@@ -343,18 +343,18 @@ def synthesis_tts(args, text, path):
         # decode and write
         idx = input[:5]
         start_time = time.time()
-        print("text :", text.size())
+        #print("text :", text.size())
         outs, probs, att_ws = model.inference(text, args)
-        print("Out size : ",outs.size())
+        #print("Out size : ",outs.size())
 
         logging.info("inference speed = %s msec / frame." % (
             (time.time() - start_time) / (int(outs.size(0)) * 1000)))
         if outs.size(0) == text.size(0) * args.maxlenratio:
             logging.warning("output length reaches maximum length .")
             
-        print("mels",outs.size())
+        #print("mels",outs.size())
         mel = outs.cpu().numpy() # [T_out, num_mel]
-        print("numpy ",mel.shape)
+        #print("numpy ",mel.shape)
         
 
         return mel
@@ -411,8 +411,9 @@ def infer(text):
 
     # display PYTHONPATH
     logging.info('python path = ' + os.environ.get('PYTHONPATH', '(None)'))
-    path = " checkpoint path"
-    out = "output directory path"
+    path = "./checkpoints/checkpoint_230k_steps.pyt"
+    out = "results/"
+    print("Text : ", text)
     audio = synthesis_tts(args, text, path)
     m = audio.T
     m = (m + 4) / 8
@@ -441,7 +442,7 @@ def infer(text):
     #         n_fft=1024,
     #         n_shift=256,
     #         win_length=1024)
-    save_path = '{}/test.wav'.format(out)
+    save_path = '{}/test_tts.wav'.format(out)
     save_wav(wav, save_path)
     return save_path
 
