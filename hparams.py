@@ -23,7 +23,7 @@ bits = 9                            # bit depth of signal
 mu_law = True                       # Recommended to suppress noise if using raw bits in hp.voc_mode below
 peak_norm = False                   # Normalise to the peak of each wav file
 eos=True
-symbol_len = len(symbols)
+symbol_len = 35
 batch_size = 16
 
 
@@ -91,7 +91,7 @@ duration_predictor_chans = 384
 duration_predictor_kernel_size = 3
 transfer_encoder_from_teacher = True
 duration_predictor_dropout_rate = 0.1
-teacher_model = "transformer_chkpt/checkpoint_430k_steps.pyt"
+teacher_model = "transformer_chkpt/checkpoint_450k_steps.pyt"
 transferred_encoder_module = "all" # choices=["all", "embed"]
 
 

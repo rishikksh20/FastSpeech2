@@ -61,15 +61,8 @@ class TTSDataset(Dataset):
     def __getitem__(self, index):
         id = self._metadata[index][0]
         x_ = self._metadata[index][2]
-        #print(x_)
         x = text_to_sequence(x_, hp.tts_cleaner_names)
-        # print ("x is ",x)
-        # print("type :",type(x))
-        # print("x shape", np.array(x).shape)
-        #x = self._metadata[index][2]
         mel = np.load(f'{self.path}mels/{id}.npy')
-        #print("x :",type(x))
-        #print("len : ",x)
         mel_len = mel.shape[0]
         return np.array(x), mel, id, mel_len
 
