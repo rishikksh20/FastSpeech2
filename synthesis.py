@@ -22,7 +22,7 @@ import librosa
 import numpy as np
 from scipy.io.wavfile import write
 
-def synthesis(args):
+def synthesis(args, text):
     """Decode with E2E-TTS model."""
     set_deterministic_pytorch(args)
     # read training config
@@ -47,7 +47,7 @@ def synthesis(args):
     device = torch.device("cuda" if args.ngpu > 0 else "cpu")
     model = model.to(device)
 
-    input = np.asarray(text_to_sequence(args.text.strip(), hp.tts_cleaner_names))
+    input = np.asarray(text_to_sequence(text.strip(), hp.tts_cleaner_names))
     text = torch.LongTensor(input)
     text = text.cuda()
     #[num_char]
@@ -218,7 +218,7 @@ def main(args):
     # display PYTHONPATH
     logging.info('python path = ' + os.environ.get('PYTHONPATH', '(None)'))
 
-    audio = synthesis(args)
+    audio = synthesis(args, args.text)
     #m = audio.T
     #m = (m + 4) / 8
     #audio = np.load("0_50_0.npy")
@@ -271,6 +271,178 @@ def get_model_conf(model_path, conf_path=None):
         # for asr, tts, mt
         idim, odim, args = confs
         return idim, odim, argparse.Namespace(**args)
+
+# For TTS engine setup
+
+def synthesis_tts(args, text, path):
+    """Decode with E2E-TTS model."""
+    set_deterministic_pytorch(args)
+    # read training config
+    idim = hp.symbol_len
+    odim = hp.num_mels
+    #model = Transformer(idim, odim, args)
+    model = FeedForwardTransformer(idim, odim, args)
+    num_params(model)
+    print(model)
+    # load trained model parameters
+    #logging.info('reading model parameters from ' + args.model)
+    if os.path.exists(path):
+        print('\nSynthesis Session...\n')
+        model.load_state_dict(torch.load(path), strict=False)
+    else:
+        print("Checkpoint not exixts")
+        return None
+
+    model.eval()
+
+    # set torch device
+    device = torch.device("cuda" if args.ngpu > 0 else "cpu")
+    model = model.to(device)
+
+    input = np.asarray(text_to_sequence(text.strip(), hp.tts_cleaner_names))
+    text = torch.LongTensor(input)
+    text = text.cuda()
+    #[num_char]
+
+        # define function for plot prob and att_ws
+    def _plot_and_save(array, figname, figsize=(6, 4), dpi=150):
+        import matplotlib.pyplot as plt
+        shape = array.shape
+        if len(shape) == 1:
+            # for eos probability
+            plt.figure(figsize=figsize, dpi=dpi)
+            plt.plot(array)
+            plt.xlabel("Frame")
+            plt.ylabel("Probability")
+            plt.ylim([0, 1])
+        elif len(shape) == 2:
+            # for tacotron 2 attention weights, whose shape is (out_length, in_length)
+            plt.figure(figsize=figsize, dpi=dpi)
+            plt.imshow(array, aspect="auto")
+            plt.xlabel("Input")
+            plt.ylabel("Output")
+        elif len(shape) == 4:
+            # for transformer attention weights, whose shape is (#leyers, #heads, out_length, in_length)
+            plt.figure(figsize=(figsize[0] * shape[0], figsize[1] * shape[1]), dpi=dpi)
+            for idx1, xs in enumerate(array):
+                for idx2, x in enumerate(xs, 1):
+                    plt.subplot(shape[0], shape[1], idx1 * shape[1] + idx2)
+                    plt.imshow(x, aspect="auto")
+                    plt.xlabel("Input")
+                    plt.ylabel("Output")
+        else:
+            raise NotImplementedError("Support only from 1D to 4D array.")
+        plt.tight_layout()
+        if not os.path.exists(os.path.dirname(figname)):
+            # NOTE: exist_ok = True is needed for parallel process decoding
+            os.makedirs(os.path.dirname(figname), exist_ok=True)
+        plt.savefig(figname)
+        plt.close()
+
+    with torch.no_grad():
+        # decode and write
+        idx = input[:5]
+        start_time = time.time()
+        print("text :", text.size())
+        outs, probs, att_ws = model.inference(text, args)
+        print("Out size : ",outs.size())
+
+        logging.info("inference speed = %s msec / frame." % (
+            (time.time() - start_time) / (int(outs.size(0)) * 1000)))
+        if outs.size(0) == text.size(0) * args.maxlenratio:
+            logging.warning("output length reaches maximum length .")
+            
+        print("mels",outs.size())
+        mel = outs.cpu().numpy() # [T_out, num_mel]
+        print("numpy ",mel.shape)
+        
+
+        return mel
+
+
+
+
+
+
+# NOTE: you need this func to generate our sphinx doc
+def get_parser_tts():
+    """Get parser of decoding arguments."""
+    parser = configargparse.ArgumentParser(
+        description='Synthesize speech from text using a TTS model on one CPU',
+        config_file_parser_class=configargparse.YAMLConfigFileParser,
+        formatter_class=configargparse.ArgumentDefaultsHelpFormatter)
+    # general configuration
+
+    parser.add_argument('--ngpu', default=1, type=int,
+                        help='Number of GPUs')
+    parser.add_argument('--backend', default='pytorch', type=str,
+                        choices=['chainer', 'pytorch'],
+                        help='Backend library')
+    parser.add_argument('--debugmode', default=1, type=int,
+                        help='Debugmode')
+    parser.add_argument('--seed', default=1, type=int,
+                        help='Random seed')
+    parser.add_argument('--out', type=str,
+                        help='Output filename')
+    parser.add_argument('--verbose', '-V', default=0, type=int,
+                        help='Verbose option')
+    parser.add_argument('--preprocess-conf', type=str, default=None,
+                        help='The configuration file for the pre-processing')
+    # task related
+    parser.add_argument('--text', type=str,
+                        help='Filename of train label data (json)')
+    parser.add_argument('--path', type=str,
+                        help='Model file parameters to read')
+    parser.add_argument('--model-conf', type=str, default=None,
+                        help='Model config file')
+    # decoding related
+    parser.add_argument('--maxlenratio', type=float, default=5,
+                        help='Maximum length ratio in decoding')
+    parser.add_argument('--minlenratio', type=float, default=0,
+                        help='Minimum length ratio in decoding')
+    parser.add_argument('--threshold', type=float, default=0.5,
+                        help='Threshold value in decoding')
+    return parser
+
+def infer(text):
+    parser = get_parser_tts()
+    args = parser.parse_args(args)
+
+    # display PYTHONPATH
+    logging.info('python path = ' + os.environ.get('PYTHONPATH', '(None)'))
+    path = " checkpoint path"
+    out = "output directory path"
+    audio = synthesis_tts(args, text, path)
+    m = audio.T
+    m = (m + 4) / 8
+    #audio = np.load("0_50_0.npy")
+    
+    # scaler = StandardScaler()
+    # scaler.mean_ = np.load(stats_file)[0]
+    # scaler.scale_ = np.load(stats_file)[1]
+    # m = scaler.inverse_transform(audio)
+
+    #m = m.T
+    #print(np.load(stats_file)[1])
+    #m = (audio + np.load(stats_file)[0])*np.load(stats_file)[1]
+    #np.clip(m, 0, 1, out=m)
+    #np.save('test_95k_ext_1.npy', m, allow_pickle=False)
+    wav = reconstruct_waveform(m, n_iter=60)
+    # spc = logmelspc_to_linearspc(
+    #             m,
+    #             fs=22050,
+    #             n_mels=80,
+    #             n_fft=1024,
+    #             fmin=0.0,
+    #             fmax=8000.0)
+    # wav = griffin_lim(
+    #         spc,
+    #         n_fft=1024,
+    #         n_shift=256,
+    #         win_length=1024)
+    save_path = '{}/test.wav'.format(out)
+    save_wav(wav, save_path)
+    return save_path
 
 if __name__ == '__main__':
     print("Starting")
