@@ -1,5 +1,5 @@
-from tensorboardX import SummaryWriter
 import fastspeech
+from tensorboardX import SummaryWriter
 import torch
 import hparams as hp
 from dataset import dataloader as loader
@@ -181,21 +181,23 @@ def create_gta(args):
     print("Model is loaded ...")
     print("Batch Size :",hp.batch_size)
     num_params(model)
-    pbar = tqdm.tqdm(dataloader, desc='Loading train data')
-    for data in pbar:
-        #start_b = time.time()
-        global_step += 1
-        x, input_length, y, _, out_length, ids = data
-        with torch.no_grad():
-            #gta, _, _ = model._forward(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda())
-            gta = model._forward(x.cuda(), input_length.cuda(), is_inference=True)
-        gta = gta.cpu().numpy()
+    onlyValidation = False
+    if not onlyValidation:
+        pbar = tqdm.tqdm(dataloader, desc='Loading train data')
+        for data in pbar:
+            #start_b = time.time()
+            global_step += 1
+            x, input_length, y, _, out_length, ids = data
+            with torch.no_grad():
+                #gta, _, _ = model._forward(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda())
+                gta = model._forward(x.cuda(), input_length.cuda(), is_inference=True)
+            gta = gta.cpu().numpy()
 
-        for j in range(len(ids)) :
-            mel = gta[j][:, :out_length[j]]
-            mel = (mel + 4) / 8
-            id = ids[j]
-            np.save('{}/{}.npy'.format(os.path.join(hp.data_dir, 'gta'), id), mel, allow_pickle=False)
+            for j in range(len(ids)) :
+                mel = gta[j][:, :out_length[j]]
+                mel = (mel + 4) / 8
+                id = ids[j]
+                np.save('{}/{}.npy'.format(os.path.join(hp.data_dir, 'gta'), id), mel, allow_pickle=False)
 
     pbar = tqdm.tqdm(validloader, desc='Loading Valid data')
     for data in pbar:
@@ -208,8 +210,12 @@ def create_gta(args):
         gta = gta.cpu().numpy()
 
         for j in range(len(ids)) :
+            print("Actual mel specs : {} = {}".format(ids[j],y[j].shape))
+            print("Out length:",out_length[j])
+            print("GTA size: {} = {}".format(ids[j],gta[j].shape))
             mel = gta[j][:, :out_length[j]]
             mel = (mel + 4) / 8
+            print("Mel size: {} = {}".format(ids[j],mel.shape))
             id = ids[j]
             np.save('{}/{}.npy'.format(os.path.join(hp.data_dir, 'gta'), id), mel, allow_pickle=False)
 
