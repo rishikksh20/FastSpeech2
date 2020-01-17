@@ -189,12 +189,14 @@ def create_gta(args):
             global_step += 1
             x, input_length, y, _, out_length, ids = data
             with torch.no_grad():
-                #gta, _, _ = model._forward(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda())
-                gta = model._forward(x.cuda(), input_length.cuda(), is_inference=True)
+                gta, _, _ = model._forward(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda())
+                #gta = model._forward(x.cuda(), input_length.cuda(), is_inference=False)
             gta = gta.cpu().numpy()
 
             for j in range(len(ids)) :
-                mel = gta[j][:, :out_length[j]]
+                mel = gta[j]
+                mel = mel.T
+                mel = mel[:, :out_length[j]]
                 mel = (mel + 4) / 8
                 id = ids[j]
                 np.save('{}/{}.npy'.format(os.path.join(hp.data_dir, 'gta'), id), mel, allow_pickle=False)
@@ -205,15 +207,17 @@ def create_gta(args):
         global_step += 1
         x, input_length, y, _, out_length, ids = data
         with torch.no_grad():
-            #gta, _, _ = model._forward(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda())
-            gta = model._forward(x.cuda(), input_length.cuda(), is_inference=True)
+            gta, _, _ = model._forward(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda())
+            #gta = model._forward(x.cuda(), input_length.cuda(), is_inference=True)
         gta = gta.cpu().numpy()
 
         for j in range(len(ids)) :
             print("Actual mel specs : {} = {}".format(ids[j],y[j].shape))
             print("Out length:",out_length[j])
             print("GTA size: {} = {}".format(ids[j],gta[j].shape))
-            mel = gta[j][:, :out_length[j]]
+            mel = gta[j]
+            mel = mel.T
+            mel = mel[:, :out_length[j]]
             mel = (mel + 4) / 8
             print("Mel size: {} = {}".format(ids[j],mel.shape))
             id = ids[j]
