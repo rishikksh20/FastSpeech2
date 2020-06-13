@@ -1,10 +1,10 @@
 import torch
-
+from core.layer_norm import LayerNorm
 
 class VariancePredictor(torch.nn.Module):
 
     def __init__(self, idim, n_layers=2, n_chans=384, out=1, kernel_size=3, dropout_rate=0.5, offset=1.0):
-        super(DurationPredictor, self).__init__()
+        super(VariancePredictor, self).__init__()
         self.offset = offset
         self.conv = torch.nn.ModuleList()
         for idx in range(n_layers):
