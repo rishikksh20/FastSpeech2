@@ -106,7 +106,8 @@ epochs= 1000  # 1,000 epochs * 809 batches / 5 accum_grad = 161,800 iters
 GTA = False
 # other
 save_interval_epoch= 10
-
+train_filelist = "./filelists/train_filelist.txt"
+valid_filelist = "./filelists/valid_filelist.txt"
 tts_cleaner_names = ['english_cleaners']
 # other
 save_interval = 5000

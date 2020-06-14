@@ -25,9 +25,9 @@ def get_tts_dataset(path, batch_size, valid=False) :
     # with open(f'{path}text_dict.pkl', 'rb') as f:
     #     text_dict = pickle.load(f)
     if valid:
-        file_ = 'valid.txt'
+        file_ = hp.valid_filelist
     else:
-        file_ = 'train.txt'
+        file_ = hp.train_filelist
     train_dataset = TTSDataset(path, file_)
 
     # sampler = None
@@ -53,9 +53,9 @@ def get_tts_dataset(path, batch_size, valid=False) :
 
 
 class TTSDataset(Dataset):
-    def __init__(self, path, file_) :
-        self.path = path
-        with open('{}/{}'.format(path, file_), encoding='utf-8') as f:
+    def __init__(self, file_) :
+        #self.path = path
+        with open('{}'.format(file_), encoding='utf-8') as f:
             self._metadata = [line.strip().split('|') for line in f]
 
     def __getitem__(self, index):

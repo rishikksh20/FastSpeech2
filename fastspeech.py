@@ -18,6 +18,12 @@ from transformer import TTSPlot
 from core.duration_modeling.duration_calculator import DurationCalculator
 from core.duration_modeling.duration_predictor import DurationPredictor
 from core.duration_modeling.duration_predictor import DurationPredictorLoss
+from core.energy_predictor.energy_predictor import EnergyPredictor
+from core.energy_predictor.energy_predictor import EnergyPredictorLoss
+from core.energy_predictor.energy_calculator import energy_to_one_hot
+from core.pitch_predictor.pitch_predictor import PitchPredictor
+from core.pitch_predictor.pitch_predictor import PitchPredictorLoss
+from core.pitch_predictor.pitch_calculator import pitch_to_one_hot
 from core.duration_modeling.length_regulator import LengthRegulator
 from utils.util import make_non_pad_mask
 from utils.util import make_pad_mask
@@ -150,6 +156,22 @@ class FeedForwardTransformer(torch.nn.Module):
             dropout_rate=hp.duration_predictor_dropout_rate,
         )
 
+        self.energy_predictor = EnergyPredictor(
+            idim=hp.adim,
+            n_layers=hp.duration_predictor_layers,
+            n_chans=hp.duration_predictor_chans,
+            kernel_size=hp.duration_predictor_kernel_size,
+            dropout_rate=hp.duration_predictor_dropout_rate,
+        )
+
+        self.pitch_predictor = PitchPredictor(
+            idim=hp.adim,
+            n_layers=hp.duration_predictor_layers,
+            n_chans=hp.duration_predictor_chans,
+            kernel_size=hp.duration_predictor_kernel_size,
+            dropout_rate=hp.duration_predictor_dropout_rate,
+        )
+
         # define length regulator
         self.length_regulator = LengthRegulator()
 
@@ -198,10 +220,12 @@ class FeedForwardTransformer(torch.nn.Module):
 
         # define criterions
         self.duration_criterion = DurationPredictorLoss()
+        self.energy_criterion = EnergyPredictorLoss()
+        self.pitch_criterion = PitchPredictorLoss()
         # TODO(kan-bayashi): support knowledge distillation loss
         self.criterion = torch.nn.L1Loss()
 
-    def _forward(self, xs, ilens, ys=None, olens=None, durs=None, es=None, ps=None, is_inference=False):
+    def _forward(self, xs, ilens, ys=None, olens=None, ds=None, es=None, ps=None, is_inference=False):
         # forward encoder
         x_masks = self._source_mask(ilens)
         hs, _ = self.encoder(xs, x_masks)  # (B, Tmax, adim)
@@ -215,12 +239,21 @@ class FeedForwardTransformer(torch.nn.Module):
         if is_inference:
             d_outs = self.duration_predictor.inference(hs, d_masks)  # (B, Tmax)
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
+            e_outs = self.energy_predictor.inference(hs)
+            p_outs = self.pitch_predictor.inference(hs)
+            one_hot_energy = energy_to_one_hot(es)  # (B, Lmax, adim)
+            one_hot_pitch = pitch_to_one_hot(ps)  # (B, Lmax, adim)
         else:
             with torch.no_grad():
-                ds = self.duration_calculator(xs, ilens, ys, olens)  # (B, Tmax)
+                # ds = self.duration_calculator(xs, ilens, ys, olens)  # (B, Tmax)
+                one_hot_energy = energy_to_one_hot(es) # (B, Lmax, adim)
+                one_hot_pitch = pitch_to_one_hot(ps)   # (B, Lmax, adim)
             d_outs = self.duration_predictor(hs, d_masks)  # (B, Tmax)
             hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
-
+            e_outs = self.energy_predictor(hs)
+            p_outs = self.pitch_predictor(hs)
+        hs = hs + one_hot_pitch
+        hs = hs + one_hot_energy
         # forward decoder
         if olens is not None:
             h_masks = self._source_mask(olens)
@@ -232,9 +265,9 @@ class FeedForwardTransformer(torch.nn.Module):
         if is_inference:
             return outs
         else:
-            return outs, ds, d_outs
+            return outs, d_outs, e_outs, p_outs
 
-    def forward(self, xs, ilens, ys, olens, durs, es, ps, *args, **kwargs):
+    def forward(self, xs, ilens, ys, olens, ds, es, ps, *args, **kwargs):
         """Calculate forward propagation.
 
         Args:
@@ -253,7 +286,7 @@ class FeedForwardTransformer(torch.nn.Module):
         ys = ys[:, :max(olens)]
 
         # forward propagation
-        outs, ds, d_outs = self._forward(xs, ilens, ys, olens, durs, es, ps, is_inference=False)
+        outs, d_outs, e_outs, p_outs = self._forward(xs, ilens, ys, olens, ds, es, ps, is_inference=False)
 
         # apply mask to remove padded part
         if self.use_masking:
@@ -262,15 +295,21 @@ class FeedForwardTransformer(torch.nn.Module):
             ds = ds.masked_select(in_masks)
             out_masks = make_non_pad_mask(olens).unsqueeze(-1).to(ys.device)
             outs = outs.masked_select(out_masks)
+            e_outs = e_outs.masked_select(out_masks) # Write size
+            p_outs = p_outs.masked_select(out_masks) # Write size
             ys = ys.masked_select(out_masks)
 
         # calculate loss
         l1_loss = self.criterion(outs, ys)
         duration_loss = self.duration_criterion(d_outs, ds)
-        loss = l1_loss + duration_loss
+        energy_loss = self.energy_criterion(e_outs, es)
+        pitch_loss = self.energy_criterion(p_outs, ps)
+        loss = l1_loss + duration_loss + energy_loss + pitch_loss
         report_keys = [
             {"l1_loss": l1_loss.item()},
             {"duration_loss": duration_loss.item()},
+            {"energy_loss": energy_loss.item()},
+            {"pitch_loss": pitch_loss.item()},
             {"loss": loss.item()},
         ]
 
