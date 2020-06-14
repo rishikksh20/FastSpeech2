@@ -9,6 +9,9 @@ import json
 import os 
 import logging
 
+def str_to_int_list(s):
+    return list(map(int, s.split()))
+
 def to_device(m, x):
     """Send tensor into the device of the module.
 

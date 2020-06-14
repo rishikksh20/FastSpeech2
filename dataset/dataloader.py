@@ -7,7 +7,7 @@ from dataset.texts import phonemes_to_sequence
 import hparams as hp
 import numpy as np
 from dataset.texts import text_to_sequence
-from utils.util import pad_list
+from utils.util import pad_list, str_to_int_list
 
 def get_tts_dataset(path, batch_size, valid=False) :
 
@@ -66,11 +66,11 @@ class TTSDataset(Dataset):
         else:
             x = text_to_sequence(x_, hp.tts_cleaner_names)
         mel = np.load(f'{self.path}mels/{id}.npy')
-        durations = self._metadata[index][2]
+        durations = str_to_int_list(self._metadata[index][2])
         e = np.load(f'{self.path}energy/{id}.npy')
         p = np.load(f'{self.path}pitch/{id}.npy')
         mel_len = mel.shape[0]
-        return np.array(x), mel, id, mel_len, durations, e, p
+        return np.array(x), mel, id, mel_len, np.array(durations), e, p
 
     def __len__(self):
         return len(self._metadata)
@@ -85,10 +85,10 @@ def pad2d(x, max_len) :
 
 def collate_tts(batch):
 
-
     ilens = torch.from_numpy(np.array([x[0].shape[0] for x in batch])).long()
     olens = torch.from_numpy(np.array([y[1].shape[0] for y in batch])).long()
     ids = [x[2] for x in batch]
+    
     # perform padding and conversion to tensor
     inputs = pad_list([torch.from_numpy(x[0]).long() for x in batch], 0)
     mels = pad_list([torch.from_numpy(y[1]).float() for y in batch], 0)
@@ -101,6 +101,7 @@ def collate_tts(batch):
     labels = mels.new_zeros(mels.size(0), mels.size(1))
     for i, l in enumerate(olens):
         labels[i, l - 1:] = 1.0
+
     return inputs, ilens, mels, labels, olens, ids, durations, energys, pitches
 
 class BinnedLengthSampler(Sampler):
