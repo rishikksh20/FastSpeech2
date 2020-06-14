@@ -79,45 +79,7 @@ def pad2d(x, max_len) :
 
 def collate_tts(batch):
 
-    # x_lens = [len(x[0]) for x in batch]
-    # max_x_len = max(x_lens)
-    # r=1
-    # chars = [pad1d(x[0], max_x_len) for x in batch]
-    # chars = np.stack(chars)
-    #
-    # spec_lens = [x[1].shape[-1] for x in batch]
-    # max_spec_len = max(spec_lens) + 1
-    # if max_spec_len % r != 0:
-    #     max_spec_len += r - max_spec_len % r
-    #
-    # mel = [pad2d(x[1], max_spec_len) for x in batch]
-    # mel = np.stack(mel)
-    #
-    # ids = [x[2] for x in batch]
-    # mel_lens = [x[3] for x in batch]
-    #
-    # x_lens = torch.tensor(x_lens)
-    # chars = torch.tensor(chars).long()
-    # mel = torch.tensor(mel)
-    # mel = mel.transpose(1,2)
-    # mel_lens = torch.tensor(mel_lens)
-    # print("chars : ",chars.size())
-    # print("x_lens : ", x_lens.size())
-    # print("mel : ", mel.size())
-    # print("mel_lens : ", mel_lens.size())
 
-    # xs, ys, _, _ = batch[0]
-    # print("batch : ", len(batch))
-    # print(batch[])
-    # for b in batch:
-    #     xs.append(b[0])
-    #     ys.append(b[1])
-    #     print("b 0:",b[0])
-    # xs = np.array(xs)
-    # ys = np.array(ys)
-    # print("xs : ",xs[0].shape)
-    # print("ys : ", ys[0].shape)
-    # get list of lengths (must be tensor for DataParallel)
     ilens = torch.from_numpy(np.array([x[0].shape[0] for x in batch])).long()
     olens = torch.from_numpy(np.array([y[1].shape[0] for y in batch])).long()
     ids = [x[2] for x in batch]
@@ -129,30 +91,6 @@ def collate_tts(batch):
     labels = mels.new_zeros(mels.size(0), mels.size(1))
     for i, l in enumerate(olens):
         labels[i, l - 1:] = 1.0
-
-    # prepare dict
-    # new_batch = {
-    #     "xs": xs,
-    #     "ilens": ilens,
-    #     "ys": ys,
-    #     "labels": labels,
-    #     "olens": olens,
-    # }
-
-    # scale spectrograms to -4 <--> 4
-    # print("Print start")
-    # print("chars :", inputs.size())
-    # print("input :",inputs)
-    # print("x_lens :", ilens.size())
-    # print("xlens :", ilens)
-    # print("mel value:",mels)
-    # print("mel :", mels.size())
-    # print("olen :", olens)
-    # print("mel_lens :", olens.size())
-    # print("labels see:",labels)
-    # print("labels : ", labels.size())
-    # print("Finish")
-    #mels = (mels * 8.) - 4.
     return inputs, ilens, mels, labels, olens, ids
 
 class BinnedLengthSampler(Sampler):

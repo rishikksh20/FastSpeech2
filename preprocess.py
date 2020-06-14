@@ -27,15 +27,24 @@ def convert_file(path) :
     mel = melspectrogram(y)
     #mel = logmelspectrogram(y, hp.sample_rate, hp.n_mels, hp.n_fft, hp.hop_length)
     # Output [T, num_mel]
-    return mel.astype(np.float32)
+
+    e = energy(y) # [T, ] T = Number of frames
+    p = pitch(y)  # [T, ] T = Number of frames
+    return mel.astype(np.float32), e.astype(np.float32), p.astype(np.float32)
 
 
 def process_wav(wav) :
     mel_path = os.path.join(args.out_path, 'mels')
+    energy_path = os.path.join(args.out_path, 'energy')
+    pitch_path = os.path.join(args.out_path, 'pitch')
     os.makedirs(mel_path, exist_ok=True)
+    os.makedirs(energy_path, exist_ok=True)
+    os.makedirs(pitch_path, exist_ok=True)
     id = wav
-    m = convert_file('{}/wavs/{}.wav'.format(path,wav))
+    m, e, p = convert_file('{}/wavs/{}.wav'.format(path,wav))
     np.save('{}/{}.npy'.format(mel_path,id), m, allow_pickle=False)
+    np.save('{}/{}.npy'.format(energy_path, id), e, allow_pickle=False)
+    np.save('{}/{}.npy'.format(pitch_path, id), p, allow_pickle=False)
     return id, m.shape[-1]
 
 

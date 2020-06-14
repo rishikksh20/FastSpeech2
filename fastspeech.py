@@ -43,91 +43,6 @@ class FeedForwardTransformer(torch.nn.Module):
 
     """
 
-    @staticmethod
-    def add_arguments(parser):
-        """Add model-specific arguments to the parser."""
-        group = parser.add_argument_group("feed-forward transformer model setting")
-        # network structure related
-        group.add_argument("--adim", default=384, type=int,
-                           help="Number of attention transformation dimensions")
-        group.add_argument("--aheads", default=4, type=int,
-                           help="Number of heads for multi head attention")
-        group.add_argument("--elayers", default=6, type=int,
-                           help="Number of encoder layers")
-        group.add_argument("--eunits", default=1536, type=int,
-                           help="Number of encoder hidden units")
-        group.add_argument("--dlayers", default=6, type=int,
-                           help="Number of decoder layers")
-        group.add_argument("--dunits", default=1536, type=int,
-                           help="Number of decoder hidden units")
-        group.add_argument("--positionwise-layer-type", default="linear", type=str,
-                           choices=["linear", "conv1d"],
-                           help="Positionwise layer type.")
-        group.add_argument("--positionwise-conv-kernel-size", default=3, type=int,
-                           help="Kernel size of positionwise conv1d layer")
-        group.add_argument("--use-scaled-pos-enc", default=True, type=strtobool,
-                           help="Use trainable scaled positional encoding instead of the fixed scale one")
-        group.add_argument("--encoder-normalize-before", default=False, type=strtobool,
-                           help="Whether to apply layer norm before encoder block")
-        group.add_argument("--decoder-normalize-before", default=False, type=strtobool,
-                           help="Whether to apply layer norm before decoder block")
-        group.add_argument("--encoder-concat-after", default=False, type=strtobool,
-                           help="Whether to concatenate attention layer's input and output in encoder")
-        group.add_argument("--decoder-concat-after", default=False, type=strtobool,
-                           help="Whether to concatenate attention layer's input and output in decoder")
-        group.add_argument("--duration-predictor-layers", default=2, type=int,
-                           help="Number of layers in duration predictor")
-        group.add_argument("--duration-predictor-chans", default=384, type=int,
-                           help="Number of channels in duration predictor")
-        group.add_argument("--duration-predictor-kernel-size", default=3, type=int,
-                           help="Kernel size in duration predictor")
-        group.add_argument("--teacher-model", default=None, type=str, nargs="?",
-                           help="Teacher model file path")
-        group.add_argument("--reduction-factor", default=1, type=int,
-                           help="Reduction factor")
-        group.add_argument("--spk-embed-dim", default=None, type=int,
-                           help="Number of speaker embedding dimensions")
-        group.add_argument("--spk-embed-integration-type", type=str, default="add",
-                           choices=["add", "concat"],
-                           help="How to integrate speaker embedding")
-        # training related
-        group.add_argument("--transformer-init", type=str, default="pytorch",
-                           choices=["pytorch", "xavier_uniform", "xavier_normal",
-                                    "kaiming_uniform", "kaiming_normal"],
-                           help="How to initialize transformer parameters")
-        group.add_argument("--initial-encoder-alpha", type=float, default=1.0,
-                           help="Initial alpha value in encoder's ScaledPositionalEncoding")
-        group.add_argument("--initial-decoder-alpha", type=float, default=1.0,
-                           help="Initial alpha value in decoder's ScaledPositionalEncoding")
-        group.add_argument("--transformer-lr", default=1.0, type=float,
-                           help="Initial value of learning rate")
-        group.add_argument("--transformer-warmup-steps", default=4000, type=int,
-                           help="Optimizer warmup steps")
-        group.add_argument("--transformer-enc-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for transformer encoder except for attention")
-        group.add_argument("--transformer-enc-positional-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for transformer encoder positional encoding")
-        group.add_argument("--transformer-enc-attn-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for transformer encoder self-attention")
-        group.add_argument("--transformer-dec-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for transformer decoder except for attention and pos encoding")
-        group.add_argument("--transformer-dec-positional-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for transformer decoder positional encoding")
-        group.add_argument("--transformer-dec-attn-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for transformer decoder self-attention")
-        group.add_argument("--transformer-enc-dec-attn-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for transformer encoder-decoder attention")
-        group.add_argument("--duration-predictor-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for duration predictor")
-        group.add_argument("--transfer-encoder-from-teacher", default=True, type=strtobool,
-                           help="Whether to transfer teacher's parameters")
-        group.add_argument("--transferred-encoder-module", default="all", type=str,
-                           choices=["all", "embed"],
-                           help="Encoder modeules to be trasferred from teacher")
-        # loss related
-        group.add_argument("--use-masking", default=True, type=strtobool,
-                           help="Whether to use masking in calculation of loss")
-        return parser
 
     def __init__(self, idim, odim, args=None):
         """Initialize feed-forward Transformer module.
@@ -174,7 +89,7 @@ class FeedForwardTransformer(torch.nn.Module):
         torch.nn.Module.__init__(self)
 
         # fill missing arguments
-        args = fill_missing_args(args, self.add_arguments)
+        #args = fill_missing_args(args, self.add_arguments)
 
         # store hyperparameters
         self.idim = idim
