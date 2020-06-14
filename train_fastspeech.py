@@ -68,7 +68,7 @@ def train(args):
         for data in pbar:
             #start_b = time.time()
             global_step += 1
-            x, input_length, y, _, out_length, _ = data
+            x, input_length, y, _, out_length, _, dur, e, p = data
             # x : [batch , num_char], input_length : [batch], y : [batch, T_in, num_mel]
             #             # stop_token : [batch, T_in], out_length : [batch]
             #print("x : ", x.size())
@@ -77,7 +77,7 @@ def train(args):
             #print("stop : ", stop_token.size())
             #print("out : ", out_length.size())
             #print("out length: ", out_length)
-            loss, report_dict = model(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda())
+            loss, report_dict = model(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda(), dur.cuda(), e.cuda(), p.cuda())
             loss = loss.mean()/hp.accum_grad
             running_loss += loss.item()
 

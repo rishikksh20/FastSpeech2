@@ -201,7 +201,7 @@ class FeedForwardTransformer(torch.nn.Module):
         # TODO(kan-bayashi): support knowledge distillation loss
         self.criterion = torch.nn.L1Loss()
 
-    def _forward(self, xs, ilens, ys=None, olens=None, is_inference=False):
+    def _forward(self, xs, ilens, ys=None, olens=None, durs=None, es=None, ps=None, is_inference=False):
         # forward encoder
         x_masks = self._source_mask(ilens)
         hs, _ = self.encoder(xs, x_masks)  # (B, Tmax, adim)
@@ -234,7 +234,7 @@ class FeedForwardTransformer(torch.nn.Module):
         else:
             return outs, ds, d_outs
 
-    def forward(self, xs, ilens, ys, olens, *args, **kwargs):
+    def forward(self, xs, ilens, ys, olens, durs, es, ps, *args, **kwargs):
         """Calculate forward propagation.
 
         Args:
@@ -253,7 +253,7 @@ class FeedForwardTransformer(torch.nn.Module):
         ys = ys[:, :max(olens)]
 
         # forward propagation
-        outs, ds, d_outs = self._forward(xs, ilens, ys, olens, is_inference=False)
+        outs, ds, d_outs = self._forward(xs, ilens, ys, olens, durs, es, ps, is_inference=False)
 
         # apply mask to remove padded part
         if self.use_masking:

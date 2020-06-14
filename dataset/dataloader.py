@@ -59,12 +59,15 @@ class TTSDataset(Dataset):
             self._metadata = [line.strip().split('|') for line in f]
 
     def __getitem__(self, index):
-        id = self._metadata[index][0]
-        x_ = self._metadata[index][2]
+        id = self._metadata[index][4].split(".")[0]
+        x_ = self._metadata[index][3]
         x = text_to_sequence(x_, hp.tts_cleaner_names)
         mel = np.load(f'{self.path}mels/{id}.npy')
+        durations = self._metadata[index][2]
+        e = np.load(f'{self.path}energy/{id}.npy')
+        p = np.load(f'{self.path}pitch/{id}.npy')
         mel_len = mel.shape[0]
-        return np.array(x), mel, id, mel_len
+        return np.array(x), mel, id, mel_len, durations, e, p
 
     def __len__(self):
         return len(self._metadata)
@@ -87,11 +90,15 @@ def collate_tts(batch):
     inputs = pad_list([torch.from_numpy(x[0]).long() for x in batch], 0)
     mels = pad_list([torch.from_numpy(y[1]).float() for y in batch], 0)
 
+    durations = pad_list([torch.from_numpy(x[4]).long() for x in batch], 0)
+    energys = pad_list([torch.from_numpy(y[5]).float() for y in batch], 0)
+    pitches = pad_list([torch.from_numpy(y[6]).float() for y in batch], 0)
+
     # make labels for stop prediction
     labels = mels.new_zeros(mels.size(0), mels.size(1))
     for i, l in enumerate(olens):
         labels[i, l - 1:] = 1.0
-    return inputs, ilens, mels, labels, olens, ids
+    return inputs, ilens, mels, labels, olens, ids, durations, energys, pitches
 
 class BinnedLengthSampler(Sampler):
     def __init__(self, lengths, batch_size, bin_size):
