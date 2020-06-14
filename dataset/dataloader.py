@@ -3,7 +3,7 @@ import random
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import Sampler
-from dataset.audio_processing import *
+from dataset.texts import phonemes_to_sequence
 import hparams as hp
 import numpy as np
 from dataset.texts import text_to_sequence
@@ -60,8 +60,11 @@ class TTSDataset(Dataset):
 
     def __getitem__(self, index):
         id = self._metadata[index][4].split(".")[0]
-        x_ = self._metadata[index][3]
-        x = text_to_sequence(x_, hp.tts_cleaner_names)
+        x_ = self._metadata[index][3].split()
+        if hp.use_phonemes:
+            x = phonemes_to_sequence(x_)
+        else:
+            x = text_to_sequence(x_, hp.tts_cleaner_names)
         mel = np.load(f'{self.path}mels/{id}.npy')
         durations = self._metadata[index][2]
         e = np.load(f'{self.path}energy/{id}.npy')

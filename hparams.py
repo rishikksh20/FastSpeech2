@@ -7,7 +7,7 @@ verbose=0    # verbose option (if set > 0, get more log)
 N=0          # number of minibatches to be used (mainly for debugging). "0" uses all minibatches.
 seed=1       # random seed number
 resume=""    # the snapshot path to resume (if set empty, no effect)
-
+use_phonemes = True
 # feature extraction related
 sample_rate=22050      # sampling frequency
 fmax=8000.0       # maximum frequency

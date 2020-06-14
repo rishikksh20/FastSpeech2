@@ -1,7 +1,7 @@
 """ from https://github.com/keithito/tacotron """
 import re
 from dataset.texts import cleaners
-from dataset.texts.symbols import symbols, _eos
+from dataset.texts.symbols import symbols, _eos, phonemes_symbols, PAD, EOS, _PHONEME_SEP
 import hparams as hp
 from dataset.texts.dict_ import symbols_
 
@@ -76,3 +76,31 @@ def _arpabet_to_sequence(text):
 
 def _should_keep_symbol(s):
     return s in _symbol_to_id and s is not '_' and s is not '~'
+
+
+# For phonemes
+_phoneme_to_id = {s: i for i, s in enumerate(phonemes_symbols)}
+_id_to_phoneme = {i: s for i, s in enumerate(phonemes_symbols)}
+
+
+def _should_keep_token(token, token_dict):
+    return token in token_dict \
+           and token != PAD and token != EOS \
+           and token != _phoneme_to_id[PAD] \
+           and token != _phoneme_to_id[EOS]
+
+def phonemes_to_sequence(phonemes):
+    string = phonemes.split(_PHONEME_SEP) if isinstance(phonemes, str) else phonemes
+    string.append(EOS)
+    sequence = [_phoneme_to_id[s] for s in string
+                if _should_keep_token(s, _phoneme_to_id)]
+    return sequence
+
+
+def sequence_to_phonemes(sequence, use_eos=False):
+    string = [_id_to_phoneme[idx] for idx in sequence
+              if _should_keep_token(idx, _id_to_phoneme)]
+    string = _PHONEME_SEP.join(string)
+    if use_eos:
+        string = string.replace(EOS, '')
+    return string
