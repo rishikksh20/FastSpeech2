@@ -21,9 +21,9 @@ def pitch_to_one_hot(f0):
     f0[f0 == 0] = 1
     # bins = np.logspace(0, np.log10(f0.max()), 256)
     log_f0 = np.log(f0)
-    bins = np.linspace(log_f0.min(), log_f0.max(), num=256)
+    bins = np.linspace(hp.p_min, hp.p_max, num=256)
 
-    p_quantize = np.digitize(f0, bins)
+    p_quantize = np.digitize(log_f0, bins)
     p_quantize = torch.from_numpy(p_quantize -1 ).float().to(torch.device("cuda" if hp.ngpu > 0 else "cpu"))
 
     return F.one_hot(p_quantize, 256).float()

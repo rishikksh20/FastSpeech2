@@ -88,7 +88,7 @@ def collate_tts(batch):
     ilens = torch.from_numpy(np.array([x[0].shape[0] for x in batch])).long()
     olens = torch.from_numpy(np.array([y[1].shape[0] for y in batch])).long()
     ids = [x[2] for x in batch]
-    
+
     # perform padding and conversion to tensor
     inputs = pad_list([torch.from_numpy(x[0]).long() for x in batch], 0)
     mels = pad_list([torch.from_numpy(y[1]).float() for y in batch], 0)

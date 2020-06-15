@@ -8,6 +8,11 @@ N=0          # number of minibatches to be used (mainly for debugging). "0" uses
 seed=1       # random seed number
 resume=""    # the snapshot path to resume (if set empty, no effect)
 use_phonemes = True
+
+p_min = 0
+p_max = 1
+e_min = 0
+e_max =1
 # feature extraction related
 sample_rate=22050      # sampling frequency
 fmax=8000.0       # maximum frequency
