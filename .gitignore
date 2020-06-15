@@ -1,3 +1,15 @@
 .idea
 idea/*
 /.idea
+/data
+/output
+/logs
+/__pycache__
+/core/__pycache__
+/core/duration_modeling/__pycache__
+/core/energy_predictor/__pycache__
+/core/pitch_predictor/__pycache__
+/dataset/__pycache__
+/dataset/texts/__pycache__
+/utils/__pycache__
+/modules/__pycache__
