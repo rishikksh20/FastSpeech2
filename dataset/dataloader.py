@@ -29,6 +29,7 @@ def get_tts_dataset(path, batch_size, valid=False) :
     else:
         file_ = hp.train_filelist
     train_dataset = TTSDataset(path, file_)
+    # train_dataset = TTSDataset(file_)
 
     # sampler = None
     #
@@ -53,8 +54,8 @@ def get_tts_dataset(path, batch_size, valid=False) :
 
 
 class TTSDataset(Dataset):
-    def __init__(self, file_) :
-        #self.path = path
+    def __init__(self, path, file_) :
+        self.path = path
         with open('{}'.format(file_), encoding='utf-8') as f:
             self._metadata = [line.strip().split('|') for line in f]
 
@@ -70,7 +71,8 @@ class TTSDataset(Dataset):
         e = np.load(f'{self.path}energy/{id}.npy')
         p = np.load(f'{self.path}pitch/{id}.npy')
         mel_len = mel.shape[0]
-        return np.array(x), mel, id, mel_len, np.array(durations), e, p
+
+        return np.array(x), mel.T, id, mel_len, np.array(durations), e, p # Mel [T, num_mel]
 
     def __len__(self):
         return len(self._metadata)

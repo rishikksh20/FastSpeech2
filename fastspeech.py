@@ -179,7 +179,7 @@ class FeedForwardTransformer(torch.nn.Module):
         # NOTE: we use encoder as decoder because fastspeech's decoder is the same as encoder
         self.decoder = Encoder(
             idim=0,
-            attention_dim=hp.adim,
+            attention_dim=384,
             attention_heads=hp.aheads,
             linear_units=hp.dunits,
             num_blocks=hp.dlayers,
@@ -203,20 +203,20 @@ class FeedForwardTransformer(torch.nn.Module):
                                init_dec_alpha=hp.initial_decoder_alpha)
 
         # define teacher model
-        if hp.teacher_model is not None:
-            self.teacher = self._load_teacher_model(hp.teacher_model)
-        else:
-            self.teacher = None
-
-        # define duration calculator
-        if self.teacher is not None:
-            self.duration_calculator = DurationCalculator(self.teacher)
-        else:
-            self.duration_calculator = None
-
-        # transfer teacher parameters
-        if self.teacher is not None and hp.transfer_encoder_from_teacher:
-            self._transfer_from_teacher(hp.transferred_encoder_module)
+        # if hp.teacher_model is not None:
+        #     self.teacher = self._load_teacher_model(hp.teacher_model)
+        # else:
+        #     self.teacher = None
+        #
+        # # define duration calculator
+        # if self.teacher is not None:
+        #     self.duration_calculator = DurationCalculator(self.teacher)
+        # else:
+        #     self.duration_calculator = None
+        #
+        # # transfer teacher parameters
+        # if self.teacher is not None and hp.transfer_encoder_from_teacher:
+        #     self._transfer_from_teacher(hp.transferred_encoder_module)
 
         # define criterions
         self.duration_criterion = DurationPredictorLoss()

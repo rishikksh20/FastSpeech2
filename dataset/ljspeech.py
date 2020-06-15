@@ -14,8 +14,8 @@ def ljspeech(path, data_dir) :
     assert len(csv_file) == 1
 
     wavs = []
-    texts = []
-    encode = []
+    #texts = []
+    #encode = []
 
     with open(csv_file[0], encoding='utf-8') as f_ :
         # if 'phoneme_cleaners' in hp.tts_cleaner_names:
@@ -29,23 +29,23 @@ def ljspeech(path, data_dir) :
             sub = {}
             split = line.split('|')
             t = split[-1].strip().upper()
-            t = t.replace('"', '')
-            t = t.replace('-', ' ')
-            t = t.replace(';','')
-            t = t.replace('(', '')
-            t = t.replace(')', '')
-            t = t.replace(':', '')
-            t = re.sub('[^A-Za-z0-9.!?,\' ]+', '', t)
+            # t = t.replace('"', '')
+            # t = t.replace('-', ' ')
+            # t = t.replace(';','')
+            # t = t.replace('(', '')
+            # t = t.replace(')', '')
+            # t = t.replace(':', '')
+            # t = re.sub('[^A-Za-z0-9.!?,\' ]+', '', t)
             if len(t)>0:
                 wavs.append(split[0].strip())
-                texts.append(t)
-                encode.append(text_to_sequence(t, hp.tts_cleaner_names))
-    with open(os.path.join(data_dir, 'train.txt'), 'w', encoding='utf-8') as f:
-        for w, t, e in zip(wavs, texts, encode):
-            f.write('{}|{}|{}'.format(w,e,t) + '\n')
+                #texts.append(t)
+                #encode.append(text_to_sequence(t, hp.tts_cleaner_names))
+    # with open(os.path.join(data_dir, 'train.txt'), 'w', encoding='utf-8') as f:
+    #     for w, t, e in zip(wavs, texts, encode):
+    #         f.write('{}|{}|{}'.format(w,e,t) + '\n')
 
 
-    return wavs, texts, encode
+    return wavs #, texts, encode
 
 
 if __name__ == "__main__":

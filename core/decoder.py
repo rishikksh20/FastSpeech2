@@ -31,8 +31,8 @@ class Decoder(torch.nn.Module):
     def __init__(self, odim,
                  attention_dim=256,
                  attention_heads=4,
-                 linear_units=2048,
-                 num_blocks=6,
+                 linear_units=1024,
+                 num_blocks=4,
                  dropout_rate=0.1,
                  positional_dropout_rate=0.1,
                  self_attention_dropout_rate=0.0,
@@ -65,7 +65,7 @@ class Decoder(torch.nn.Module):
             raise NotImplementedError("only `embed` or torch.nn.Module is supported.")
         self.normalize_before = normalize_before
         self.decoders = repeat(
-            6,
+            4,
             lambda: DecoderLayer(
                 attention_dim,
                 MultiHeadedAttention(attention_heads, attention_dim, self_attention_dropout_rate),

@@ -32,12 +32,12 @@ def train(args):
     odim = hp.num_mels
     model = fastspeech.FeedForwardTransformer(idim, odim, args)
     # set torch device
-    if args.resume is not None and os.path.exists(args.resume):
-        print('\nSynthesis Session...\n')
-        model.load_state_dict(torch.load(args.resume), strict=False)
-    else:
-        print("Checkpoint not exixts")
-        return None
+    # if args.resume is not None and os.path.exists(args.resume):
+    #     print('\nSynthesis Session...\n')
+    #     model.load_state_dict(torch.load(args.resume), strict=False)
+    # else:
+    #     print("Checkpoint not exixts")
+    #     return None
     model = model.to(device)
     print("Model is loaded ...")
     print("Batch Size :",hp.batch_size)
@@ -56,7 +56,7 @@ def train(args):
     writer = SummaryWriter(hp.log_dir)
     model.train()
     forward_count = 0
-    print(model)
+    #print(model)
     for epoch in range(hp.epochs):
         start = time.time()
         # dataloader = DataLoader(dataset, batch_size=hp.batch_size, shuffle=True, collate_fn=collate_fn_transformer,
@@ -382,7 +382,7 @@ def main(cmd_args):
 
     #model_class = dynamic_import(args.model_module)
     #assert issubclass(model_class, TTSInterface)
-    fastspeech.FeedForwardTransformer.add_arguments(parser)
+    #fastspeech.FeedForwardTransformer.add_arguments(parser)
     args = parser.parse_args(cmd_args)
 
     # logging info

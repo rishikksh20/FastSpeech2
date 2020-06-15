@@ -50,7 +50,7 @@ def energy(y):
 def pitch(y):
     # Extract Pitch/f0 from raw waveform using PyWORLD
     y = y.astype(np.float64)
-    f0, timeaxis = pw.harvest(y, 22050, f0_ceil=8000.0, frame_period=11.6)  # For hop size 256 frame period is 11.6 ms
+    f0, timeaxis = pw.dio(y, 22050, f0_ceil=8000.0, frame_period=11.6)  # For hop size 256 frame period is 11.6 ms
     return f0 #   (Number of Frames) = (654,)
 
 

@@ -17,7 +17,7 @@ class PitchPredictor(torch.nn.Module):
 
                 """
         super(PitchPredictor, self).__init__()
-        predictor = VariancePredictor(idim, n_layers, n_chans, kernel_size, dropout_rate, offset)
+        self.predictor = VariancePredictor(idim)
 
     def forward(self, xs, x_masks=None):
         """Calculate forward propagation.

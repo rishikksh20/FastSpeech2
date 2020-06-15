@@ -4,7 +4,7 @@ from core.variance_predictor import VariancePredictor
 
 class EnergyPredictor(torch.nn.Module):
 
-    def __init__(self ,idim, n_layers=2, n_chans=384, kernel_size=3, dropout_rate=0.1, offset=1.0):
+    def __init__(self ,idim, n_layers=2, n_chans=256, kernel_size=3, dropout_rate=0.1, offset=1.0):
         """Initilize Energy predictor module.
 
                 Args:
@@ -17,7 +17,7 @@ class EnergyPredictor(torch.nn.Module):
 
                 """
         super(EnergyPredictor, self).__init__()
-        predictor = VariancePredictor(idim, n_layers, n_chans, kernel_size, dropout_rate, offset)
+        self.predictor = VariancePredictor(idim)
 
     def forward(self, xs, x_masks=None):
         """Calculate forward propagation.

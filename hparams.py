@@ -9,10 +9,10 @@ seed=1       # random seed number
 resume=""    # the snapshot path to resume (if set empty, no effect)
 use_phonemes = True
 
-p_min = 0
-p_max = 1
-e_min = 0
-e_max =1
+p_min = 1.0
+p_max = 8000.0
+e_min = 0.0
+e_max =14.0
 # feature extraction related
 sample_rate=22050      # sampling frequency
 fmax=8000.0       # maximum frequency
@@ -28,8 +28,8 @@ bits = 9                            # bit depth of signal
 mu_law = True                       # Recommended to suppress noise if using raw bits in hp.voc_mode below
 peak_norm = False                   # Normalise to the peak of each wav file
 eos=True
-symbol_len = 35
-batch_size = 16
+symbol_len = 56
+batch_size = 32
 
 
 # network architecture related
@@ -39,18 +39,18 @@ eprenet_conv_layers= 0  # one more linear layer w/o non_linear will be added for
 eprenet_conv_filts= 0
 eprenet_conv_chans= 0
 dprenet_layers= 2  # one more linear layer w/o non_linear will be added for 0_centor
-dprenet_units= 256
-adim= 384
-aheads= 4
-elayers= 6
-eunits= 1536
-dlayers= 6
-dunits= 1536
-positionwise_layer_type = "linear" # conv1d
-positionwise_conv_kernel_size = 1 # 3
+dprenet_units= 256 # 384
+adim= 256
+aheads= 2
+elayers= 4
+eunits= 1024
+dlayers= 4
+dunits= 1024
+positionwise_layer_type = "conv1d" # conv1d
+positionwise_conv_kernel_size = 9 # 3
 postnet_layers= 5
 postnet_filts= 5
-postnet_chans= 256
+postnet_chans= 384
 use_masking= True
 bce_pos_weight= 5.0
 use_batch_norm= True
@@ -63,7 +63,7 @@ reduction_factor= 1
 loss_type = "L1"
 # minibatch related
 batch_sort_key= input # shuffle or input or output
-batch_bins= 910800    # 12 * (870 * 80 + 180 * 35)
+batch_bins= 2549760    # 12 * (870 * 80 + 180 * 35)
                       # batch_size * (max_out * dim_out + max_in * dim_in)
                       # resuling in 11 ~ 66 samples (avg 15 samples) in batch (809 batches per epochs) for ljspeech
 
@@ -92,11 +92,11 @@ guided_attn_loss_lambda=1.0
 
 ### FastSpeech
 duration_predictor_layers = 2
-duration_predictor_chans = 384
+duration_predictor_chans = 256
 duration_predictor_kernel_size = 3
 transfer_encoder_from_teacher = True
 duration_predictor_dropout_rate = 0.1
-teacher_model = "transformer_chkpt/checkpoint_450k_steps.pyt"
+teacher_model = ""
 transferred_encoder_module = "all" # choices=["all", "embed"]
 
 

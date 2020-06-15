@@ -19,6 +19,7 @@ def retreive_energy(file):
 
 def energy_to_one_hot(e):
     bins = np.linspace(hp.e_min, hp.e_max, num=256)
-    e_quantize = np.digitize(e, bins)
+    e_numpy = e.cpu().detach().numpy()
+    e_quantize = np.digitize(e_numpy, bins)
     e_quantize = torch.from_numpy(e_quantize-1).to(torch.device("cuda" if hp.ngpu > 0 else "cpu")) # -1 to convert 1 to 256 --> 0 to 255
-    return F.one_hot(e_quantize, 256).float()
+    return F.one_hot(e_quantize.long(), 256).float()
