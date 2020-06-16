@@ -56,7 +56,7 @@ def train(args):
     writer = SummaryWriter(hp.log_dir)
     model.train()
     forward_count = 0
-    #print(model)
+    print(model)
     for epoch in range(hp.epochs):
         start = time.time()
         # dataloader = DataLoader(dataset, batch_size=hp.batch_size, shuffle=True, collate_fn=collate_fn_transformer,
@@ -128,11 +128,11 @@ def train(args):
                 plot_class = model.attention_plot_class
                 plot_fn = plot_class(args.outdir + '/att_ws',device)
                 for valid in validloader:
-                    x_, input_length_, y_, _, out_length_, ids_ = valid
+                    x_, input_length_, y_, _, out_length_, ids_, dur_, e_, p_ = valid
                     model.eval()
                     with torch.no_grad(): 
-                        loss_, report_dict_ = model(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda())
-                    att_ws = model.calculate_all_attentions(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda())
+                        loss_, report_dict_ = model(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda(), dur_.cuda(), e_.cuda(), p_.cuda())
+                    att_ws = model.calculate_all_attentions(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda(), dur_.cuda(), e_.cuda(), p_.cuda())
                     model.train()
 
                     for r in report_dict_:

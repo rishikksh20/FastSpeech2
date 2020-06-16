@@ -29,7 +29,7 @@ mu_law = True                       # Recommended to suppress noise if using raw
 peak_norm = False                   # Normalise to the peak of each wav file
 eos=True
 symbol_len = 56
-batch_size = 32
+batch_size = 16
 
 
 # network architecture related
@@ -46,8 +46,8 @@ elayers= 4
 eunits= 1024
 dlayers= 4
 dunits= 1024
-positionwise_layer_type = "conv1d" # conv1d
-positionwise_conv_kernel_size = 9 # 3
+positionwise_layer_type = "conv1d" # linear
+positionwise_conv_kernel_size = 9 # 1
 postnet_layers= 5
 postnet_filts= 5
 postnet_chans= 384
@@ -95,7 +95,7 @@ duration_predictor_layers = 2
 duration_predictor_chans = 256
 duration_predictor_kernel_size = 3
 transfer_encoder_from_teacher = True
-duration_predictor_dropout_rate = 0.1
+duration_predictor_dropout_rate = 0.5
 teacher_model = ""
 transferred_encoder_module = "all" # choices=["all", "embed"]
 
@@ -111,16 +111,16 @@ epochs= 1000  # 1,000 epochs * 809 batches / 5 accum_grad = 161,800 iters
 GTA = False
 # other
 save_interval_epoch= 10
-train_filelist = "./filelists/train_filelist.txt"
-valid_filelist = "./filelists/valid_filelist.txt"
+train_filelist = "./data/train.txt"
+valid_filelist = "./data/valid.txt"
 tts_cleaner_names = ['english_cleaners']
 # other
-save_interval = 5000
+save_interval = 2500
 chkpt_dir = './checkpoints'
 #fastspeech_chkpt = './fastspeech_checkpoints'
 log_dir = './logs'
 data_dir = './data/'
-summary_interval = 1000
-validation_step = 2000
+summary_interval = 500
+validation_step = 1000
 tts_max_mel_len = 870              # if you have a couple of extremely long spectrograms you might want to use this
 tts_bin_lengths = True              # bins the spectrogram lengths before sampling in data loader - speeds up training

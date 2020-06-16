@@ -70,8 +70,8 @@ class TTSDataset(Dataset):
         durations = str_to_int_list(self._metadata[index][2])
         e = np.load(f'{self.path}energy/{id}.npy')
         p = np.load(f'{self.path}pitch/{id}.npy')
-        mel_len = mel.shape[0]
-
+        mel_len = mel.shape[1]
+        durations[-1] = durations[-1] + (mel.shape[1] - sum(durations))
         return np.array(x), mel.T, id, mel_len, np.array(durations), e, p # Mel [T, num_mel]
 
     def __len__(self):

@@ -13,3 +13,4 @@ idea/*
 /dataset/texts/__pycache__
 /utils/__pycache__
 /modules/__pycache__
+/checkpoints

@@ -130,9 +130,9 @@ class FeedForwardTransformer(torch.nn.Module):
             linear_units=hp.eunits,
             num_blocks=hp.elayers,
             input_layer=encoder_input_layer,
-            dropout_rate=hp.transformer_enc_dropout_rate,
-            positional_dropout_rate=hp.transformer_enc_positional_dropout_rate,
-            attention_dropout_rate=hp.transformer_enc_attn_dropout_rate,
+            dropout_rate=0.2,
+            positional_dropout_rate=0.2,
+            attention_dropout_rate=0.2,
             pos_enc_class=pos_enc_class,
             normalize_before=hp.encoder_normalize_before,
             concat_after=hp.encoder_concat_after,
@@ -179,14 +179,14 @@ class FeedForwardTransformer(torch.nn.Module):
         # NOTE: we use encoder as decoder because fastspeech's decoder is the same as encoder
         self.decoder = Encoder(
             idim=0,
-            attention_dim=384,
+            attention_dim=256,
             attention_heads=hp.aheads,
             linear_units=hp.dunits,
             num_blocks=hp.dlayers,
             input_layer=None,
-            dropout_rate=hp.transformer_dec_dropout_rate,
-            positional_dropout_rate=hp.transformer_dec_positional_dropout_rate,
-            attention_dropout_rate=hp.transformer_dec_attn_dropout_rate,
+            dropout_rate=0.2,
+            positional_dropout_rate=0.2,
+            attention_dropout_rate=0.2,
             pos_enc_class=pos_enc_class,
             normalize_before=hp.decoder_normalize_before,
             concat_after=hp.decoder_concat_after,
@@ -229,6 +229,7 @@ class FeedForwardTransformer(torch.nn.Module):
         # forward encoder
         x_masks = self._source_mask(ilens)
         hs, _ = self.encoder(xs, x_masks)  # (B, Tmax, adim)
+        # print("Ys :",ys.shape)     torch.Size([32, 868, 80])
 
         # integrate speaker embedding
         # if self.spk_embed_dim is not None:
@@ -246,12 +247,19 @@ class FeedForwardTransformer(torch.nn.Module):
         else:
             with torch.no_grad():
                 # ds = self.duration_calculator(xs, ilens, ys, olens)  # (B, Tmax)
-                one_hot_energy = energy_to_one_hot(es) # (B, Lmax, adim)
-                one_hot_pitch = pitch_to_one_hot(ps)   # (B, Lmax, adim)
+                one_hot_energy = energy_to_one_hot(es) # (B, Lmax, adim)   torch.Size([32, 868, 256])
+                # print("one_hot_energy:", one_hot_energy.shape)
+                one_hot_pitch = pitch_to_one_hot(ps)   # (B, Lmax, adim)   torch.Size([32, 868, 256])
+                # print("one_hot_pitch:", one_hot_pitch.shape)
+            # print("Before Hs:", hs.shape)  torch.Size([32, 121, 256])
             d_outs = self.duration_predictor(hs, d_masks)  # (B, Tmax)
+            # print("d_outs:", d_outs.shape)        torch.Size([32, 121])
             hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
+            # print("After Hs:",hs.shape)  torch.Size([32, 868, 256])
             e_outs = self.energy_predictor(hs)
+            # print("e_outs:", e_outs.shape)  torch.Size([32, 868])
             p_outs = self.pitch_predictor(hs)
+            # print("p_outs:", p_outs.shape)   torch.Size([32, 868])
         hs = hs + one_hot_pitch
         hs = hs + one_hot_energy
         # forward decoder
@@ -295,8 +303,8 @@ class FeedForwardTransformer(torch.nn.Module):
             ds = ds.masked_select(in_masks)
             out_masks = make_non_pad_mask(olens).unsqueeze(-1).to(ys.device)
             outs = outs.masked_select(out_masks)
-            e_outs = e_outs.masked_select(out_masks) # Write size
-            p_outs = p_outs.masked_select(out_masks) # Write size
+            #e_outs = e_outs.masked_select(out_masks) # Write size
+            #p_outs = p_outs.masked_select(out_masks) # Write size
             ys = ys.masked_select(out_masks)
 
         # calculate loss
@@ -323,7 +331,7 @@ class FeedForwardTransformer(torch.nn.Module):
 
         return loss, report_keys
 
-    def calculate_all_attentions(self, xs, ilens, ys, olens, *args, **kwargs):
+    def calculate_all_attentions(self, xs, ilens, ys, olens, ds, es, ps, *args, **kwargs):
         """Calculate all of the attention weights.
 
         Args:
@@ -343,7 +351,7 @@ class FeedForwardTransformer(torch.nn.Module):
             ys = ys[:, :max(olens)]
 
             # forward propagation
-            outs = self._forward(xs, ilens, ys, olens, is_inference=False)[0]
+            outs = self._forward(xs, ilens, ys, olens, ds, es, ps, is_inference=False)[0]
 
         att_ws_dict = dict()
         for name, m in self.named_modules():
