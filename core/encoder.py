@@ -34,9 +34,9 @@ class Encoder(torch.nn.Module):
 
     def __init__(self, idim,
                  attention_dim=256,
-                 attention_heads=4,
+                 attention_heads=2,
                  linear_units=2048,
-                 num_blocks=6,
+                 num_blocks=4,
                  dropout_rate=0.1,
                  positional_dropout_rate=0.1,
                  attention_dropout_rate=0.0,

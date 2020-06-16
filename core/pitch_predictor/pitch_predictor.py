@@ -79,8 +79,9 @@ class PitchPredictorLoss(torch.nn.Module):
             `outputs` is in log domain but `targets` is in linear domain.
 
         """
-        # NOTE: outputs is in log domain while targets in linear
+        # NOTE: We convert the output in log domain low error value
         # targets = torch.log(targets.float() + self.offset)
+        # outputs = torch.log(outputs.float() + self.offset)
         loss = self.criterion(outputs, targets)
 
         return loss

@@ -29,7 +29,7 @@ mu_law = True                       # Recommended to suppress noise if using raw
 peak_norm = False                   # Normalise to the peak of each wav file
 eos=True
 symbol_len = 56
-batch_size = 16
+batch_size = 24
 
 
 # network architecture related
@@ -115,12 +115,12 @@ train_filelist = "./data/train.txt"
 valid_filelist = "./data/valid.txt"
 tts_cleaner_names = ['english_cleaners']
 # other
-save_interval = 2500
+save_interval = 2000
 chkpt_dir = './checkpoints'
 #fastspeech_chkpt = './fastspeech_checkpoints'
 log_dir = './logs'
 data_dir = './data/'
-summary_interval = 500
+summary_interval = 100
 validation_step = 1000
 tts_max_mel_len = 870              # if you have a couple of extremely long spectrograms you might want to use this
 tts_bin_lengths = True              # bins the spectrogram lengths before sampling in data loader - speeds up training

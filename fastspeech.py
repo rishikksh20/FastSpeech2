@@ -178,7 +178,7 @@ class FeedForwardTransformer(torch.nn.Module):
         # define decoder
         # NOTE: we use encoder as decoder because fastspeech's decoder is the same as encoder
         self.decoder = Encoder(
-            idim=0,
+            idim=256,
             attention_dim=256,
             attention_heads=hp.aheads,
             linear_units=hp.dunits,
