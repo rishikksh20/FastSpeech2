@@ -10,7 +10,7 @@ resume=""    # the snapshot path to resume (if set empty, no effect)
 use_phonemes = True
 
 p_min = 1.0
-p_max = 8000.0
+p_max = 800.0
 e_min = 0.0
 e_max =14.0
 # feature extraction related
@@ -29,7 +29,7 @@ mu_law = True                       # Recommended to suppress noise if using raw
 peak_norm = False                   # Normalise to the peak of each wav file
 eos=True
 symbol_len = 56
-batch_size = 24
+batch_size = 16
 
 
 # network architecture related

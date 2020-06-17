@@ -26,16 +26,15 @@ def convert_file(path) :
     peak = np.abs(y).max()
     if hp.peak_norm or peak > 1.0:
         y /= peak
-    # mel = melspectrogram(y)
+    mel = melspectrogram(y)
     #mel = logmelspectrogram(y, hp.sample_rate, hp.n_mels, hp.n_fft, hp.hop_length)
     # Output [T, num_mel]
 
     e = energy(y)  # [T, ] T = Number of frames
     p = pitch(y)  # [T, ] T = Number of frames
+    p = p[:mel.shape[1]] # Pitchs have some extra silence frame
 
-
-
-    return e.astype(np.float32), p.astype(np.float32)
+    return  mel.astype(np.float32), e.astype(np.float32), p.astype(np.float32)
 
 
 def process_wav(wav) :
@@ -46,11 +45,11 @@ def process_wav(wav) :
     os.makedirs(energy_path, exist_ok=True)
     os.makedirs(pitch_path, exist_ok=True)
     id = wav
-    e, p = convert_file('{}/wavs/{}.wav'.format(path,wav))
-    # np.save('{}/{}.npy'.format(mel_path,id), m, allow_pickle=False)
+    m, e, p = convert_file('{}/wavs/{}.wav'.format(path,wav))
+    np.save('{}/{}.npy'.format(mel_path,id), m, allow_pickle=False)
     np.save('{}/{}.npy'.format(energy_path, id), e, allow_pickle=False)
     np.save('{}/{}.npy'.format(pitch_path, id), p, allow_pickle=False)
-    return id, e.shape[0]
+    return id, p.shape[0]
 
 
 #wav_files = get_files(path, extension)

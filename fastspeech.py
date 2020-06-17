@@ -222,7 +222,6 @@ class FeedForwardTransformer(torch.nn.Module):
         self.duration_criterion = DurationPredictorLoss()
         self.energy_criterion = EnergyPredictorLoss()
         self.pitch_criterion = PitchPredictorLoss()
-        # TODO(kan-bayashi): support knowledge distillation loss
         self.criterion = torch.nn.L1Loss()
 
     def _forward(self, xs, ilens, ys=None, olens=None, ds=None, es=None, ps=None, is_inference=False):
@@ -242,8 +241,8 @@ class FeedForwardTransformer(torch.nn.Module):
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
             e_outs = self.energy_predictor.inference(hs)
             p_outs = self.pitch_predictor.inference(hs)
-            one_hot_energy = energy_to_one_hot(es)  # (B, Lmax, adim)
-            one_hot_pitch = pitch_to_one_hot(ps)  # (B, Lmax, adim)
+            one_hot_energy = energy_to_one_hot(e_outs)  # (B, Lmax, adim)
+            one_hot_pitch = pitch_to_one_hot(p_outs, False)  # (B, Lmax, adim)
         else:
             with torch.no_grad():
                 # ds = self.duration_calculator(xs, ilens, ys, olens)  # (B, Tmax)
@@ -311,7 +310,7 @@ class FeedForwardTransformer(torch.nn.Module):
         l1_loss = self.criterion(outs, ys)
         duration_loss = self.duration_criterion(d_outs, ds)
         energy_loss = self.energy_criterion(e_outs, es)
-        pitch_loss = self.energy_criterion(p_outs, ps)
+        pitch_loss = self.pitch_criterion(p_outs, ps)
         loss = l1_loss + duration_loss + energy_loss + pitch_loss
         report_keys = [
             {"l1_loss": l1_loss.item()},

@@ -108,14 +108,24 @@ def train(args):
 
             if step % hp.summary_interval == 0:
                 #torch.cuda.empty_cache()
+                            
                 pbar.set_description(
                     "Average Loss %.04f Loss %.04f | step %d" % (running_loss / j, loss.item(), step))
                 # print('Steps : {:d}, Gen Loss : {:4.3f}, Disc Loss : {:4.3f}, s/b : {:4.3f}'.
                 #       format(step, running_loss, loss.item(), time.time() - start_b))
                 #writer.add_scalar("loss/running_loss", running_loss/j, step)
                 #writer.add_scalar("loss/loss", loss.item(), step)
+                print("Losses :")
                 for r in report_dict:
                     for k, v in r.items():
+                        if k == 'l1_loss':
+                            print("\nL1 loss :", v)    
+                        if k == 'duration_loss':
+                            print("\nD loss :", v)
+                        if k == 'pitch_loss':
+                            print("\nP loss :", v)
+                        if k == 'energy_loss':
+                            print("\nE loss :", v)
                         if k is not None and v is not None:
                             if 'cupy' in str(type(v)):
                                 v = v.get()

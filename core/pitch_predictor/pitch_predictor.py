@@ -43,7 +43,7 @@ class PitchPredictor(torch.nn.Module):
             LongTensor: Batch of predicted durations in linear domain (B, Tmax).
 
         """
-        return self.predictor.inference(xs, x_masks) # Need to do One hot code
+        return self.predictor.inference(xs, x_masks, True) # Need to do One hot code
 
 
 
@@ -80,8 +80,11 @@ class PitchPredictorLoss(torch.nn.Module):
 
         """
         # NOTE: We convert the output in log domain low error value
-        # targets = torch.log(targets.float() + self.offset)
+        # print("Output :", outputs[0])
+        # print("Before Output :", targets[0])
+        targets = torch.log(targets.float() + self.offset)
+        # print("Before Output :", targets[0])
         # outputs = torch.log(outputs.float() + self.offset)
         loss = self.criterion(outputs, targets)
-
+        # print(loss)
         return loss
