@@ -27,6 +27,7 @@ from core.embedding import ScaledPositionalEncoding
 from core.encoder import Encoder
 from core.initializer import initialize
 import hparams as hp
+from core.postnet import Postnet
 
 
 class FeedForwardTransformer(torch.nn.Module):
@@ -142,6 +143,21 @@ class FeedForwardTransformer(torch.nn.Module):
             positionwise_conv_kernel_size=hp.positionwise_conv_kernel_size
         )
 
+        # define postnet
+        self.postnet = (
+            None
+            if hp.postnet_layers == 0
+            else Postnet(
+                idim=idim,
+                odim=odim,
+                n_layers=hp.postnet_layers,
+                n_chans=hp.postnet_chans,
+                n_filts=hp.postnet_filts,
+                use_batch_norm=hp.use_batch_norm,
+                dropout_rate=hp.postnet_dropout_rate,
+            )
+        )
+
         # define final projection
         self.feat_out = torch.nn.Linear(hp.adim, odim * hp.reduction_factor)
 
@@ -196,12 +212,20 @@ class FeedForwardTransformer(torch.nn.Module):
         else:
             h_masks = None
         zs, _ = self.decoder(hs, h_masks)  # (B, Lmax, adim)
-        outs = self.feat_out(zs).view(zs.size(0), -1, self.odim)  # (B, Lmax, odim)
+        before_outs = self.feat_out(zs).view(zs.size(0), -1, self.odim)  # (B, Lmax, odim)
+
+        # postnet -> (B, Lmax//r * r, odim)
+        if self.postnet is None:
+            after_outs = before_outs
+        else:
+            after_outs = before_outs + self.postnet(
+                before_outs.transpose(1, 2)
+            ).transpose(1, 2)
 
         if is_inference:
-            return outs
+            return before_outs, after_outs, d_outs
         else:
-            return outs, d_outs, e_outs, p_outs
+            return before_outs, after_outs, d_outs, e_outs, p_outs
 
     def forward(self, xs, ilens, ys, olens, ds, es, ps, *args, **kwargs):
         """Calculate forward propagation.
@@ -222,7 +246,13 @@ class FeedForwardTransformer(torch.nn.Module):
         ys = ys[:, :max(olens)]
 
         # forward propagation
-        outs, d_outs, e_outs, p_outs = self._forward(xs, ilens, ys, olens, ds, es, ps, is_inference=False)
+        before_outs, after_outs, d_outs, e_outs, p_outs = self._forward(xs, ilens, ys, olens, ds, es, ps, is_inference=False)
+
+        # modifiy mod part of groundtruth
+        if hp.reduction_factor > 1:
+            olens = olens.new([olen - olen % self.reduction_factor for olen in olens])
+            max_olen = max(olens)
+            ys = ys[:, :max_olen]
 
         # apply mask to remove padded part
         if self.use_masking:
@@ -230,16 +260,39 @@ class FeedForwardTransformer(torch.nn.Module):
             d_outs = d_outs.masked_select(in_masks)
             ds = ds.masked_select(in_masks)
             out_masks = make_non_pad_mask(olens).unsqueeze(-1).to(ys.device)
-            outs = outs.masked_select(out_masks)
+            before_outs = before_outs.masked_select(out_masks)
             #e_outs = e_outs.masked_select(out_masks) # Write size
             #p_outs = p_outs.masked_select(out_masks) # Write size
+            after_outs = (
+                after_outs.masked_select(out_masks) if after_outs is not None else None
+            )
             ys = ys.masked_select(out_masks)
 
         # calculate loss
-        l1_loss = self.criterion(outs, ys)
+        l1_loss = self.criterion(before_outs, ys)
+        if after_outs is not None:
+            l1_loss += self.criterion(after_outs, ys)
         duration_loss = self.duration_criterion(d_outs, ds)
         energy_loss = self.energy_criterion(e_outs, es)
         pitch_loss = self.pitch_criterion(p_outs, ps)
+
+        # make weighted mask and apply it
+        if hp.use_weighted_masking:
+            out_masks = make_non_pad_mask(olens).unsqueeze(-1).to(ys.device)
+            out_weights = out_masks.float() / out_masks.sum(dim=1, keepdim=True).float()
+            out_weights /= ys.size(0) * ys.size(2)
+            duration_masks = make_non_pad_mask(ilens).to(ys.device)
+            duration_weights = (
+                    duration_masks.float() / duration_masks.sum(dim=1, keepdim=True).float()
+            )
+            duration_weights /= ds.size(0)
+
+            # apply weight
+            l1_loss = l1_loss.mul(out_weights).masked_select(out_masks).sum()
+            duration_loss = (
+                duration_loss.mul(duration_weights).masked_select(duration_masks).sum()
+            )
+
         loss = l1_loss + duration_loss + energy_loss + pitch_loss
         report_keys = [
             {"l1_loss": l1_loss.item()},
@@ -321,9 +374,9 @@ class FeedForwardTransformer(torch.nn.Module):
 
 
         # inference
-        outs = self._forward(xs, ilens, is_inference=True)[0]  # (L, odim)
+        _, outs, _ = self._forward(xs, ilens, is_inference=True)  # (L, odim)
 
-        return outs, None, None
+        return outs[0], None, None
 
 
     def _source_mask(self, ilens):
