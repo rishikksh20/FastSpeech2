@@ -27,10 +27,10 @@ def train(args):
 
     dataloader = loader.get_tts_dataset(hp.data_dir, hp.batch_size)
     validloader = loader.get_tts_dataset(hp.data_dir, 5, True)
-    global_step = 0
+    global_step = 62000
     idim = hp.symbol_len
     odim = hp.num_mels
-    model = fastspeech.FeedForwardTransformer(idim, odim, args)
+    model = fastspeech.FeedForwardTransformer(idim, odim)
     # set torch device
     if args.resume is not None and os.path.exists(args.resume):
         print('\nSynthesis Session...\n')
@@ -68,7 +68,7 @@ def train(args):
         for data in pbar:
             #start_b = time.time()
             global_step += 1
-            x, input_length, y, _, out_length, _ = data
+            x, input_length, y, _, out_length, _, dur, e, p = data
             # x : [batch , num_char], input_length : [batch], y : [batch, T_in, num_mel]
             #             # stop_token : [batch, T_in], out_length : [batch]
             #print("x : ", x.size())
@@ -77,7 +77,7 @@ def train(args):
             #print("stop : ", stop_token.size())
             #print("out : ", out_length.size())
             #print("out length: ", out_length)
-            loss, report_dict = model(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda())
+            loss, report_dict = model(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda(), dur.cuda(), e.cuda(), p.cuda())
             loss = loss.mean()/hp.accum_grad
             running_loss += loss.item()
 
@@ -108,14 +108,24 @@ def train(args):
 
             if step % hp.summary_interval == 0:
                 #torch.cuda.empty_cache()
+                            
                 pbar.set_description(
                     "Average Loss %.04f Loss %.04f | step %d" % (running_loss / j, loss.item(), step))
                 # print('Steps : {:d}, Gen Loss : {:4.3f}, Disc Loss : {:4.3f}, s/b : {:4.3f}'.
                 #       format(step, running_loss, loss.item(), time.time() - start_b))
                 #writer.add_scalar("loss/running_loss", running_loss/j, step)
                 #writer.add_scalar("loss/loss", loss.item(), step)
+                print("Losses :")
                 for r in report_dict:
                     for k, v in r.items():
+                        if k == 'l1_loss':
+                            print("\nL1 loss :", v)    
+                        if k == 'duration_loss':
+                            print("\nD loss :", v)
+                        if k == 'pitch_loss':
+                            print("\nP loss :", v)
+                        if k == 'energy_loss':
+                            print("\nE loss :", v)
                         if k is not None and v is not None:
                             if 'cupy' in str(type(v)):
                                 v = v.get()
@@ -128,11 +138,11 @@ def train(args):
                 plot_class = model.attention_plot_class
                 plot_fn = plot_class(args.outdir + '/att_ws',device)
                 for valid in validloader:
-                    x_, input_length_, y_, _, out_length_, ids_ = valid
+                    x_, input_length_, y_, _, out_length_, ids_, dur_, e_, p_ = valid
                     model.eval()
                     with torch.no_grad(): 
-                        loss_, report_dict_ = model(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda())
-                    att_ws = model.calculate_all_attentions(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda())
+                        loss_, report_dict_ = model(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda(), dur_.cuda(), e_.cuda(), p_.cuda())
+                    att_ws = model.calculate_all_attentions(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda(), dur_.cuda(), e_.cuda(), p_.cuda())
                     model.train()
 
                     for r in report_dict_:
@@ -268,13 +278,6 @@ def get_parser():
         config_file_parser_class=configargparse.YAMLConfigFileParser,
         formatter_class=configargparse.ArgumentDefaultsHelpFormatter)
 
-    # general configuration
-    # parser.add('--config', is_config_file=True,
-    #            help='config file path')
-    # parser.add('--config2', is_config_file=True,
-    #            help='second config file path that overwrites the settings in `--config`.')
-    # parser.add('--config3', is_config_file=True,
-    #            help='third config file path that overwrites the settings in `--config` and `--config2`.')
 
     parser.add_argument('--ngpu', default=1, type=int,
                         help='Number of GPUs. If not given, use all visible devices')
@@ -382,7 +385,7 @@ def main(cmd_args):
 
     #model_class = dynamic_import(args.model_module)
     #assert issubclass(model_class, TTSInterface)
-    fastspeech.FeedForwardTransformer.add_arguments(parser)
+    #fastspeech.FeedForwardTransformer.add_arguments(parser)
     args = parser.parse_args(cmd_args)
 
     # logging info

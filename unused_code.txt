@@ -1,0 +1,51 @@
+    # Check for filter sizes
+    # for mf, ef, pf in zip(mel_files, energy_files, pitch_files):
+    #     m = np.load(mf)
+    #     e = np.load(ef)
+    #     p = np.load(pf)
+    #     # p = p[:m.shape[1]]
+    #     # np.save(pf, p, allow_pickle=False)
+    #     assert m.shape[1] == e.shape[0] == p.shape[0]
+    _metadata = []
+    with open('{}'.format(hp.train_filelist), encoding='utf-8') as f:
+        _metadata = [line.strip().split('|') for line in f]
+    path = "./data/"
+    outlier1 = 0
+    outlier2 = 0
+    text = []
+    frame = []
+    durs = []
+    ph = []
+    name = []
+    for m in _metadata:
+        id = m[4].split(".")[0]
+        mel = np.load(f'{path}mels/{id}.npy')
+        durations = str_to_int_list(m[2])
+        e = np.load(f'{path}energy/{id}.npy')
+        p = np.load(f'{path}pitch/{id}.npy')
+        total_dur = sum(durations)
+
+        if mel.shape[1] - total_dur < 0 :
+            outlier1 = outlier1 + 1
+            continue
+
+        if mel.shape[1] - total_dur > 3:
+            outlier2 = outlier2 + 1
+            continue
+        durations[-1] = durations[-1] + (mel.shape[1] - total_dur)
+        assert e.shape[0] == sum(durations)
+        text.append(m[0])
+        frame.append(m[1])
+        durs.append(m[2])
+        ph.append(m[3])
+        name.append(m[4])
+
+
+    with open(os.path.join(path, 'train.txt'), 'w', encoding='utf-8') as f:
+        for t, fr, d, p, n in zip(text, frame, durs, ph, name):
+            f.write('{}|{}|{}|{}|{}'.format(t, fr, d, p, n) + '\n')
+
+
+    print("Outlier 1", outlier1)
+    print("Outlier 2", outlier2)
+    print("Sum :", outlier1+outlier2)

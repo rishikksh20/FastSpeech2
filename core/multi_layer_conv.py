@@ -28,8 +28,8 @@ class MultiLayeredConv1d(torch.nn.Module):
         super(MultiLayeredConv1d, self).__init__()
         self.w_1 = torch.nn.Conv1d(in_chans, hidden_chans, kernel_size,
                                    stride=1, padding=(kernel_size - 1) // 2)
-        self.w_2 = torch.nn.Conv1d(hidden_chans, in_chans, kernel_size,
-                                   stride=1, padding=(kernel_size - 1) // 2)
+        self.w_2 = torch.nn.Conv1d(hidden_chans, in_chans, 1,
+                                   stride=1, padding=(1 - 1) // 2)
         self.dropout = torch.nn.Dropout(dropout_rate)
 
     def forward(self, x):

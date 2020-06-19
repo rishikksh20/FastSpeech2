@@ -26,7 +26,7 @@ class DurationPredictor(torch.nn.Module):
 
     """
 
-    def __init__(self, idim, n_layers=2, n_chans=384, kernel_size=3, dropout_rate=0.1, offset=1.0):
+    def __init__(self, idim, n_layers=2, n_chans=256, kernel_size=3, dropout_rate=0.1, offset=1.0):
         """Initilize duration predictor module.
 
         Args:

@@ -3,11 +3,11 @@ import random
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import Sampler
-from dataset.audio_processing import *
+from dataset.texts import phonemes_to_sequence
 import hparams as hp
 import numpy as np
 from dataset.texts import text_to_sequence
-from utils.util import pad_list
+from utils.util import pad_list, str_to_int_list
 
 def get_tts_dataset(path, batch_size, valid=False) :
 
@@ -25,10 +25,11 @@ def get_tts_dataset(path, batch_size, valid=False) :
     # with open(f'{path}text_dict.pkl', 'rb') as f:
     #     text_dict = pickle.load(f)
     if valid:
-        file_ = 'valid.txt'
+        file_ = hp.valid_filelist
     else:
-        file_ = 'train.txt'
+        file_ = hp.train_filelist
     train_dataset = TTSDataset(path, file_)
+    # train_dataset = TTSDataset(file_)
 
     # sampler = None
     #
@@ -55,16 +56,23 @@ def get_tts_dataset(path, batch_size, valid=False) :
 class TTSDataset(Dataset):
     def __init__(self, path, file_) :
         self.path = path
-        with open('{}/{}'.format(path, file_), encoding='utf-8') as f:
+        with open('{}'.format(file_), encoding='utf-8') as f:
             self._metadata = [line.strip().split('|') for line in f]
 
     def __getitem__(self, index):
-        id = self._metadata[index][0]
-        x_ = self._metadata[index][2]
-        x = text_to_sequence(x_, hp.tts_cleaner_names)
+        id = self._metadata[index][4].split(".")[0]
+        x_ = self._metadata[index][3].split()
+        if hp.use_phonemes:
+            x = phonemes_to_sequence(x_)
+        else:
+            x = text_to_sequence(x_, hp.tts_cleaner_names)
         mel = np.load(f'{self.path}mels/{id}.npy')
-        mel_len = mel.shape[0]
-        return np.array(x), mel, id, mel_len
+        durations = str_to_int_list(self._metadata[index][2])
+        e = np.load(f'{self.path}energy/{id}.npy')
+        p = np.load(f'{self.path}pitch/{id}.npy')
+        mel_len = mel.shape[1]
+        durations[-1] = durations[-1] + (mel.shape[1] - sum(durations))
+        return np.array(x), mel.T, id, mel_len, np.array(durations), e, p # Mel [T, num_mel]
 
     def __len__(self):
         return len(self._metadata)
@@ -79,81 +87,24 @@ def pad2d(x, max_len) :
 
 def collate_tts(batch):
 
-    # x_lens = [len(x[0]) for x in batch]
-    # max_x_len = max(x_lens)
-    # r=1
-    # chars = [pad1d(x[0], max_x_len) for x in batch]
-    # chars = np.stack(chars)
-    #
-    # spec_lens = [x[1].shape[-1] for x in batch]
-    # max_spec_len = max(spec_lens) + 1
-    # if max_spec_len % r != 0:
-    #     max_spec_len += r - max_spec_len % r
-    #
-    # mel = [pad2d(x[1], max_spec_len) for x in batch]
-    # mel = np.stack(mel)
-    #
-    # ids = [x[2] for x in batch]
-    # mel_lens = [x[3] for x in batch]
-    #
-    # x_lens = torch.tensor(x_lens)
-    # chars = torch.tensor(chars).long()
-    # mel = torch.tensor(mel)
-    # mel = mel.transpose(1,2)
-    # mel_lens = torch.tensor(mel_lens)
-    # print("chars : ",chars.size())
-    # print("x_lens : ", x_lens.size())
-    # print("mel : ", mel.size())
-    # print("mel_lens : ", mel_lens.size())
-
-    # xs, ys, _, _ = batch[0]
-    # print("batch : ", len(batch))
-    # print(batch[])
-    # for b in batch:
-    #     xs.append(b[0])
-    #     ys.append(b[1])
-    #     print("b 0:",b[0])
-    # xs = np.array(xs)
-    # ys = np.array(ys)
-    # print("xs : ",xs[0].shape)
-    # print("ys : ", ys[0].shape)
-    # get list of lengths (must be tensor for DataParallel)
     ilens = torch.from_numpy(np.array([x[0].shape[0] for x in batch])).long()
     olens = torch.from_numpy(np.array([y[1].shape[0] for y in batch])).long()
     ids = [x[2] for x in batch]
+
     # perform padding and conversion to tensor
     inputs = pad_list([torch.from_numpy(x[0]).long() for x in batch], 0)
     mels = pad_list([torch.from_numpy(y[1]).float() for y in batch], 0)
+
+    durations = pad_list([torch.from_numpy(x[4]).long() for x in batch], 0)
+    energys = pad_list([torch.from_numpy(y[5]).float() for y in batch], 0)
+    pitches = pad_list([torch.from_numpy(y[6]).float() for y in batch], 0)
 
     # make labels for stop prediction
     labels = mels.new_zeros(mels.size(0), mels.size(1))
     for i, l in enumerate(olens):
         labels[i, l - 1:] = 1.0
 
-    # prepare dict
-    # new_batch = {
-    #     "xs": xs,
-    #     "ilens": ilens,
-    #     "ys": ys,
-    #     "labels": labels,
-    #     "olens": olens,
-    # }
-
-    # scale spectrograms to -4 <--> 4
-    # print("Print start")
-    # print("chars :", inputs.size())
-    # print("input :",inputs)
-    # print("x_lens :", ilens.size())
-    # print("xlens :", ilens)
-    # print("mel value:",mels)
-    # print("mel :", mels.size())
-    # print("olen :", olens)
-    # print("mel_lens :", olens.size())
-    # print("labels see:",labels)
-    # print("labels : ", labels.size())
-    # print("Finish")
-    #mels = (mels * 8.) - 4.
-    return inputs, ilens, mels, labels, olens, ids
+    return inputs, ilens, mels, labels, olens, ids, durations, energys, pitches
 
 class BinnedLengthSampler(Sampler):
     def __init__(self, lengths, batch_size, bin_size):

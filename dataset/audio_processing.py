@@ -3,6 +3,8 @@ import numpy as np
 import librosa
 import hparams as hp
 from scipy.signal import lfilter
+import pyworld as pw
+
 np.random.seed(hp.seed)
 
 def label_2_float(x, bits) :
@@ -38,6 +40,26 @@ def encode_16bits(x) :
 
 
 mel_basis = None
+
+def energy(y):
+    # Extract RMS energy
+    S = librosa.magphase(stft(y))[0]
+    e = librosa.feature.rms(S=S) # (1 , Number of frames)
+    return e.squeeze() # (Number of frames) => (654,)
+
+def pitch(y):
+    # Extract Pitch/f0 from raw waveform using PyWORLD
+    y = y.astype(np.float64)
+    '''
+    f0_floor : float
+        Lower F0 limit in Hz.
+        Default: 71.0
+    f0_ceil : float
+        Upper F0 limit in Hz.
+        Default: 800.0
+    '''
+    f0, timeaxis = pw.dio(y, hp.sample_rate, frame_period=11.6)  # For hop size 256 frame period is 11.6 ms
+    return f0 #   (Number of Frames) = (654,)
 
 
 def linear_to_mel(spectrogram):
@@ -116,6 +138,14 @@ def reconstruct_waveform(mel, n_iter=32):
         S, n_iter=n_iter,
         hop_length=hp.hop_length, win_length=hp.win_length)
     return wav
+
+def quantize_input(input, min, max, num_bins=256):
+    
+    bins = np.linspace(min, max, num=num_bins)
+    quantize = np.digitize(input, bins)
+    return quantize
+
+
 
 #
 # def stft(x, n_fft, n_shift, win_length=None, window='hann', center=True,

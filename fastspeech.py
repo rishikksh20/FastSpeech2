@@ -9,15 +9,15 @@
 import logging
 
 import torch
-import torch.nn.functional as F
-
-from utils.util import get_model_conf
-from utils.util import torch_load
-from transformer import Transformer
 from transformer import TTSPlot
-from core.duration_modeling.duration_calculator import DurationCalculator
 from core.duration_modeling.duration_predictor import DurationPredictor
 from core.duration_modeling.duration_predictor import DurationPredictorLoss
+from core.energy_predictor.energy_predictor import EnergyPredictor
+from core.energy_predictor.energy_predictor import EnergyPredictorLoss
+from core.energy_predictor.energy_calculator import energy_to_one_hot
+from core.pitch_predictor.pitch_predictor import PitchPredictor
+from core.pitch_predictor.pitch_predictor import PitchPredictorLoss
+from core.pitch_predictor.pitch_calculator import pitch_to_one_hot
 from core.duration_modeling.length_regulator import LengthRegulator
 from utils.util import make_non_pad_mask
 from utils.util import make_pad_mask
@@ -26,8 +26,6 @@ from core.embedding import PositionalEncoding
 from core.embedding import ScaledPositionalEncoding
 from core.encoder import Encoder
 from core.initializer import initialize
-from utils.cli_utils import strtobool
-from utils.fill_missing_args import fill_missing_args
 import hparams as hp
 
 
@@ -43,130 +41,13 @@ class FeedForwardTransformer(torch.nn.Module):
 
     """
 
-    @staticmethod
-    def add_arguments(parser):
-        """Add model-specific arguments to the parser."""
-        group = parser.add_argument_group("feed-forward transformer model setting")
-        # network structure related
-        group.add_argument("--adim", default=384, type=int,
-                           help="Number of attention transformation dimensions")
-        group.add_argument("--aheads", default=4, type=int,
-                           help="Number of heads for multi head attention")
-        group.add_argument("--elayers", default=6, type=int,
-                           help="Number of encoder layers")
-        group.add_argument("--eunits", default=1536, type=int,
-                           help="Number of encoder hidden units")
-        group.add_argument("--dlayers", default=6, type=int,
-                           help="Number of decoder layers")
-        group.add_argument("--dunits", default=1536, type=int,
-                           help="Number of decoder hidden units")
-        group.add_argument("--positionwise-layer-type", default="linear", type=str,
-                           choices=["linear", "conv1d"],
-                           help="Positionwise layer type.")
-        group.add_argument("--positionwise-conv-kernel-size", default=3, type=int,
-                           help="Kernel size of positionwise conv1d layer")
-        group.add_argument("--use-scaled-pos-enc", default=True, type=strtobool,
-                           help="Use trainable scaled positional encoding instead of the fixed scale one")
-        group.add_argument("--encoder-normalize-before", default=False, type=strtobool,
-                           help="Whether to apply layer norm before encoder block")
-        group.add_argument("--decoder-normalize-before", default=False, type=strtobool,
-                           help="Whether to apply layer norm before decoder block")
-        group.add_argument("--encoder-concat-after", default=False, type=strtobool,
-                           help="Whether to concatenate attention layer's input and output in encoder")
-        group.add_argument("--decoder-concat-after", default=False, type=strtobool,
-                           help="Whether to concatenate attention layer's input and output in decoder")
-        group.add_argument("--duration-predictor-layers", default=2, type=int,
-                           help="Number of layers in duration predictor")
-        group.add_argument("--duration-predictor-chans", default=384, type=int,
-                           help="Number of channels in duration predictor")
-        group.add_argument("--duration-predictor-kernel-size", default=3, type=int,
-                           help="Kernel size in duration predictor")
-        group.add_argument("--teacher-model", default=None, type=str, nargs="?",
-                           help="Teacher model file path")
-        group.add_argument("--reduction-factor", default=1, type=int,
-                           help="Reduction factor")
-        group.add_argument("--spk-embed-dim", default=None, type=int,
-                           help="Number of speaker embedding dimensions")
-        group.add_argument("--spk-embed-integration-type", type=str, default="add",
-                           choices=["add", "concat"],
-                           help="How to integrate speaker embedding")
-        # training related
-        group.add_argument("--transformer-init", type=str, default="pytorch",
-                           choices=["pytorch", "xavier_uniform", "xavier_normal",
-                                    "kaiming_uniform", "kaiming_normal"],
-                           help="How to initialize transformer parameters")
-        group.add_argument("--initial-encoder-alpha", type=float, default=1.0,
-                           help="Initial alpha value in encoder's ScaledPositionalEncoding")
-        group.add_argument("--initial-decoder-alpha", type=float, default=1.0,
-                           help="Initial alpha value in decoder's ScaledPositionalEncoding")
-        group.add_argument("--transformer-lr", default=1.0, type=float,
-                           help="Initial value of learning rate")
-        group.add_argument("--transformer-warmup-steps", default=4000, type=int,
-                           help="Optimizer warmup steps")
-        group.add_argument("--transformer-enc-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for transformer encoder except for attention")
-        group.add_argument("--transformer-enc-positional-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for transformer encoder positional encoding")
-        group.add_argument("--transformer-enc-attn-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for transformer encoder self-attention")
-        group.add_argument("--transformer-dec-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for transformer decoder except for attention and pos encoding")
-        group.add_argument("--transformer-dec-positional-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for transformer decoder positional encoding")
-        group.add_argument("--transformer-dec-attn-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for transformer decoder self-attention")
-        group.add_argument("--transformer-enc-dec-attn-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for transformer encoder-decoder attention")
-        group.add_argument("--duration-predictor-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for duration predictor")
-        group.add_argument("--transfer-encoder-from-teacher", default=True, type=strtobool,
-                           help="Whether to transfer teacher's parameters")
-        group.add_argument("--transferred-encoder-module", default="all", type=str,
-                           choices=["all", "embed"],
-                           help="Encoder modeules to be trasferred from teacher")
-        # loss related
-        group.add_argument("--use-masking", default=True, type=strtobool,
-                           help="Whether to use masking in calculation of loss")
-        return parser
 
-    def __init__(self, idim, odim, args=None):
+    def __init__(self, idim, odim):
         """Initialize feed-forward Transformer module.
 
         Args:
             idim (int): Dimension of the inputs.
             odim (int): Dimension of the outputs.
-            args (Namespace, optional):
-                - elayers (int): Number of encoder layers.
-                - eunits (int): Number of encoder hidden units.
-                - adim (int): Number of attention transformation dimensions.
-                - aheads (int): Number of heads for multi head attention.
-                - dlayers (int): Number of decoder layers.
-                - dunits (int): Number of decoder hidden units.
-                - use_scaled_pos_enc (bool): Whether to use trainable scaled positional encoding.
-                - encoder_normalize_before (bool): Whether to perform layer normalization before encoder block.
-                - decoder_normalize_before (bool): Whether to perform layer normalization before decoder block.
-                - encoder_concat_after (bool): Whether to concatenate attention layer's input and output in encoder.
-                - decoder_concat_after (bool): Whether to concatenate attention layer's input and output in decoder.
-                - duration_predictor_layers (int): Number of duration predictor layers.
-                - duration_predictor_chans (int): Number of duration predictor channels.
-                - duration_predictor_kernel_size (int): Kernel size of duration predictor.
-                - spk_embed_dim (int): Number of speaker embedding dimenstions.
-                - spk_embed_integration_type: How to integrate speaker embedding.
-                - teacher_model (str): Teacher auto-regressive transformer model path.
-                - reduction_factor (int): Reduction factor.
-                - transformer_init (float): How to initialize transformer parameters.
-                - transformer_lr (float): Initial value of learning rate.
-                - transformer_warmup_steps (int): Optimizer warmup steps.
-                - transformer_enc_dropout_rate (float): Dropout rate in encoder except attention & positional encoding.
-                - transformer_enc_positional_dropout_rate (float): Dropout rate after encoder positional encoding.
-                - transformer_enc_attn_dropout_rate (float): Dropout rate in encoder self-attention module.
-                - transformer_dec_dropout_rate (float): Dropout rate in decoder except attention & positional encoding.
-                - transformer_dec_positional_dropout_rate (float): Dropout rate after decoder positional encoding.
-                - transformer_dec_attn_dropout_rate (float): Dropout rate in deocoder self-attention module.
-                - transformer_enc_dec_attn_dropout_rate (float): Dropout rate in encoder-deocoder attention module.
-                - use_masking (bool): Whether to use masking in calculation of loss.
-                - transfer_encoder_from_teacher: Whether to transfer encoder using teacher encoder parameters.
-                - transferred_encoder_module: Encoder module to be initialized using teacher parameters.
 
         """
         # initialize base classes
@@ -174,7 +55,6 @@ class FeedForwardTransformer(torch.nn.Module):
         torch.nn.Module.__init__(self)
 
         # fill missing arguments
-        args = fill_missing_args(args, self.add_arguments)
 
         # store hyperparameters
         self.idim = idim
@@ -182,9 +62,6 @@ class FeedForwardTransformer(torch.nn.Module):
         self.reduction_factor = hp.reduction_factor
         self.use_scaled_pos_enc = hp.use_scaled_pos_enc
         self.use_masking = hp.use_masking
-        # self.spk_embed_dim = args.spk_embed_dim
-        # if self.spk_embed_dim is not None:
-        #     self.spk_embed_integration_type = args.spk_embed_integration_type
 
         # TODO(kan-bayashi): support reduction_factor > 1
         if self.reduction_factor != 1:
@@ -209,9 +86,9 @@ class FeedForwardTransformer(torch.nn.Module):
             linear_units=hp.eunits,
             num_blocks=hp.elayers,
             input_layer=encoder_input_layer,
-            dropout_rate=hp.transformer_enc_dropout_rate,
-            positional_dropout_rate=hp.transformer_enc_positional_dropout_rate,
-            attention_dropout_rate=hp.transformer_enc_attn_dropout_rate,
+            dropout_rate=0.2,
+            positional_dropout_rate=0.2,
+            attention_dropout_rate=0.2,
             pos_enc_class=pos_enc_class,
             normalize_before=hp.encoder_normalize_before,
             concat_after=hp.encoder_concat_after,
@@ -219,15 +96,23 @@ class FeedForwardTransformer(torch.nn.Module):
             positionwise_conv_kernel_size=hp.positionwise_conv_kernel_size
         )
 
-        # define additional projection for speaker embedding
-        # if self.spk_embed_dim is not None:
-        #     if self.spk_embed_integration_type == "add":
-        #         self.projection = torch.nn.Linear(self.spk_embed_dim, args.adim)
-        #     else:
-        #         self.projection = torch.nn.Linear(args.adim + self.spk_embed_dim, args.adim)
-
-        # define duration predictor
         self.duration_predictor = DurationPredictor(
+            idim=hp.adim,
+            n_layers=hp.duration_predictor_layers,
+            n_chans=hp.duration_predictor_chans,
+            kernel_size=hp.duration_predictor_kernel_size,
+            dropout_rate=hp.duration_predictor_dropout_rate,
+        )
+
+        self.energy_predictor = EnergyPredictor(
+            idim=hp.adim,
+            n_layers=hp.duration_predictor_layers,
+            n_chans=hp.duration_predictor_chans,
+            kernel_size=hp.duration_predictor_kernel_size,
+            dropout_rate=hp.duration_predictor_dropout_rate,
+        )
+
+        self.pitch_predictor = PitchPredictor(
             idim=hp.adim,
             n_layers=hp.duration_predictor_layers,
             n_chans=hp.duration_predictor_chans,
@@ -241,15 +126,15 @@ class FeedForwardTransformer(torch.nn.Module):
         # define decoder
         # NOTE: we use encoder as decoder because fastspeech's decoder is the same as encoder
         self.decoder = Encoder(
-            idim=0,
-            attention_dim=hp.adim,
+            idim=256,
+            attention_dim=256,
             attention_heads=hp.aheads,
             linear_units=hp.dunits,
             num_blocks=hp.dlayers,
             input_layer=None,
-            dropout_rate=hp.transformer_dec_dropout_rate,
-            positional_dropout_rate=hp.transformer_dec_positional_dropout_rate,
-            attention_dropout_rate=hp.transformer_dec_attn_dropout_rate,
+            dropout_rate=0.2,
+            positional_dropout_rate=0.2,
+            attention_dropout_rate=0.2,
             pos_enc_class=pos_enc_class,
             normalize_before=hp.decoder_normalize_before,
             concat_after=hp.decoder_concat_after,
@@ -265,47 +150,46 @@ class FeedForwardTransformer(torch.nn.Module):
                                init_enc_alpha=hp.initial_encoder_alpha,
                                init_dec_alpha=hp.initial_decoder_alpha)
 
-        # define teacher model
-        if hp.teacher_model is not None:
-            self.teacher = self._load_teacher_model(hp.teacher_model)
-        else:
-            self.teacher = None
-
-        # define duration calculator
-        if self.teacher is not None:
-            self.duration_calculator = DurationCalculator(self.teacher)
-        else:
-            self.duration_calculator = None
-
-        # transfer teacher parameters
-        if self.teacher is not None and hp.transfer_encoder_from_teacher:
-            self._transfer_from_teacher(hp.transferred_encoder_module)
 
         # define criterions
         self.duration_criterion = DurationPredictorLoss()
-        # TODO(kan-bayashi): support knowledge distillation loss
+        self.energy_criterion = EnergyPredictorLoss()
+        self.pitch_criterion = PitchPredictorLoss()
         self.criterion = torch.nn.L1Loss()
 
-    def _forward(self, xs, ilens, ys=None, olens=None, is_inference=False):
+    def _forward(self, xs, ilens, ys=None, olens=None, ds=None, es=None, ps=None, is_inference=False):
         # forward encoder
         x_masks = self._source_mask(ilens)
         hs, _ = self.encoder(xs, x_masks)  # (B, Tmax, adim)
-
-        # integrate speaker embedding
-        # if self.spk_embed_dim is not None:
-        #     hs = self._integrate_with_spk_embed(hs, spembs)
+        # print("Ys :",ys.shape)     torch.Size([32, 868, 80])
 
         # forward duration predictor and length regulator
         d_masks = make_pad_mask(ilens).to(xs.device)
         if is_inference:
             d_outs = self.duration_predictor.inference(hs, d_masks)  # (B, Tmax)
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
+            e_outs = self.energy_predictor.inference(hs)
+            p_outs = self.pitch_predictor.inference(hs)
+            one_hot_energy = energy_to_one_hot(e_outs)  # (B, Lmax, adim)
+            one_hot_pitch = pitch_to_one_hot(p_outs, False)  # (B, Lmax, adim)
         else:
             with torch.no_grad():
-                ds = self.duration_calculator(xs, ilens, ys, olens)  # (B, Tmax)
+                # ds = self.duration_calculator(xs, ilens, ys, olens)  # (B, Tmax)
+                one_hot_energy = energy_to_one_hot(es) # (B, Lmax, adim)   torch.Size([32, 868, 256])
+                # print("one_hot_energy:", one_hot_energy.shape)
+                one_hot_pitch = pitch_to_one_hot(ps)   # (B, Lmax, adim)   torch.Size([32, 868, 256])
+                # print("one_hot_pitch:", one_hot_pitch.shape)
+            # print("Before Hs:", hs.shape)  torch.Size([32, 121, 256])
             d_outs = self.duration_predictor(hs, d_masks)  # (B, Tmax)
+            # print("d_outs:", d_outs.shape)        torch.Size([32, 121])
             hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
-
+            # print("After Hs:",hs.shape)  torch.Size([32, 868, 256])
+            e_outs = self.energy_predictor(hs)
+            # print("e_outs:", e_outs.shape)  torch.Size([32, 868])
+            p_outs = self.pitch_predictor(hs)
+            # print("p_outs:", p_outs.shape)   torch.Size([32, 868])
+        hs = hs + one_hot_pitch 
+        hs = hs + one_hot_energy
         # forward decoder
         if olens is not None:
             h_masks = self._source_mask(olens)
@@ -317,9 +201,9 @@ class FeedForwardTransformer(torch.nn.Module):
         if is_inference:
             return outs
         else:
-            return outs, ds, d_outs
+            return outs, d_outs, e_outs, p_outs
 
-    def forward(self, xs, ilens, ys, olens, *args, **kwargs):
+    def forward(self, xs, ilens, ys, olens, ds, es, ps, *args, **kwargs):
         """Calculate forward propagation.
 
         Args:
@@ -338,7 +222,7 @@ class FeedForwardTransformer(torch.nn.Module):
         ys = ys[:, :max(olens)]
 
         # forward propagation
-        outs, ds, d_outs = self._forward(xs, ilens, ys, olens, is_inference=False)
+        outs, d_outs, e_outs, p_outs = self._forward(xs, ilens, ys, olens, ds, es, ps, is_inference=False)
 
         # apply mask to remove padded part
         if self.use_masking:
@@ -347,15 +231,21 @@ class FeedForwardTransformer(torch.nn.Module):
             ds = ds.masked_select(in_masks)
             out_masks = make_non_pad_mask(olens).unsqueeze(-1).to(ys.device)
             outs = outs.masked_select(out_masks)
+            #e_outs = e_outs.masked_select(out_masks) # Write size
+            #p_outs = p_outs.masked_select(out_masks) # Write size
             ys = ys.masked_select(out_masks)
 
         # calculate loss
         l1_loss = self.criterion(outs, ys)
         duration_loss = self.duration_criterion(d_outs, ds)
-        loss = l1_loss + duration_loss
+        energy_loss = self.energy_criterion(e_outs, es)
+        pitch_loss = self.pitch_criterion(p_outs, ps)
+        loss = l1_loss + duration_loss + energy_loss + pitch_loss
         report_keys = [
             {"l1_loss": l1_loss.item()},
             {"duration_loss": duration_loss.item()},
+            {"energy_loss": energy_loss.item()},
+            {"pitch_loss": pitch_loss.item()},
             {"loss": loss.item()},
         ]
 
@@ -369,7 +259,7 @@ class FeedForwardTransformer(torch.nn.Module):
 
         return loss, report_keys
 
-    def calculate_all_attentions(self, xs, ilens, ys, olens, *args, **kwargs):
+    def calculate_all_attentions(self, xs, ilens, ys, olens, ds, es, ps, *args, **kwargs):
         """Calculate all of the attention weights.
 
         Args:
@@ -389,7 +279,7 @@ class FeedForwardTransformer(torch.nn.Module):
             ys = ys[:, :max(olens)]
 
             # forward propagation
-            outs = self._forward(xs, ilens, ys, olens, is_inference=False)[0]
+            outs = self._forward(xs, ilens, ys, olens, ds, es, ps, is_inference=False)[0]
 
         att_ws_dict = dict()
         for name, m in self.named_modules():
@@ -428,39 +318,13 @@ class FeedForwardTransformer(torch.nn.Module):
         # setup batch axis
         ilens = torch.tensor([x.shape[0]], dtype=torch.long, device=x.device)
         xs = x.unsqueeze(0)
-        # if spemb is not None:
-        #     spembs = spemb.unsqueeze(0)
-        # else:
-        #     spembs = None
+
 
         # inference
         outs = self._forward(xs, ilens, is_inference=True)[0]  # (L, odim)
 
         return outs, None, None
 
-    # def _integrate_with_spk_embed(self, hs, spembs):
-    #     """Integrate speaker embedding with hidden states.
-    #
-    #     Args:
-    #         hs (Tensor): Batch of hidden state sequences (B, Tmax, adim).
-    #         spembs (Tensor): Batch of speaker embeddings (B, spk_embed_dim).
-    #
-    #     Returns:
-    #         Tensor: Batch of integrated hidden state sequences (B, Tmax, adim)
-    #
-    #     """
-    #     if self.spk_embed_integration_type == "add":
-    #         # apply projection and then add to hidden states
-    #         spembs = self.projection(F.normalize(spembs))
-    #         hs = hs + spembs.unsqueeze(1)
-    #     elif self.spk_embed_integration_type == "concat":
-    #         # concat hidden states with spk embeds and then apply projection
-    #         spembs = F.normalize(spembs).unsqueeze(1).expand(-1, hs.size(1), -1)
-    #         hs = self.projection(torch.cat([hs, spembs], dim=-1))
-    #     else:
-    #         raise NotImplementedError("support only add or concat.")
-    #
-    #     return hs
 
     def _source_mask(self, ilens):
         """Make masks for self-attention.
@@ -483,26 +347,6 @@ class FeedForwardTransformer(torch.nn.Module):
         x_masks = make_non_pad_mask(ilens).to(next(self.parameters()).device)
         return x_masks.unsqueeze(-2) & x_masks.unsqueeze(-1)
 
-    def _load_teacher_model(self, model_path):
-        # get teacher model config
-        #idim, odim, args = get_model_conf(model_path)
-
-        idim = hp.symbol_len
-        odim = hp.num_mels
-        # assert dimension is the same between teacher and studnet
-        assert idim == self.idim
-        assert odim == self.odim
-        assert hp.reduction_factor == self.reduction_factor
-
-        # load teacher model
-        model = Transformer(idim, odim)
-        torch_load(model_path, model)
-
-        # freeze teacher model parameters
-        for p in model.parameters():
-            p.requires_grad = False
-
-        return model
 
     def _reset_parameters(self, init_type, init_enc_alpha=1.0, init_dec_alpha=1.0):
         # initialize parameters
