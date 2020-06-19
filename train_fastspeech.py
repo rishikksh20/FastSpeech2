@@ -27,7 +27,7 @@ def train(args):
 
     dataloader = loader.get_tts_dataset(hp.data_dir, hp.batch_size)
     validloader = loader.get_tts_dataset(hp.data_dir, 5, True)
-    global_step = 54000
+    global_step = 0
     idim = hp.symbol_len
     odim = hp.num_mels
     model = fastspeech.FeedForwardTransformer(idim, odim)
