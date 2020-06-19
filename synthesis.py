@@ -4,23 +4,17 @@ import configargparse
 import logging
 import os
 import torch
-import json
 import sys
 from utils.util import set_deterministic_pytorch
-#from transformer import Transformer
 from fastspeech import FeedForwardTransformer
 import hparams as hp
-from dataset.texts import text_to_sequence
-import numpy as np
+from dataset.texts import  phonemes_to_sequence
 import time
-import argparse
 from dataset.audio_processing import reconstruct_waveform
 from dataset.audio_processing import save_wav
-from train_transformer import num_params
-from sklearn.preprocessing import StandardScaler
 import librosa
 import numpy as np
-from scipy.io.wavfile import write
+
 
 def synthesis(args, text):
     """Decode with E2E-TTS model."""
@@ -28,12 +22,9 @@ def synthesis(args, text):
     # read training config
     idim = hp.symbol_len
     odim = hp.num_mels
-    #model = Transformer(idim, odim, args)
     model = FeedForwardTransformer(idim, odim, args)
-    num_params(model)
     print(model)
-    # load trained model parameters
-    #logging.info('reading model parameters from ' + args.model)
+
     if os.path.exists(args.path):
         print('\nSynthesis Session...\n')
         model.load_state_dict(torch.load(args.path), strict=False)
@@ -47,7 +38,7 @@ def synthesis(args, text):
     device = torch.device("cuda" if args.ngpu > 0 else "cpu")
     model = model.to(device)
 
-    input = np.asarray(text_to_sequence(text.strip(), hp.tts_cleaner_names))
+    input = np.asarray(phonemes_to_sequence(text.split()))
     text = torch.LongTensor(input)
     text = text.cuda()
     #[num_char]
@@ -134,22 +125,11 @@ def get_parser():
                         help='Output filename')
     parser.add_argument('--verbose', '-V', default=0, type=int,
                         help='Verbose option')
-    parser.add_argument('--preprocess-conf', type=str, default=None,
-                        help='The configuration file for the pre-processing')
     # task related
     parser.add_argument('--text', type=str, required=True,
                         help='Filename of train label data (json)')
     parser.add_argument('--path', type=str, required=True,
                         help='Model file parameters to read')
-    parser.add_argument('--model-conf', type=str, default=None,
-                        help='Model config file')
-    # decoding related
-    parser.add_argument('--maxlenratio', type=float, default=5,
-                        help='Maximum length ratio in decoding')
-    parser.add_argument('--minlenratio', type=float, default=0,
-                        help='Minimum length ratio in decoding')
-    parser.add_argument('--threshold', type=float, default=0.5,
-                        help='Threshold value in decoding')
     return parser
 
 
@@ -218,59 +198,15 @@ def main(args):
     # display PYTHONPATH
     logging.info('python path = ' + os.environ.get('PYTHONPATH', '(None)'))
 
-    audio = synthesis(args, args.text)
+    path = "./checkpoints/checkpoint_38k_steps.pyt"
+    out = "results/"
+    print("Text : ", args.text)
+    audio = synthesis_tts(args, args.text, path)
     m = audio.T
-    m = (m + 4) / 8
-    #audio = np.load("0_50_0.npy")
-    # scaler = StandardScaler()
-    # scaler.mean_ = np.load(stats_file)[0]
-    # scaler.scale_ = np.load(stats_file)[1]
-    # m = scaler.inverse_transform(audio)
-    #m = m.T
-    #print(np.load(stats_file)[1])
-    #m = (audio + np.load(stats_file)[0])*np.load(stats_file)[1]
-    #np.clip(m, 0, 1, out=m)
-    #np.save('test_95k_ext_1.npy', m, allow_pickle=False)
     wav = reconstruct_waveform(m, n_iter=60)
-    # spc = logmelspc_to_linearspc(
-    #             m,
-    #             fs=22050,
-    #             n_mels=80,
-    #             n_fft=1024,
-    #             fmin=0.0,
-    #             fmax=8000.0)
-    # wav = griffin_lim(
-    #         spc,
-    #         n_fft=1024,
-    #         n_shift=256,
-    #         win_length=1024)
     save_path = '{}/test.wav'.format(args.out)
     save_wav(wav, save_path)
 
-
-def get_model_conf(model_path, conf_path=None):
-    """Get model config information by reading a model config file (model.json).
-    Args:
-        model_path (str): Model path.
-        conf_path (str): Optional model config path.
-    Returns:
-        list[int, int, dict[str, Any]]: Config information loaded from json file.
-    """
-    if conf_path is None:
-        model_conf = os.path.dirname(model_path) + '/model.json'
-    else:
-        model_conf = conf_path
-    with open(model_conf, "rb") as f:
-        logging.info('reading a config file from ' + model_conf)
-        confs = json.load(f)
-    if isinstance(confs, dict):
-        # for lm
-        args = confs
-        return argparse.Namespace(**args)
-    else:
-        # for asr, tts, mt
-        idim, odim, args = confs
-        return idim, odim, argparse.Namespace(**args)
 
 # For TTS engine setup
 
@@ -280,12 +216,8 @@ def synthesis_tts(args, text, path):
     # read training config
     idim = hp.symbol_len
     odim = hp.num_mels
-    #model = Transformer(idim, odim, args)
-    model = FeedForwardTransformer(idim, odim, args)
-    #num_params(model)
-    #print(model)
-    # load trained model parameters
-    #logging.info('reading model parameters from ' + args.model)
+    model = FeedForwardTransformer(idim, odim)
+
     if os.path.exists(path):
         logging.info('\nSynthesis Session...\n')
         model.load_state_dict(torch.load(path), strict=False)
@@ -298,8 +230,9 @@ def synthesis_tts(args, text, path):
     # set torch device
     device = torch.device("cuda" if args.ngpu > 0 else "cpu")
     model = model.to(device)
-
-    input = np.asarray(text_to_sequence(text.strip(), hp.tts_cleaner_names))
+    print("Text :",text)
+    input = np.asarray(phonemes_to_sequence(text.split()))
+    print("Input :",input)
     text = torch.LongTensor(input)
     text = text.cuda()
     #[num_char]
@@ -343,18 +276,15 @@ def synthesis_tts(args, text, path):
         # decode and write
         idx = input[:5]
         start_time = time.time()
-        #print("text :", text.size())
         outs, probs, att_ws = model.inference(text, args)
-        #print("Out size : ",outs.size())
 
         logging.info("inference speed = %s msec / frame." % (
             (time.time() - start_time) / (int(outs.size(0)) * 1000)))
         if outs.size(0) == text.size(0) * args.maxlenratio:
             logging.warning("output length reaches maximum length .")
-            
-        #print("mels",outs.size())
+
         mel = outs.cpu().numpy() # [T_out, num_mel]
-        #print("numpy ",mel.shape)
+
         
 
         return mel
@@ -375,33 +305,17 @@ def get_parser_tts():
 
     parser.add_argument('--ngpu', default=1, type=int,
                         help='Number of GPUs')
-    parser.add_argument('--backend', default='pytorch', type=str,
-                        choices=['chainer', 'pytorch'],
-                        help='Backend library')
-    parser.add_argument('--debugmode', default=1, type=int,
-                        help='Debugmode')
     parser.add_argument('--seed', default=1, type=int,
                         help='Random seed')
     parser.add_argument('--out', type=str,
                         help='Output filename')
     parser.add_argument('--verbose', '-V', default=0, type=int,
                         help='Verbose option')
-    parser.add_argument('--preprocess-conf', type=str, default=None,
-                        help='The configuration file for the pre-processing')
     # task related
     parser.add_argument('--text', type=str,
                         help='Filename of train label data (json)')
     parser.add_argument('--path', type=str,
                         help='Model file parameters to read')
-    parser.add_argument('--model-conf', type=str, default=None,
-                        help='Model config file')
-    # decoding related
-    parser.add_argument('--maxlenratio', type=float, default=5,
-                        help='Maximum length ratio in decoding')
-    parser.add_argument('--minlenratio', type=float, default=0,
-                        help='Minimum length ratio in decoding')
-    parser.add_argument('--threshold', type=float, default=0.5,
-                        help='Threshold value in decoding')
     return parser
 
 def infer(text):
@@ -411,37 +325,12 @@ def infer(text):
 
     # display PYTHONPATH
     logging.info('python path = ' + os.environ.get('PYTHONPATH', '(None)'))
-    path = "./checkpoints/checkpoint_230k_steps.pyt"
+    path = "./checkpoints/checkpoint_38k_steps.pyt"
     out = "results/"
     print("Text : ", text)
     audio = synthesis_tts(args, text, path)
     m = audio.T
-    m = (m + 4) / 8
-    #audio = np.load("0_50_0.npy")
-    
-    # scaler = StandardScaler()
-    # scaler.mean_ = np.load(stats_file)[0]
-    # scaler.scale_ = np.load(stats_file)[1]
-    # m = scaler.inverse_transform(audio)
-
-    #m = m.T
-    #print(np.load(stats_file)[1])
-    #m = (audio + np.load(stats_file)[0])*np.load(stats_file)[1]
-    #np.clip(m, 0, 1, out=m)
-    #np.save('test_95k_ext_1.npy', m, allow_pickle=False)
     wav = reconstruct_waveform(m, n_iter=60)
-    # spc = logmelspc_to_linearspc(
-    #             m,
-    #             fs=22050,
-    #             n_mels=80,
-    #             n_fft=1024,
-    #             fmin=0.0,
-    #             fmax=8000.0)
-    # wav = griffin_lim(
-    #         spc,
-    #         n_fft=1024,
-    #         n_shift=256,
-    #         win_length=1024)
     save_path = '{}/test_tts.wav'.format(out)
     save_wav(wav, save_path)
     return save_path

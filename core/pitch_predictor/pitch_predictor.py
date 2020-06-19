@@ -32,7 +32,7 @@ class PitchPredictor(torch.nn.Module):
         """
         return self.predictor(xs, x_masks)
 
-    def inference(self, xs, x_masks=None):
+    def inference(self, xs, x_masks=None, alpha=1.0):
         """Inference duration.
 
         Args:
@@ -43,7 +43,7 @@ class PitchPredictor(torch.nn.Module):
             LongTensor: Batch of predicted durations in linear domain (B, Tmax).
 
         """
-        return self.predictor.inference(xs, x_masks, True) # Need to do One hot code
+        return self.predictor.inference(xs, x_masks, True, alpha=alpha) # Need to do One hot code
 
 
 

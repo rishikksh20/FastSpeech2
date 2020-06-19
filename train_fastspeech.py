@@ -27,17 +27,17 @@ def train(args):
 
     dataloader = loader.get_tts_dataset(hp.data_dir, hp.batch_size)
     validloader = loader.get_tts_dataset(hp.data_dir, 5, True)
-    global_step = 0
+    global_step = 62000
     idim = hp.symbol_len
     odim = hp.num_mels
-    model = fastspeech.FeedForwardTransformer(idim, odim, args)
+    model = fastspeech.FeedForwardTransformer(idim, odim)
     # set torch device
-    # if args.resume is not None and os.path.exists(args.resume):
-    #     print('\nSynthesis Session...\n')
-    #     model.load_state_dict(torch.load(args.resume), strict=False)
-    # else:
-    #     print("Checkpoint not exixts")
-    #     return None
+    if args.resume is not None and os.path.exists(args.resume):
+        print('\nSynthesis Session...\n')
+        model.load_state_dict(torch.load(args.resume), strict=False)
+    else:
+        print("Checkpoint not exixts")
+        return None
     model = model.to(device)
     print("Model is loaded ...")
     print("Batch Size :",hp.batch_size)
@@ -278,13 +278,6 @@ def get_parser():
         config_file_parser_class=configargparse.YAMLConfigFileParser,
         formatter_class=configargparse.ArgumentDefaultsHelpFormatter)
 
-    # general configuration
-    # parser.add('--config', is_config_file=True,
-    #            help='config file path')
-    # parser.add('--config2', is_config_file=True,
-    #            help='second config file path that overwrites the settings in `--config`.')
-    # parser.add('--config3', is_config_file=True,
-    #            help='third config file path that overwrites the settings in `--config` and `--config2`.')
 
     parser.add_argument('--ngpu', default=1, type=int,
                         help='Number of GPUs. If not given, use all visible devices')

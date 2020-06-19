@@ -18,7 +18,7 @@ class VariancePredictor(torch.nn.Module):
         self.linear = torch.nn.Linear(n_chans, out)
 
 
-    def _forward(self, xs, x_masks=None, is_inference=False, is_log_output=False):
+    def _forward(self, xs, x_masks=None, is_inference=False, is_log_output=False, alpha=1.0):
         xs = xs.transpose(1, -1)  # (B, idim, Tmax)
         for f in self.conv:
             xs = f(xs)  # (B, C, Tmax)
@@ -29,6 +29,7 @@ class VariancePredictor(torch.nn.Module):
         if is_inference and is_log_output:
         #     # NOTE: calculate in linear domain
             xs = torch.clamp(torch.round(xs.exp() - self.offset), min=0).long()  # avoid negative value
+        xs = xs * alpha
 
         if x_masks is not None:
             xs = xs.masked_fill(x_masks, 0.0)
@@ -48,7 +49,7 @@ class VariancePredictor(torch.nn.Module):
         """
         return self._forward(xs, x_masks)
 
-    def inference(self, xs, x_masks=None, is_log_output=False):
+    def inference(self, xs, x_masks=None, is_log_output=False, alpha=1.0):
         """Inference duration.
 
         Args:
@@ -59,4 +60,4 @@ class VariancePredictor(torch.nn.Module):
             LongTensor: Batch of predicted durations in linear domain (B, Tmax).
 
         """
-        return self._forward(xs, x_masks, True, is_log_output)
+        return self._forward(xs, x_masks, True, is_log_output, alpha)

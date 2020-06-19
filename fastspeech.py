@@ -9,13 +9,7 @@
 import logging
 
 import torch
-import torch.nn.functional as F
-
-from utils.util import get_model_conf
-from utils.util import torch_load
-from transformer import Transformer
 from transformer import TTSPlot
-from core.duration_modeling.duration_calculator import DurationCalculator
 from core.duration_modeling.duration_predictor import DurationPredictor
 from core.duration_modeling.duration_predictor import DurationPredictorLoss
 from core.energy_predictor.energy_predictor import EnergyPredictor
@@ -32,8 +26,6 @@ from core.embedding import PositionalEncoding
 from core.embedding import ScaledPositionalEncoding
 from core.encoder import Encoder
 from core.initializer import initialize
-from utils.cli_utils import strtobool
-from utils.fill_missing_args import fill_missing_args
 import hparams as hp
 
 
@@ -50,44 +42,12 @@ class FeedForwardTransformer(torch.nn.Module):
     """
 
 
-    def __init__(self, idim, odim, args=None):
+    def __init__(self, idim, odim):
         """Initialize feed-forward Transformer module.
 
         Args:
             idim (int): Dimension of the inputs.
             odim (int): Dimension of the outputs.
-            args (Namespace, optional):
-                - elayers (int): Number of encoder layers.
-                - eunits (int): Number of encoder hidden units.
-                - adim (int): Number of attention transformation dimensions.
-                - aheads (int): Number of heads for multi head attention.
-                - dlayers (int): Number of decoder layers.
-                - dunits (int): Number of decoder hidden units.
-                - use_scaled_pos_enc (bool): Whether to use trainable scaled positional encoding.
-                - encoder_normalize_before (bool): Whether to perform layer normalization before encoder block.
-                - decoder_normalize_before (bool): Whether to perform layer normalization before decoder block.
-                - encoder_concat_after (bool): Whether to concatenate attention layer's input and output in encoder.
-                - decoder_concat_after (bool): Whether to concatenate attention layer's input and output in decoder.
-                - duration_predictor_layers (int): Number of duration predictor layers.
-                - duration_predictor_chans (int): Number of duration predictor channels.
-                - duration_predictor_kernel_size (int): Kernel size of duration predictor.
-                - spk_embed_dim (int): Number of speaker embedding dimenstions.
-                - spk_embed_integration_type: How to integrate speaker embedding.
-                - teacher_model (str): Teacher auto-regressive transformer model path.
-                - reduction_factor (int): Reduction factor.
-                - transformer_init (float): How to initialize transformer parameters.
-                - transformer_lr (float): Initial value of learning rate.
-                - transformer_warmup_steps (int): Optimizer warmup steps.
-                - transformer_enc_dropout_rate (float): Dropout rate in encoder except attention & positional encoding.
-                - transformer_enc_positional_dropout_rate (float): Dropout rate after encoder positional encoding.
-                - transformer_enc_attn_dropout_rate (float): Dropout rate in encoder self-attention module.
-                - transformer_dec_dropout_rate (float): Dropout rate in decoder except attention & positional encoding.
-                - transformer_dec_positional_dropout_rate (float): Dropout rate after decoder positional encoding.
-                - transformer_dec_attn_dropout_rate (float): Dropout rate in deocoder self-attention module.
-                - transformer_enc_dec_attn_dropout_rate (float): Dropout rate in encoder-deocoder attention module.
-                - use_masking (bool): Whether to use masking in calculation of loss.
-                - transfer_encoder_from_teacher: Whether to transfer encoder using teacher encoder parameters.
-                - transferred_encoder_module: Encoder module to be initialized using teacher parameters.
 
         """
         # initialize base classes
@@ -95,7 +55,6 @@ class FeedForwardTransformer(torch.nn.Module):
         torch.nn.Module.__init__(self)
 
         # fill missing arguments
-        #args = fill_missing_args(args, self.add_arguments)
 
         # store hyperparameters
         self.idim = idim
@@ -103,9 +62,6 @@ class FeedForwardTransformer(torch.nn.Module):
         self.reduction_factor = hp.reduction_factor
         self.use_scaled_pos_enc = hp.use_scaled_pos_enc
         self.use_masking = hp.use_masking
-        # self.spk_embed_dim = args.spk_embed_dim
-        # if self.spk_embed_dim is not None:
-        #     self.spk_embed_integration_type = args.spk_embed_integration_type
 
         # TODO(kan-bayashi): support reduction_factor > 1
         if self.reduction_factor != 1:
@@ -140,14 +96,6 @@ class FeedForwardTransformer(torch.nn.Module):
             positionwise_conv_kernel_size=hp.positionwise_conv_kernel_size
         )
 
-        # define additional projection for speaker embedding
-        # if self.spk_embed_dim is not None:
-        #     if self.spk_embed_integration_type == "add":
-        #         self.projection = torch.nn.Linear(self.spk_embed_dim, args.adim)
-        #     else:
-        #         self.projection = torch.nn.Linear(args.adim + self.spk_embed_dim, args.adim)
-
-        # define duration predictor
         self.duration_predictor = DurationPredictor(
             idim=hp.adim,
             n_layers=hp.duration_predictor_layers,
@@ -202,21 +150,6 @@ class FeedForwardTransformer(torch.nn.Module):
                                init_enc_alpha=hp.initial_encoder_alpha,
                                init_dec_alpha=hp.initial_decoder_alpha)
 
-        # define teacher model
-        # if hp.teacher_model is not None:
-        #     self.teacher = self._load_teacher_model(hp.teacher_model)
-        # else:
-        #     self.teacher = None
-        #
-        # # define duration calculator
-        # if self.teacher is not None:
-        #     self.duration_calculator = DurationCalculator(self.teacher)
-        # else:
-        #     self.duration_calculator = None
-        #
-        # # transfer teacher parameters
-        # if self.teacher is not None and hp.transfer_encoder_from_teacher:
-        #     self._transfer_from_teacher(hp.transferred_encoder_module)
 
         # define criterions
         self.duration_criterion = DurationPredictorLoss()
@@ -229,10 +162,6 @@ class FeedForwardTransformer(torch.nn.Module):
         x_masks = self._source_mask(ilens)
         hs, _ = self.encoder(xs, x_masks)  # (B, Tmax, adim)
         # print("Ys :",ys.shape)     torch.Size([32, 868, 80])
-
-        # integrate speaker embedding
-        # if self.spk_embed_dim is not None:
-        #     hs = self._integrate_with_spk_embed(hs, spembs)
 
         # forward duration predictor and length regulator
         d_masks = make_pad_mask(ilens).to(xs.device)
@@ -259,7 +188,7 @@ class FeedForwardTransformer(torch.nn.Module):
             # print("e_outs:", e_outs.shape)  torch.Size([32, 868])
             p_outs = self.pitch_predictor(hs)
             # print("p_outs:", p_outs.shape)   torch.Size([32, 868])
-        hs = hs + one_hot_pitch
+        hs = hs + one_hot_pitch 
         hs = hs + one_hot_energy
         # forward decoder
         if olens is not None:
@@ -389,39 +318,13 @@ class FeedForwardTransformer(torch.nn.Module):
         # setup batch axis
         ilens = torch.tensor([x.shape[0]], dtype=torch.long, device=x.device)
         xs = x.unsqueeze(0)
-        # if spemb is not None:
-        #     spembs = spemb.unsqueeze(0)
-        # else:
-        #     spembs = None
+
 
         # inference
         outs = self._forward(xs, ilens, is_inference=True)[0]  # (L, odim)
 
         return outs, None, None
 
-    # def _integrate_with_spk_embed(self, hs, spembs):
-    #     """Integrate speaker embedding with hidden states.
-    #
-    #     Args:
-    #         hs (Tensor): Batch of hidden state sequences (B, Tmax, adim).
-    #         spembs (Tensor): Batch of speaker embeddings (B, spk_embed_dim).
-    #
-    #     Returns:
-    #         Tensor: Batch of integrated hidden state sequences (B, Tmax, adim)
-    #
-    #     """
-    #     if self.spk_embed_integration_type == "add":
-    #         # apply projection and then add to hidden states
-    #         spembs = self.projection(F.normalize(spembs))
-    #         hs = hs + spembs.unsqueeze(1)
-    #     elif self.spk_embed_integration_type == "concat":
-    #         # concat hidden states with spk embeds and then apply projection
-    #         spembs = F.normalize(spembs).unsqueeze(1).expand(-1, hs.size(1), -1)
-    #         hs = self.projection(torch.cat([hs, spembs], dim=-1))
-    #     else:
-    #         raise NotImplementedError("support only add or concat.")
-    #
-    #     return hs
 
     def _source_mask(self, ilens):
         """Make masks for self-attention.
@@ -444,26 +347,6 @@ class FeedForwardTransformer(torch.nn.Module):
         x_masks = make_non_pad_mask(ilens).to(next(self.parameters()).device)
         return x_masks.unsqueeze(-2) & x_masks.unsqueeze(-1)
 
-    def _load_teacher_model(self, model_path):
-        # get teacher model config
-        #idim, odim, args = get_model_conf(model_path)
-
-        idim = hp.symbol_len
-        odim = hp.num_mels
-        # assert dimension is the same between teacher and studnet
-        assert idim == self.idim
-        assert odim == self.odim
-        assert hp.reduction_factor == self.reduction_factor
-
-        # load teacher model
-        model = Transformer(idim, odim)
-        torch_load(model_path, model)
-
-        # freeze teacher model parameters
-        for p in model.parameters():
-            p.requires_grad = False
-
-        return model
 
     def _reset_parameters(self, init_type, init_enc_alpha=1.0, init_dec_alpha=1.0):
         # initialize parameters
