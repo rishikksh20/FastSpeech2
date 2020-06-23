@@ -301,7 +301,7 @@ class FeedForwardTransformer(torch.nn.Module):
 
         return att_ws_dict
 
-    def inference(self, x, inference_args, spemb=None, *args, **kwargs):
+    def inference(self, x, inference_args, *args, **kwargs):
         """Generate the sequence of features given the sequences of characters.
 
         Args:

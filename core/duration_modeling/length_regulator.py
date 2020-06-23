@@ -53,6 +53,7 @@ class LengthRegulator(torch.nn.Module):
             ds = torch.round(ds.float() * alpha).long()
         xs = [x[:ilen] for x, ilen in zip(xs, ilens)]
         ds = [d[:ilen] for d, ilen in zip(ds, ilens)]
+        
         xs = [self._repeat_one_sequence(x, d) for x, d in zip(xs, ds)]
 
         return pad_list(xs, self.pad_value)

@@ -8,6 +8,9 @@ import argparse
 import json
 import os 
 import logging
+import random
+import subprocess
+from scipy.io.wavfile import read
 
 def str_to_int_list(s):
     return list(map(int, s.split()))
@@ -434,3 +437,27 @@ def get_model_conf(model_path, conf_path=None):
         # for asr, tts, mt
         idim, odim, args = confs
         return idim, odim, argparse.Namespace(**args)
+    
+
+
+
+def get_commit_hash():
+    message = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
+    return message.strip().decode('utf-8')
+
+def read_wav_np(path):
+    sr, wav = read(path)
+
+    if len(wav.shape) == 2:
+        wav = wav[:, 0]
+
+    if wav.dtype == np.int16:
+        wav = wav / 32768.0
+    elif wav.dtype == np.int32:
+        wav = wav / 2147483648.0
+    elif wav.dtype == np.uint8:
+        wav = (wav - 128) / 128.0
+
+    wav = wav.astype(np.float32)
+
+    return sr, wav

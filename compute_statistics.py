@@ -12,12 +12,12 @@ if __name__ == '__main__':
 
     energy_path = os.path.join(hp.data_dir, 'energy')
     pitch_path = os.path.join(hp.data_dir, 'pitch')
-    #mel_path = os.path.join(hp.data_dir, 'mels')
+    mel_path = os.path.join(hp.data_dir, 'mels')
     energy_files = get_files(energy_path, extension='.npy')
     pitch_files = get_files(pitch_path, extension='.npy')
-    #mel_files = get_files(mel_path, extension='.npy')
+    mel_files = get_files(mel_path, extension='.npy')
 
-    assert len(energy_files) == len(pitch_files) #== len(mel_files)
+    assert len(energy_files) == len(pitch_files) == len(mel_files)
 
     for f in energy_files:
         e = np.load(f)

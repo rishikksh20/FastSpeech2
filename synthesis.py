@@ -10,11 +10,11 @@ from fastspeech import FeedForwardTransformer
 import hparams as hp
 from dataset.texts import  phonemes_to_sequence
 import time
-from dataset.audio_processing import reconstruct_waveform
+from dataset.audio_processing import reconstruct_waveform, griffin_lim
 from dataset.audio_processing import save_wav
 import librosa
 import numpy as np
-
+from utils.stft import STFT
 
 def synthesis(args, text):
     """Decode with E2E-TTS model."""
@@ -162,7 +162,7 @@ def logmelspc_to_linearspc(lmspc, fs, n_mels, n_fft, fmin=None, fmax=None):
     return spc
 
 
-def griffin_lim(spc, n_fft, n_shift, win_length, window='hann', n_iters=100):
+def griffin_lim_(spc, n_fft, n_shift, win_length, window='hann', n_iters=100):
     """Convert linear spectrogram into waveform using Griffin-Lim.
 
     Args:
@@ -189,23 +189,6 @@ def griffin_lim(spc, n_fft, n_shift, win_length, window='hann', n_iters=100):
     )
     return y
 
-def main(args):
-    """Run deocding."""
-    parser = get_parser()
-    args = parser.parse_args(args)
-    stats_file = "checkpoints/stats.npy"
-
-    # display PYTHONPATH
-    logging.info('python path = ' + os.environ.get('PYTHONPATH', '(None)'))
-
-    path = "./checkpoints/checkpoint_38k_steps.pyt"
-    out = "results/"
-    print("Text : ", args.text)
-    audio = synthesis_tts(args, args.text, path)
-    m = audio.T
-    wav = reconstruct_waveform(m, n_iter=60)
-    save_path = '{}/test.wav'.format(args.out)
-    save_wav(wav, save_path)
 
 
 # For TTS engine setup
@@ -213,6 +196,7 @@ def main(args):
 def synthesis_tts(args, text, path):
     """Decode with E2E-TTS model."""
     set_deterministic_pytorch(args)
+    print("TTS synthesis")
     # read training config
     idim = hp.symbol_len
     odim = hp.num_mels
@@ -276,14 +260,15 @@ def synthesis_tts(args, text, path):
         # decode and write
         idx = input[:5]
         start_time = time.time()
+        print("pridicting")
         outs, probs, att_ws = model.inference(text, args)
 
         logging.info("inference speed = %s msec / frame." % (
             (time.time() - start_time) / (int(outs.size(0)) * 1000)))
-        if outs.size(0) == text.size(0) * args.maxlenratio:
+        if outs.size(0) == text.size(0) * 5:
             logging.warning("output length reaches maximum length .")
 
-        mel = outs.cpu().numpy() # [T_out, num_mel]
+        mel = outs#.cpu().numpy() # [T_out, num_mel]
 
         
 
@@ -325,15 +310,52 @@ def infer(text):
 
     # display PYTHONPATH
     logging.info('python path = ' + os.environ.get('PYTHONPATH', '(None)'))
-    path = "./checkpoints/checkpoint_38k_steps.pyt"
+    path = "./checkpoints/checkpoint_48k_steps.pyt"
     out = "results/"
     print("Text : ", text)
-    audio = synthesis_tts(args, text, path)
-    m = audio.T
-    wav = reconstruct_waveform(m, n_iter=60)
+    if hp.melgan_vocoder:
+        m = m.unsqueeze(0)
+        vocoder = torch.hub.load('seungwonpark/melgan', 'melgan')
+        vocoder.eval()
+        if torch.cuda.is_available():
+            vocoder = vocoder.cuda()
+            mel = m.cuda()
+
+        with torch.no_grad():
+            wav = vocoder.inference(mel) # mel ---> batch, num_mels, frames [1, 80, 234]
+            wav = wav.cpu().numpy()
+    else:
+        stft = STFT(filter_length=1024, hop_length=256, win_length=1024)
+        print(m.size())
+        m = m.unsqueeze(0)
+        wav = griffin_lim(m, stft, 30)
+        wav = wav.cpu().numpy()
     save_path = '{}/test_tts.wav'.format(out)
     save_wav(wav, save_path)
     return save_path
+
+def main(args):
+    """Run deocding."""
+    parser = get_parser()
+    args = parser.parse_args(args)
+    stats_file = "checkpoints/stats.npy"
+
+    # display PYTHONPATH
+    logging.info('python path = ' + os.environ.get('PYTHONPATH', '(None)'))
+
+    path = "./checkpoints/checkpoint_54k_steps.pyt"
+    out = "results/"
+    print("Text : ", args.text)
+    audio = synthesis_tts(args, args.text, path)
+    m = audio.T
+    
+    np.save("mel.npy", m.cpu().numpy())
+    m = m.cpu().numpy()
+    m = (m + 4) / 8
+    wav = reconstruct_waveform(m, n_iter=60)
+    
+    save_path = '{}/test.wav'.format(args.out)
+    save_wav(wav, save_path)
 
 if __name__ == '__main__':
     print("Starting")

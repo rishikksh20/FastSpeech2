@@ -115,6 +115,7 @@ train_filelist = "./data/train.txt"
 valid_filelist = "./data/valid.txt"
 tts_cleaner_names = ['english_cleaners']
 # other
+melgan_vocoder = True
 save_interval = 2000
 chkpt_dir = './checkpoints'
 #fastspeech_chkpt = './fastspeech_checkpoints'
