@@ -13,7 +13,7 @@ import numpy as np
 from utils.cli_utils import strtobool
 import sys
 import tqdm
-import itertools
+from core.optimizer import get_std_opt
 
 BATCH_COUNT_CHOICES = ["auto", "seq", "bin", "frame"]
 BATCH_SORT_KEY_CHOICES = ["input", "output", "shuffle"]
@@ -36,9 +36,14 @@ def train(args):
         if os.path.exists(args.resume):
             print('\nSynthesis Session...\n')
             model.load_state_dict(torch.load(args.resume), strict=False)
+            optimizer = get_std_opt(model, hp.adim, hp.transformer_warmup_steps, hp.transformer_lr)
+            optimizer.load_state_dict(torch.load(args.resume.replace("model", "optim")))
+            global_step = optimizer._step
         else:
             print("Checkpoint not exixts")
             return None
+    else:
+        optimizer = get_std_opt(model, hp.adim, hp.transformer_warmup_steps, hp.transformer_lr)
     model = model.to(device)
     print("Model is loaded ...")
     print("Batch Size :",hp.batch_size)
@@ -49,8 +54,7 @@ def train(args):
     #         model.parameters(), args.lr, eps=args.eps,
     #         weight_decay=args.weight_decay)
     # elif args.opt == 'noam':
-    from core.optimizer import get_std_opt
-    optimizer = get_std_opt(model, hp.adim, hp.transformer_warmup_steps, hp.transformer_lr)
+
     # else:
     #     raise NotImplementedError("unknown optimizer: " + args.opt)
 
@@ -171,8 +175,10 @@ def train(args):
                     plot_fn.log_attentions(writer, step, input_length_, out_length_, att_ws)
 
             if step % hp.save_interval == 0:
-                save_path = os.path.join(hp.chkpt_dir, 'checkpoint_{}k_steps.pyt'.format(step // 1000))
+                save_path = os.path.join(hp.chkpt_dir, 'checkpoint_model_{}k_steps.pyt'.format(step // 1000))
+                optim_path = os.path.join(hp.chkpt_dir, 'checkpoint_optim_{}k_steps.pyt'.format(step // 1000))
                 torch.save(model.state_dict(), save_path)
+                torch.save(optimizer.state_dict(), optim_path)
                 print("Model Saved")
         print('Time taken for epoch {} is {} sec\n'.format(epoch + 1, int(time.time() - start)))
 
