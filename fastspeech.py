@@ -269,9 +269,11 @@ class FeedForwardTransformer(torch.nn.Module):
             ys = ys.masked_select(out_masks)
 
         # calculate loss
-        l1_loss = self.criterion(before_outs, ys)
+        before_loss = self.criterion(before_outs, ys)
+        after_loss = 0
         if after_outs is not None:
-            l1_loss += self.criterion(after_outs, ys)
+            after_loss = self.criterion(after_outs, ys)
+            l1_loss = before_loss + after_loss
         duration_loss = self.duration_criterion(d_outs, ds)
         energy_loss = self.energy_criterion(e_outs, es)
         pitch_loss = self.pitch_criterion(p_outs, ps)
@@ -296,8 +298,8 @@ class FeedForwardTransformer(torch.nn.Module):
         loss = l1_loss + duration_loss + energy_loss + pitch_loss
         report_keys = [
             {"l1_loss": l1_loss.item()},
-            {"before_loss": before_outs.item()},
-            {"after_loss": after_outs.item()},
+            {"before_loss": before_loss.item()},
+            {"after_loss": after_loss.item()},
             {"duration_loss": duration_loss.item()},
             {"energy_loss": energy_loss.item()},
             {"pitch_loss": pitch_loss.item()},

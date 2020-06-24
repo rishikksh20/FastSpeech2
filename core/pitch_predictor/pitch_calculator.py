@@ -36,8 +36,8 @@ def pitch_to_one_hot(f0, is_training = True):
     else:
         log_f0 = f0
 
-    bins = torch.linspace(torch.log(hp.p_min), torch.log(hp.p_max+1), steps=256).to(torch.device("cuda" if hp.ngpu > 0 else "cpu"))
+    bins = torch.linspace(np.log(hp.p_min), np.log(hp.p_max+1), steps=256).to(torch.device("cuda" if hp.ngpu > 0 else "cpu"))
     p_quantize = torch.bucketize(log_f0, bins)
-    p_quantize = p_quantize - 1  # -1 to convert 1 to 256 --> 0 to 255
+    #p_quantize = p_quantize - 1  # -1 to convert 1 to 256 --> 0 to 255
     return F.one_hot(p_quantize.long(), 256).float()
 

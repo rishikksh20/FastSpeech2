@@ -106,7 +106,7 @@ transferred_encoder_module = "all" # choices=["all", "embed"]
 opt= 'noam'
 accum_grad= 4
 grad_clip= 1.0
-weight_decay= 0.0
+weight_decay= 0.001
 patience= 0
 epochs= 1000  # 1,000 epochs * 809 batches / 5 accum_grad = 161,800 iters
 GTA = False

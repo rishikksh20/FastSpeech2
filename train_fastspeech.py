@@ -31,6 +31,9 @@ def train(args):
     idim = hp.symbol_len
     odim = hp.num_mels
     model = fastspeech.FeedForwardTransformer(idim, odim)
+    # set torch device
+    model = model.to(device)
+    print("Model is loaded ...")
 
     if args.resume is not None:
         if os.path.exists(args.resume):
@@ -38,16 +41,14 @@ def train(args):
             model.load_state_dict(torch.load(args.resume), strict=False)
             optimizer = get_std_opt(model, hp.adim, hp.transformer_warmup_steps, hp.transformer_lr)
             optimizer.load_state_dict(torch.load(args.resume.replace("model", "optim")))
-            global_step = optimizer._step
+            global_step = hp.accum_grad * optimizer._step
         else:
             print("Checkpoint not exixts")
             return None
     else:
         optimizer = get_std_opt(model, hp.adim, hp.transformer_warmup_steps, hp.transformer_lr)
 
-    # set torch device
-    model = model.to(device)
-    print("Model is loaded ...")
+
     print("Batch Size :",hp.batch_size)
     num_params(model)
 
@@ -67,12 +68,7 @@ def train(args):
             x, input_length, y, _, out_length, _, dur, e, p = data
             # x : [batch , num_char], input_length : [batch], y : [batch, T_in, num_mel]
             #             # stop_token : [batch, T_in], out_length : [batch]
-            #print("x : ", x.size())
-            #print("in : ", input_length.size())
-            #print("y : ", y.size())
-            #print("stop : ", stop_token.size())
-            #print("out : ", out_length.size())
-            #print("out length: ", out_length)
+
             loss, report_dict = model(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda(), dur.cuda(), e.cuda(), p.cuda())
             loss = loss.mean()/hp.accum_grad
             running_loss += loss.item()
@@ -107,7 +103,11 @@ def train(args):
                 for r in report_dict:
                     for k, v in r.items():
                         if k == 'l1_loss':
-                            print("\nL1 loss :", v)    
+                            print("\nL1 loss :", v)
+                        if k == 'before_loss':
+                            print("\nBefore loss :", v)
+                        if k == 'after_loss':
+                            print("\nAfter loss :", v)
                         if k == 'duration_loss':
                             print("\nD loss :", v)
                         if k == 'pitch_loss':

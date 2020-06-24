@@ -26,6 +26,7 @@ def energy_to_one_hot(e):
 
     # For pytorch > = 1.6.0
     bins = torch.linspace(hp.e_min, hp.e_max, steps=256).to(torch.device("cuda" if hp.ngpu > 0 else "cpu"))
+
     e_quantize = torch.bucketize(e, bins)
-    e_quantize = e_quantize -1 # -1 to convert 1 to 256 --> 0 to 255
+
     return F.one_hot(e_quantize.long(), 256).float()
