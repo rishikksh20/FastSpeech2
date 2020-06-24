@@ -296,6 +296,8 @@ class FeedForwardTransformer(torch.nn.Module):
         loss = l1_loss + duration_loss + energy_loss + pitch_loss
         report_keys = [
             {"l1_loss": l1_loss.item()},
+            {"before_loss": before_outs.item()},
+            {"after_loss": after_outs.item()},
             {"duration_loss": duration_loss.item()},
             {"energy_loss": energy_loss.item()},
             {"pitch_loss": pitch_loss.item()},

@@ -31,7 +31,7 @@ def train(args):
     idim = hp.symbol_len
     odim = hp.num_mels
     model = fastspeech.FeedForwardTransformer(idim, odim)
-    # set torch device
+
     if args.resume is not None:
         if os.path.exists(args.resume):
             print('\nSynthesis Session...\n')
@@ -44,19 +44,13 @@ def train(args):
             return None
     else:
         optimizer = get_std_opt(model, hp.adim, hp.transformer_warmup_steps, hp.transformer_lr)
+
+    # set torch device
     model = model.to(device)
     print("Model is loaded ...")
     print("Batch Size :",hp.batch_size)
     num_params(model)
-    # Setup an optimizer
-    # if args.opt == 'adam':
-    #     optimizer = torch.optim.Adam(
-    #         model.parameters(), args.lr, eps=args.eps,
-    #         weight_decay=args.weight_decay)
-    # elif args.opt == 'noam':
 
-    # else:
-    #     raise NotImplementedError("unknown optimizer: " + args.opt)
 
     writer = SummaryWriter(hp.log_dir)
     model.train()
@@ -64,14 +58,11 @@ def train(args):
     print(model)
     for epoch in range(hp.epochs):
         start = time.time()
-        # dataloader = DataLoader(dataset, batch_size=hp.batch_size, shuffle=True, collate_fn=collate_fn_transformer,
-        #                         drop_last=True, num_workers=16)
         running_loss=0
         j=0
 
         pbar = tqdm.tqdm(dataloader, desc='Loading train data')
         for data in pbar:
-            #start_b = time.time()
             global_step += 1
             x, input_length, y, _, out_length, _, dur, e, p = data
             # x : [batch , num_char], input_length : [batch], y : [batch, T_in, num_mel]
@@ -88,11 +79,6 @@ def train(args):
 
             loss.backward()
 
-            # if hp.tts_clip_grad_norm:
-            #     torch.nn.utils.clip_grad_norm_(model.parameters(), hp.tts_clip_grad_norm)
-            #
-            # optimizer.step()
-            #
             # update parameters
             forward_count += 1
             j = j + 1
@@ -150,6 +136,10 @@ def train(args):
                         for k, v in r.items():
                             if k == 'l1_loss':
                                 print("\nL1 loss :", v)
+                            if k == 'before_loss':
+                                print("\nBefore loss :", v)
+                            if k == 'after_loss':
+                                print("\nAfter loss :", v)
                             if k == 'duration_loss':
                                 print("\nD loss :", v)
                             if k == 'pitch_loss':
@@ -388,23 +378,12 @@ def get_parser():
 
 def main(cmd_args):
 
-    #  Parse Arguments
-    # parser = argparse.ArgumentParser(description='Train Tacotron TTS')
-    # parser.add_argument('--force_train', '-f', action='store_true', help='Forces the model to train past total steps')
-    # parser.add_argument('--force_gta', '-g', action='store_true', help='Force the model to create GTA features')
-    # parser.add_argument('--checkpoint', '-c', type=str, help='[string/path] checkpoint file to load weights from')
-    # parser.set_defaults(checkpoint=None)
-    # args = parser.parse_args()
-    #
-    # train(args)
+
 
     """Run training."""
     parser = get_parser()
     args, _ = parser.parse_known_args(cmd_args)
 
-    #model_class = dynamic_import(args.model_module)
-    #assert issubclass(model_class, TTSInterface)
-    #fastspeech.FeedForwardTransformer.add_arguments(parser)
     args = parser.parse_args(cmd_args)
 
     # logging info
