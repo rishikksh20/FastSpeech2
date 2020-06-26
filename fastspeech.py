@@ -112,6 +112,7 @@ class FeedForwardTransformer(torch.nn.Module):
             kernel_size=hp.duration_predictor_kernel_size,
             dropout_rate=hp.duration_predictor_dropout_rate,
         )
+        self.energy_embed = torch.nn.Linear(hp.adim, hp.adim)
 
         self.pitch_predictor = PitchPredictor(
             idim=hp.adim,
@@ -120,6 +121,7 @@ class FeedForwardTransformer(torch.nn.Module):
             kernel_size=hp.duration_predictor_kernel_size,
             dropout_rate=hp.duration_predictor_dropout_rate,
         )
+        self.pitch_embed = torch.nn.Linear(hp.adim, hp.adim)
 
         # define length regulator
         self.length_regulator = LengthRegulator()
@@ -204,8 +206,8 @@ class FeedForwardTransformer(torch.nn.Module):
             # print("e_outs:", e_outs.shape)  torch.Size([32, 868])
             p_outs = self.pitch_predictor(hs)
             # print("p_outs:", p_outs.shape)   torch.Size([32, 868])
-        hs = hs + one_hot_pitch 
-        hs = hs + one_hot_energy
+        hs = hs + self.pitch_embed(one_hot_pitch) # (B, Lmax, adim)
+        hs = hs + self.energy_embed(one_hot_energy) # (B, Lmax, adim)
         # forward decoder
         if olens is not None:
             h_masks = self._source_mask(olens)

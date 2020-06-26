@@ -343,19 +343,19 @@ def main(args):
     # display PYTHONPATH
     logging.info('python path = ' + os.environ.get('PYTHONPATH', '(None)'))
 
-    path = "./checkpoints/checkpoint_54k_steps.pyt"
+    path = "./checkpoints/checkpoint_model_136k_steps.pyt"
     out = "results/"
     print("Text : ", args.text)
     audio = synthesis_tts(args, args.text, path)
     m = audio.T
     
     np.save("mel.npy", m.cpu().numpy())
-    m = m.cpu().numpy()
-    m = (m + 4) / 8
-    wav = reconstruct_waveform(m, n_iter=60)
-    
-    save_path = '{}/test.wav'.format(args.out)
-    save_wav(wav, save_path)
+    # m = m.cpu().numpy()
+    # m = (m + 4) / 8
+    # wav = reconstruct_waveform(m, n_iter=60)
+    #
+    # save_path = '{}/test.wav'.format(args.out)
+    # save_wav(wav, save_path)
 
 if __name__ == '__main__':
     print("Starting")

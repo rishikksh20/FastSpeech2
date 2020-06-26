@@ -40,9 +40,9 @@ def get_tts_dataset(path, batch_size, valid=False) :
                            collate_fn=collate_tts,
                            batch_size=batch_size,
                            #sampler=sampler,
-                           num_workers=0,
-                           shuffle=True)
-                           #pin_memory=True)
+                           num_workers=4,
+                           shuffle=True,
+                           pin_memory=True)
 
     #longest = mel_lengths.index(max(mel_lengths))
     #attn_example = dataset_ids[longest]
