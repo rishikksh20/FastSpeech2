@@ -129,7 +129,7 @@ def train(args):
                     model.eval()
                     with torch.no_grad(): 
                         loss_, report_dict_ = model(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda(), dur_.cuda(), e_.cuda(), p_.cuda())
-                    att_ws = model.calculate_all_attentions(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda(), dur_.cuda(), e_.cuda(), p_.cuda())
+                    #att_ws = model.calculate_all_attentions(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda(), dur_.cuda(), e_.cuda(), p_.cuda())
                     model.train()
                     print(" Validation Losses :")
                     for r in report_dict_:
@@ -161,8 +161,8 @@ def train(args):
                                     k = k.get()
                                 writer.add_scalar("validation/{}".format(k), v, step)
 
-                    plot_fn.__call__(step, input_length_, out_length_, att_ws)
-                    plot_fn.log_attentions(writer, step, input_length_, out_length_, att_ws)
+                    #plot_fn.__call__(step, input_length_, out_length_, att_ws)
+                    #plot_fn.log_attentions(writer, step, input_length_, out_length_, att_ws)
 
             if step % hp.save_interval == 0:
                 save_path = os.path.join(hp.chkpt_dir, 'checkpoint_model_{}k_steps.pyt'.format(step // 1000))

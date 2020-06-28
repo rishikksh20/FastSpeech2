@@ -183,6 +183,7 @@ class FeedForwardTransformer(torch.nn.Module):
 
         # forward duration predictor and length regulator
         d_masks = make_pad_mask(ilens).to(xs.device)
+
         if is_inference:
             d_outs = self.duration_predictor.inference(hs, d_masks)  # (B, Tmax)
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
@@ -197,14 +198,15 @@ class FeedForwardTransformer(torch.nn.Module):
                 # print("one_hot_energy:", one_hot_energy.shape)
                 one_hot_pitch = pitch_to_one_hot(ps)   # (B, Lmax, adim)   torch.Size([32, 868, 256])
                 # print("one_hot_pitch:", one_hot_pitch.shape)
+            mel_masks = make_pad_mask(olens).to(xs.device)
             # print("Before Hs:", hs.shape)  torch.Size([32, 121, 256])
             d_outs = self.duration_predictor(hs, d_masks)  # (B, Tmax)
             # print("d_outs:", d_outs.shape)        torch.Size([32, 121])
             hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
             # print("After Hs:",hs.shape)  torch.Size([32, 868, 256])
-            e_outs = self.energy_predictor(hs)
+            e_outs = self.energy_predictor(hs, mel_masks)
             # print("e_outs:", e_outs.shape)  torch.Size([32, 868])
-            p_outs = self.pitch_predictor(hs)
+            p_outs = self.pitch_predictor(hs, mel_masks)
             # print("p_outs:", p_outs.shape)   torch.Size([32, 868])
         hs = hs + self.pitch_embed(one_hot_pitch) # (B, Lmax, adim)
         hs = hs + self.energy_embed(one_hot_energy) # (B, Lmax, adim)
@@ -262,9 +264,12 @@ class FeedForwardTransformer(torch.nn.Module):
             d_outs = d_outs.masked_select(in_masks)
             ds = ds.masked_select(in_masks)
             out_masks = make_non_pad_mask(olens).unsqueeze(-1).to(ys.device)
+            mel_masks = make_non_pad_mask(olens).to(ys.device)
             before_outs = before_outs.masked_select(out_masks)
-            #e_outs = e_outs.masked_select(out_masks) # Write size
-            #p_outs = p_outs.masked_select(out_masks) # Write size
+            es = es.masked_select(mel_masks)  # Write size
+            ps = ps.masked_select(mel_masks)  # Write size
+            e_outs = e_outs.masked_select(mel_masks) # Write size
+            p_outs = p_outs.masked_select(mel_masks) # Write size
             after_outs = (
                 after_outs.masked_select(out_masks) if after_outs is not None else None
             )
@@ -317,6 +322,17 @@ class FeedForwardTransformer(torch.nn.Module):
         #self.reporter.report(report_keys)
 
         return loss, report_keys
+
+    def calculate_mel(self, xs, ilens, ys, olens, ds, es, ps):
+        with torch.no_grad():
+            # remove unnecessary padded part (for multi-gpus)
+            xs = xs[:, :max(ilens)]
+            ys = ys[:, :max(olens)]
+
+            # forward propagation
+            _, outs, _, _, _ = self._forward(xs, ilens, ys, olens, ds, es, ps, is_inference=False)[0]
+
+        return [m[:l].T for m, l in zip(outs.cpu().numpy(), olens.tolist())]
 
     def calculate_all_attentions(self, xs, ilens, ys, olens, ds, es, ps, *args, **kwargs):
         """Calculate all of the attention weights.

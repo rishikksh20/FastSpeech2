@@ -6,9 +6,14 @@ import matplotlib
 import torch
 matplotlib.use('Agg')
 import logging
+import numpy as np
 # matplotlib related
 from utils.plot import PlotAttentionReport
 
+def plot_mel(mel, filename):
+    fig = plt.figure(figsize=(12, 6))
+    plt.plot(np.flip(mel, axis=0), interpolation='nearest', aspect='auto')
+    savefig(fig, filename)
 
 
 def _plot_and_save_attention(att_w, filename):
