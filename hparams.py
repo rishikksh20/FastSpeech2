@@ -9,8 +9,8 @@ seed=1       # random seed number
 resume=""    # the snapshot path to resume (if set empty, no effect)
 use_phonemes = True
 
-p_min = 1.0
-p_max = 800.0
+p_min = 71.0 # 71.07342529296875
+p_max = 800.0 # 799.8901977539062
 e_min = 0.0
 e_max =14.0
 # feature extraction related

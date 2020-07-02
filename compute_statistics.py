@@ -9,6 +9,8 @@ if __name__ == '__main__':
     min_p = []
     max_e = []
     max_p = []
+    nz_min_p = []
+    nz_min_e = []
 
     energy_path = os.path.join(hp.data_dir, 'energy')
     pitch_path = os.path.join(hp.data_dir, 'pitch')
@@ -22,14 +24,18 @@ if __name__ == '__main__':
     for f in energy_files:
         e = np.load(f)
         min_e.append(e.min())
+        nz_min_e.append(e[e>0].min())
         max_e.append(e.max())
 
     for f in pitch_files:
         p = np.load(f)
         min_p.append(p.min())
+        nz_min_p.append(p[p > 0].min())
         max_p.append(p.max())
 
     print("Min Energy : {}".format(min(min_e)))
+    print("Non zero Min Energy : {}".format(min(nz_min_e)))
     print("Max Energy : {}".format(max(max_e)))
     print("Min Pitch : {}".format(min(min_p)))
+    print("Non zero Min Pitch : {}".format(min(nz_min_p)))
     print("Max Pitch : {}".format(max(max_p)))

@@ -17,15 +17,9 @@ def retreive_pitch(file):
 
 def pitch_to_one_hot(f0, is_training = True):
     # Required pytorch >= 1.6.0
-    if is_training:
-        f0 = f0 + 1 # convert 0 to 1 because log 0 == nan
-        # bins = np.logspace(0, np.log10(f0.max()), 256)
-        log_f0 = torch.log(f0)
-    else:
-        log_f0 = f0
 
-    bins = torch.linspace(np.log(hp.p_min), np.log(hp.p_max+1), steps=256).to(torch.device("cuda" if hp.ngpu > 0 else "cpu"))
-    p_quantize = torch.bucketize(log_f0, bins, right=True)
+    bins = torch.exp(torch.linspace(np.log(hp.p_min), np.log(hp.p_max), 255)).to(torch.device("cuda" if hp.ngpu > 0 else "cpu"))
+    p_quantize = torch.bucketize(f0, bins, right = True)
     #p_quantize = p_quantize - 1  # -1 to convert 1 to 256 --> 0 to 255
     return F.one_hot(p_quantize.long(), 256).float()
 

@@ -47,7 +47,8 @@ mel_basis = None
 def energy(y):
     # Extract RMS energy
     S = librosa.magphase(stft(y))[0]
-    e = librosa.feature.rms(S=S) # (1 , Number of frames)
+    # e = librosa.feature.rms(S=S) # (1 , Number of frames)
+    e = np.sqrt(np.sum(S ** 2, axis=0))
     return e.squeeze() # (Number of frames) => (654,)
 
 def pitch(y):
@@ -61,7 +62,7 @@ def pitch(y):
         Upper F0 limit in Hz.
         Default: 800.0
     '''
-    f0, timeaxis = pw.dio(y, hp.sample_rate, frame_period=11.6)  # For hop size 256 frame period is 11.6 ms
+    f0, timeaxis = pw.dio(y, hp.sample_rate, frame_period=hp.hop_length/hp.sample_rate*1000)  # For hop size 256 frame period is 11.6 ms
     return f0 #   (Number of Frames) = (654,)
 
 

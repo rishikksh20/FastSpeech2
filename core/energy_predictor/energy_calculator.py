@@ -19,7 +19,7 @@ def retreive_energy(file):
 
 def energy_to_one_hot(e):
     # For pytorch > = 1.6.0
-    bins = torch.linspace(hp.e_min, hp.e_max, steps=256).to(torch.device("cuda" if hp.ngpu > 0 else "cpu"))
+    bins = torch.linspace(hp.e_min, hp.e_max, steps=255).to(torch.device("cuda" if hp.ngpu > 0 else "cpu"))
 
     e_quantize = torch.bucketize(e, bins)
 
