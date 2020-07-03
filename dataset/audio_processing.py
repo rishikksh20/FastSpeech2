@@ -48,7 +48,7 @@ def energy(y):
     # Extract RMS energy
     S = librosa.magphase(stft(y))[0]
     # e = librosa.feature.rms(S=S) # (1 , Number of frames)
-    e = np.sqrt(np.sum(S ** 2, axis=0))
+    e = np.sqrt(np.sum(S ** 2, axis=0)) # np.linalg.norm(S, axis=0)
     return e.squeeze() # (Number of frames) => (654,)
 
 def pitch(y):

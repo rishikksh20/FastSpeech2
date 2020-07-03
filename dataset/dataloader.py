@@ -26,8 +26,12 @@ def get_tts_dataset(path, batch_size, valid=False) :
     #     text_dict = pickle.load(f)
     if valid:
         file_ = hp.valid_filelist
+        pin_mem = False
+        num_workers = 0
     else:
         file_ = hp.train_filelist
+        pin_mem = True
+        num_workers = 4
     train_dataset = TTSDataset(path, file_)
     # train_dataset = TTSDataset(file_)
 
@@ -40,9 +44,9 @@ def get_tts_dataset(path, batch_size, valid=False) :
                            collate_fn=collate_tts,
                            batch_size=batch_size,
                            #sampler=sampler,
-                           num_workers=4,
+                           num_workers=num_workers,
                            shuffle=True,
-                           pin_memory=True)
+                           pin_memory=pin_mem)
 
     #longest = mel_lengths.index(max(mel_lengths))
     #attn_example = dataset_ids[longest]
@@ -70,7 +74,6 @@ class TTSDataset(Dataset):
         durations = str_to_int_list(self._metadata[index][2])
         e = np.load(f'{self.path}energy/{id}.npy')
         p = np.load(f'{self.path}pitch/{id}.npy')
-        mel = mel.squeeze(0)
         mel_len = mel.shape[1]
         durations[-1] = durations[-1] + (mel.shape[1] - sum(durations))
         return np.array(x), mel.T, id, mel_len, np.array(durations), e, p # Mel [T, num_mel]

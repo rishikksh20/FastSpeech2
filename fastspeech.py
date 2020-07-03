@@ -323,17 +323,6 @@ class FeedForwardTransformer(torch.nn.Module):
 
         return loss, report_keys
 
-    def calculate_mel(self, xs, ilens, ys, olens, ds, es, ps):
-        with torch.no_grad():
-            # remove unnecessary padded part (for multi-gpus)
-            xs = xs[:, :max(ilens)]
-            ys = ys[:, :max(olens)]
-
-            # forward propagation
-            _, outs, _, _, _ = self._forward(xs, ilens, ys, olens, ds, es, ps, is_inference=False)[0]
-
-        return [m[:l].T for m, l in zip(outs.cpu().numpy(), olens.tolist())]
-
     def calculate_all_attentions(self, xs, ilens, ys, olens, ds, es, ps, *args, **kwargs):
         """Calculate all of the attention weights.
 
@@ -354,24 +343,25 @@ class FeedForwardTransformer(torch.nn.Module):
             ys = ys[:, :max(olens)]
 
             # forward propagation
-            outs = self._forward(xs, ilens, ys, olens, ds, es, ps, is_inference=False)[0]
+            outs, _, _, _, _ = self._forward(xs, ilens, ys, olens, ds, es, ps, is_inference=False)
 
         att_ws_dict = dict()
-        for name, m in self.named_modules():
-            if isinstance(m, MultiHeadedAttention):
-                attn = m.attn.cpu().numpy()
-                if "encoder" in name:
-                    attn = [a[:, :l, :l] for a, l in zip(attn, ilens.tolist())]
-                elif "decoder" in name:
-                    if "src" in name:
-                        attn = [a[:, :ol, :il] for a, il, ol in zip(attn, ilens.tolist(), olens.tolist())]
-                    elif "self" in name:
-                        attn = [a[:, :l, :l] for a, l in zip(attn, olens.tolist())]
+        if hp.attn_plot :
+            for name, m in self.named_modules():
+                if isinstance(m, MultiHeadedAttention):
+                    attn = m.attn.cpu().numpy()
+                    if "encoder" in name:
+                        attn = [a[:, :l, :l] for a, l in zip(attn, ilens.tolist())]
+                    elif "decoder" in name:
+                        if "src" in name:
+                            attn = [a[:, :ol, :il] for a, il, ol in zip(attn, ilens.tolist(), olens.tolist())]
+                        elif "self" in name:
+                            attn = [a[:, :l, :l] for a, l in zip(attn, olens.tolist())]
+                        else:
+                            logging.warning("unknown attention module: " + name)
                     else:
                         logging.warning("unknown attention module: " + name)
-                else:
-                    logging.warning("unknown attention module: " + name)
-                att_ws_dict[name] = attn
+                    att_ws_dict[name] = attn
         att_ws_dict["predicted_fbank"] = [m[:l].T for m, l in zip(outs.cpu().numpy(), olens.tolist())]
 
         return att_ws_dict

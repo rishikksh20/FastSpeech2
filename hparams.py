@@ -10,9 +10,9 @@ resume=""    # the snapshot path to resume (if set empty, no effect)
 use_phonemes = True
 
 p_min = 71.0 # 71.07342529296875
-p_max = 800.0 # 799.8901977539062
-e_min = 0.0
-e_max =14.0
+p_max = 795.7948713554541 # 799.8901977539062
+e_min = 0.01786651276051998
+e_max = 314.9619140625
 # feature extraction related
 sample_rate=22050      # sampling frequency
 fmax=8000.0       # maximum frequency
@@ -100,6 +100,7 @@ duration_predictor_dropout_rate = 0.5
 teacher_model = ""
 transferred_encoder_module = "all" # choices=["all", "embed"]
 
+attn_plot = False
 
 
 # optimization related
@@ -122,7 +123,7 @@ chkpt_dir = './checkpoints'
 #fastspeech_chkpt = './fastspeech_checkpoints'
 log_dir = './logs'
 data_dir = './data/'
-summary_interval = 100
+summary_interval = 1000
 validation_step = 1000
 tts_max_mel_len = 870              # if you have a couple of extremely long spectrograms you might want to use this
 tts_bin_lengths = True              # bins the spectrogram lengths before sampling in data loader - speeds up training

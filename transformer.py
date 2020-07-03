@@ -73,116 +73,6 @@ class Transformer(torch.nn.Module):
 
     """
 
-    @staticmethod
-    def add_arguments(parser):
-        """Add model-specific arguments to the parser."""
-        group = parser.add_argument_group("core model setting")
-        # network structure related
-        group.add_argument("--embed-dim", default=512, type=int,
-                           help="Dimension of character embedding in encoder prenet")
-        group.add_argument("--eprenet-conv-layers", default=3, type=int,
-                           help="Number of encoder prenet convolution layers")
-        group.add_argument("--eprenet-conv-chans", default=256, type=int,
-                           help="Number of encoder prenet convolution channels")
-        group.add_argument("--eprenet-conv-filts", default=5, type=int,
-                           help="Filter size of encoder prenet convolution")
-        group.add_argument("--dprenet-layers", default=2, type=int,
-                           help="Number of decoder prenet layers")
-        group.add_argument("--dprenet-units", default=256, type=int,
-                           help="Number of decoder prenet hidden units")
-        group.add_argument("--elayers", default=3, type=int,
-                           help="Number of encoder layers")
-        group.add_argument("--eunits", default=1536, type=int,
-                           help="Number of encoder hidden units")
-        group.add_argument("--adim", default=384, type=int,
-                           help="Number of attention transformation dimensions")
-        group.add_argument("--aheads", default=4, type=int,
-                           help="Number of heads for multi head attention")
-        group.add_argument("--dlayers", default=3, type=int,
-                           help="Number of decoder layers")
-        group.add_argument("--dunits", default=1536, type=int,
-                           help="Number of decoder hidden units")
-        group.add_argument("--postnet-layers", default=5, type=int,
-                           help="Number of postnet layers")
-        group.add_argument("--postnet-chans", default=256, type=int,
-                           help="Number of postnet channels")
-        group.add_argument("--postnet-filts", default=5, type=int,
-                           help="Filter size of postnet")
-        group.add_argument("--use-scaled-pos-enc", default=True, type=strtobool,
-                           help="Use trainable scaled positional encoding instead of the fixed scale one.")
-        group.add_argument("--use-batch-norm", default=True, type=strtobool,
-                           help="Whether to use batch normalization")
-        group.add_argument("--encoder-normalize-before", default=False, type=strtobool,
-                           help="Whether to apply layer norm before encoder block")
-        group.add_argument("--decoder-normalize-before", default=False, type=strtobool,
-                           help="Whether to apply layer norm before decoder block")
-        group.add_argument("--encoder-concat-after", default=False, type=strtobool,
-                           help="Whether to concatenate attention layer's input and output in encoder")
-        group.add_argument("--decoder-concat-after", default=False, type=strtobool,
-                           help="Whether to concatenate attention layer's input and output in decoder")
-        group.add_argument("--reduction-factor", default=1, type=int,
-                           help="Reduction factor")
-        group.add_argument("--spk-embed-dim", default=None, type=int,
-                           help="Number of speaker embedding dimensions")
-        group.add_argument("--spk-embed-integration-type", type=str, default="add",
-                           choices=["add", "concat"],
-                           help="How to integrate speaker embedding")
-        # training related
-        group.add_argument("--core-init", type=str, default="pytorch",
-                           choices=["pytorch", "xavier_uniform", "xavier_normal",
-                                    "kaiming_uniform", "kaiming_normal"],
-                           help="How to initialize core parameters")
-        group.add_argument("--initial-encoder-alpha", type=float, default=1.0,
-                           help="Initial alpha value in encoder's ScaledPositionalEncoding")
-        group.add_argument("--initial-decoder-alpha", type=float, default=1.0,
-                           help="Initial alpha value in decoder's ScaledPositionalEncoding")
-        group.add_argument("--core-lr", default=1.0, type=float,
-                           help="Initial value of learning rate")
-        group.add_argument("--core-warmup-steps", default=4000, type=int,
-                           help="Optimizer warmup steps")
-        group.add_argument("--core-enc-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for core encoder except for attention")
-        group.add_argument("--core-enc-positional-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for core encoder positional encoding")
-        group.add_argument("--core-enc-attn-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for core encoder self-attention")
-        group.add_argument("--core-dec-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for core decoder except for attention and pos encoding")
-        group.add_argument("--core-dec-positional-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for core decoder positional encoding")
-        group.add_argument("--core-dec-attn-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for core decoder self-attention")
-        group.add_argument("--core-enc-dec-attn-dropout-rate", default=0.1, type=float,
-                           help="Dropout rate for core encoder-decoder attention")
-        group.add_argument("--eprenet-dropout-rate", default=0.5, type=float,
-                           help="Dropout rate in encoder prenet")
-        group.add_argument("--dprenet-dropout-rate", default=0.5, type=float,
-                           help="Dropout rate in decoder prenet")
-        group.add_argument("--postnet-dropout-rate", default=0.5, type=float,
-                           help="Dropout rate in postnet")
-        # loss related
-        group.add_argument("--use-masking", default=True, type=strtobool,
-                           help="Whether to use masking in calculation of loss")
-        group.add_argument("--loss-type", default="L1", choices=["L1", "L2", "L1+L2"],
-                           help="How to calc loss")
-        group.add_argument("--bce-pos-weight", default=5.0, type=float,
-                           help="Positive sample weight in BCE calculation (only for use-masking=True)")
-        group.add_argument("--use-guided-attn-loss", default=False, type=strtobool,
-                           help="Whether to use guided attention loss")
-        group.add_argument("--guided-attn-loss-sigma", default=0.4, type=float,
-                           help="Sigma in guided attention loss")
-        group.add_argument("--guided-attn-loss-lambda", default=1.0, type=float,
-                           help="Lambda in guided attention loss")
-        group.add_argument("--num-heads-applied-guided-attn", default=2, type=int,
-                           help="Number of heads in each layer to be applied guided attention loss"
-                                "if set -1, all of the heads will be applied.")
-        group.add_argument("--num-layers-applied-guided-attn", default=2, type=int,
-                           help="Number of layers to be applied guided attention loss"
-                                "if set -1, all of the layers will be applied.")
-        group.add_argument("--modules-applied-guided-attn", type=str, nargs="+",
-                           default=["encoder-decoder"],
-                           help="Module name list to be applied guided attention loss")
-        return parser
 
     @property
     def attention_plot_class(self):
@@ -195,60 +85,11 @@ class Transformer(torch.nn.Module):
         Args:
             idim (int): Dimension of the inputs.
             odim (int): Dimension of the outputs.
-            args (Namespace, optional):
-                - embed_dim (int): Dimension of character embedding.
-                - eprenet_conv_layers (int): Number of encoder prenet convolution layers.
-                - eprenet_conv_chans (int): Number of encoder prenet convolution channels.
-                - eprenet_conv_filts (int): Filter size of encoder prenet convolution.
-                - dprenet_layers (int): Number of decoder prenet layers.
-                - dprenet_units (int): Number of decoder prenet hidden units.
-                - elayers (int): Number of encoder layers.
-                - eunits (int): Number of encoder hidden units.
-                - adim (int): Number of attention transformation dimensions.
-                - aheads (int): Number of heads for multi head attention.
-                - dlayers (int): Number of decoder layers.
-                - dunits (int): Number of decoder hidden units.
-                - postnet_layers (int): Number of postnet layers.
-                - postnet_chans (int): Number of postnet channels.
-                - postnet_filts (int): Filter size of postnet.
-                - use_scaled_pos_enc (bool): Whether to use trainable scaled positional encoding.
-                - use_batch_norm (bool): Whether to use batch normalization in encoder prenet.
-                - encoder_normalize_before (bool): Whether to perform layer normalization before encoder block.
-                - decoder_normalize_before (bool): Whether to perform layer normalization before decoder block.
-                - encoder_concat_after (bool): Whether to concatenate attention layer's input and output in encoder.
-                - decoder_concat_after (bool): Whether to concatenate attention layer's input and output in decoder.
-                - reduction_factor (int): Reduction factor.
-                - spk_embed_dim (int): Number of speaker embedding dimenstions.
-                - spk_embed_integration_type: How to integrate speaker embedding.
-                - transformer_init (float): How to initialize core parameters.
-                - transformer_lr (float): Initial value of learning rate.
-                - transformer_warmup_steps (int): Optimizer warmup steps.
-                - transformer_enc_dropout_rate (float): Dropout rate in encoder except attention & positional encoding.
-                - transformer_enc_positional_dropout_rate (float): Dropout rate after encoder positional encoding.
-                - transformer_enc_attn_dropout_rate (float): Dropout rate in encoder self-attention module.
-                - transformer_dec_dropout_rate (float): Dropout rate in decoder except attention & positional encoding.
-                - transformer_dec_positional_dropout_rate (float): Dropout rate after decoder positional encoding.
-                - transformer_dec_attn_dropout_rate (float): Dropout rate in deocoder self-attention module.
-                - transformer_enc_dec_attn_dropout_rate (float): Dropout rate in encoder-deocoder attention module.
-                - eprenet_dropout_rate (float): Dropout rate in encoder prenet.
-                - dprenet_dropout_rate (float): Dropout rate in decoder prenet.
-                - postnet_dropout_rate (float): Dropout rate in postnet.
-                - use_masking (bool): Whether to use masking in calculation of loss.
-                - bce_pos_weight (float): Positive sample weight in bce calculation (only for use_masking=true).
-                - loss_type (str): How to calculate loss.
-                - use_guided_attn_loss (bool): Whether to use guided attention loss.
-                - num_heads_applied_guided_attn (int): Number of heads in each layer to apply guided attention loss.
-                - num_layers_applied_guided_attn (int): Number of layers to apply guided attention loss.
-                - modules_applied_guided_attn (list): List of module names to apply guided attention loss.
-                - guided-attn-loss-sigma (float) Sigma in guided attention loss.
-                - guided-attn-loss-lambda (float): Lambda in guided attention loss.
 
         """
         # initialize base classes
         torch.nn.Module.__init__(self)
 
-        # fill missing arguments
-        args = fill_missing_args(args, self.add_arguments)
 
         # store hyperparameters
         self.idim = idim
@@ -274,24 +115,7 @@ class Transformer(torch.nn.Module):
         # get positional encoding class
         pos_enc_class = ScaledPositionalEncoding if self.use_scaled_pos_enc else PositionalEncoding
 
-        # define core encoder
-        # if args.eprenet_conv_layers != 0:
-        #     # encoder prenet
-        #     encoder_input_layer = torch.nn.Sequential(
-        #         EncoderPrenet(
-        #             idim=idim,
-        #             embed_dim=args.embed_dim,
-        #             elayers=0,
-        #             econv_layers=args.eprenet_conv_layers,
-        #             econv_chans=args.eprenet_conv_chans,
-        #             econv_filts=args.eprenet_conv_filts,
-        #             use_batch_norm=args.use_batch_norm,
-        #             dropout_rate=args.eprenet_dropout_rate,
-        #             padding_idx=padding_idx
-        #         ),
-        #         torch.nn.Linear(args.eprenet_conv_chans, args.adim)
-        #     )
-        # else:
+
         encoder_input_layer = torch.nn.Embedding(
             num_embeddings=idim,
             embedding_dim=hp.adim,
