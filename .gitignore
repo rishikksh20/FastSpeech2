@@ -14,3 +14,6 @@ idea/*
 /utils/__pycache__
 /modules/__pycache__
 /checkpoints
+/trace_loss.txt
+/unused_code.txt
+/test.py
