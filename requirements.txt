@@ -1,0 +1,8 @@
+numpy==1.16.3
+librosa==0.7.2
+matplotlib
+unidecode
+inflect
+nltk
+tqdm
+pyworld==0.2.10
