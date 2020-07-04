@@ -35,7 +35,7 @@ python3 synthesis.py --out results --text "DH AH0 N AA1 L AH0 JH AH1 V HH IH1 Z 
 ```
 
 ## Note
-* Coding of this repo is roughly done just to re-produce the paper. Needed a code cleanup and opyimization for better use.
+* Coding of this repo is roughly done just to re-produce the paper and experimentation purpose. Needed a code cleanup and opyimization for better use.
 * Currently this repo produces good quality audio but still it is in WIP, many improvement needed.
 * Loss curve for F0 is quite high.
 * I am using raw F0 and energy for train a model, but we can also use normalize F0 and energy for stable training.
