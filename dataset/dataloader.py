@@ -11,19 +11,6 @@ from utils.util import pad_list, str_to_int_list
 
 def get_tts_dataset(path, batch_size, valid=False) :
 
-    with open(f'{path}dataset.pkl', 'rb') as f :
-        dataset = pickle.load(f)
-
-    dataset_ids = []
-    mel_lengths = []
-    print("Cleaner : {}".format(hp.tts_cleaner_names))
-    for (id, len) in dataset :
-        if len <= hp.tts_max_mel_len :
-            dataset_ids += [id]
-            mel_lengths += [len]
-
-    # with open(f'{path}text_dict.pkl', 'rb') as f:
-    #     text_dict = pickle.load(f)
     if valid:
         file_ = hp.valid_filelist
         pin_mem = False
@@ -33,27 +20,14 @@ def get_tts_dataset(path, batch_size, valid=False) :
         pin_mem = True
         num_workers = 4
     train_dataset = TTSDataset(path, file_)
-    # train_dataset = TTSDataset(file_)
 
-    # sampler = None
-    #
-    # if hp.tts_bin_lengths :
-    #      sampler = BinnedLengthSampler(mel_lengths, batch_size, batch_size*3)
 
     train_set = DataLoader(train_dataset,
                            collate_fn=collate_tts,
                            batch_size=batch_size,
-                           #sampler=sampler,
                            num_workers=num_workers,
                            shuffle=True,
                            pin_memory=pin_mem)
-
-    #longest = mel_lengths.index(max(mel_lengths))
-    #attn_example = dataset_ids[longest]
-    #print("Longest mels :",longest)
-    #print("Attn exp :",attn_example)
-    # print(attn_example)
-
     return train_set
 
 

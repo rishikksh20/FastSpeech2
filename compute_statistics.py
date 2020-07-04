@@ -2,7 +2,6 @@ import numpy as np
 import os
 import hparams as hp
 from utils.files import get_files
-from utils.util import pad_list, str_to_int_list
 
 if __name__ == '__main__':
     min_e = []
@@ -33,9 +32,9 @@ if __name__ == '__main__':
         nz_min_p.append(p[p > 0].min())
         max_p.append(p.max())
 
-    print("Min Energy : {}".format(min(min_e)))
+    #print("Min Energy : {}".format(min(min_e)))
     print("Non zero Min Energy : {}".format(min(nz_min_e)))
     print("Max Energy : {}".format(max(max_e)))
-    print("Min Pitch : {}".format(min(min_p)))
+    #print("Min Pitch : {}".format(min(min_p)))
     print("Non zero Min Pitch : {}".format(min(nz_min_p)))
     print("Max Pitch : {}".format(max(max_p)))

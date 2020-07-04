@@ -310,9 +310,10 @@ def infer(text):
 
     # display PYTHONPATH
     logging.info('python path = ' + os.environ.get('PYTHONPATH', '(None)'))
-    path = "./checkpoints/checkpoint_48k_steps.pyt"
-    out = "results/"
+
     print("Text : ", text)
+    audio = synthesis_tts(args, args.text, args.path)
+    m = audio.T
     if hp.melgan_vocoder:
         m = m.unsqueeze(0)
         vocoder = torch.hub.load('seungwonpark/melgan', 'melgan')
@@ -330,7 +331,7 @@ def infer(text):
         m = m.unsqueeze(0)
         wav = griffin_lim(m, stft, 30)
         wav = wav.cpu().numpy()
-    save_path = '{}/test_tts.wav'.format(out)
+    save_path = '{}/test_tts.wav'.format(args.out)
     save_wav(wav, save_path)
     return save_path
 
@@ -338,24 +339,35 @@ def main(args):
     """Run deocding."""
     parser = get_parser()
     args = parser.parse_args(args)
-    stats_file = "checkpoints/stats.npy"
 
     # display PYTHONPATH
     logging.info('python path = ' + os.environ.get('PYTHONPATH', '(None)'))
 
-    path = "./checkpoints/checkpoint_model_136k_steps.pyt"
-    out = "results/"
     print("Text : ", args.text)
-    audio = synthesis_tts(args, args.text, path)
+    audio = synthesis_tts(args, args.text, args.path)
     m = audio.T
     
     np.save("mel.npy", m.cpu().numpy())
-    # m = m.cpu().numpy()
-    # m = (m + 4) / 8
-    # wav = reconstruct_waveform(m, n_iter=60)
-    #
-    # save_path = '{}/test.wav'.format(args.out)
-    # save_wav(wav, save_path)
+    if hp.melgan_vocoder:
+        m = m.unsqueeze(0)
+        print("Mel shape: ",m.shape)
+        vocoder = torch.hub.load('seungwonpark/melgan', 'melgan')
+        vocoder.eval()
+        if torch.cuda.is_available():
+            vocoder = vocoder.cuda()
+            mel = m.cuda()
+
+        with torch.no_grad():
+            wav = vocoder.inference(mel)  # mel ---> batch, num_mels, frames [1, 80, 234]
+            wav = wav.cpu().float().numpy()
+    else:
+        stft = STFT(filter_length=1024, hop_length=256, win_length=1024)
+        print(m.size())
+        m = m.unsqueeze(0)
+        wav = griffin_lim(m, stft, 30)
+        wav = wav.cpu().numpy()
+    save_path = '{}/test_tts.wav'.format(args.out)
+    save_wav(wav, save_path)
 
 if __name__ == '__main__':
     print("Starting")
