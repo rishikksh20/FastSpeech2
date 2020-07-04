@@ -1,7 +1,7 @@
 from dataset.texts import symbols
 
 ngpu=1       # number of gpus ("0" uses cpu, otherwise use gpu)
-nj=32        # numebr of parallel jobs
+nj=4        # number of parallel jobs
 dumpdir='' # directory to dump full features
 verbose=0    # verbose option (if set > 0, get more log)
 N=0          # number of minibatches to be used (mainly for debugging). "0" uses all minibatches.
