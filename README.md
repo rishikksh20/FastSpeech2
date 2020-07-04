@@ -77,3 +77,4 @@ python3 synthesis.py --out results --text "DH AH0 N AA1 L AH0 JH AH1 V HH IH1 Z 
 - [DurIAN](https://github.com/ivanvovk/DurIAN)
 - [FastSpeech2 Tensorflow Implementation](https://github.com/TensorSpeech/TensorflowTTS)
 - [Other PyTorch FastSpeech 2 Implementation](https://github.com/ming024/FastSpeech2)
+- [WaveRNN](https://github.com/fatchord/WaveRNN)
