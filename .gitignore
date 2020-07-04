@@ -20,3 +20,4 @@ idea/*
 /rest_tts.py
 /preprocess.py
 /trace_loss_nvidia.txt
+/conf
