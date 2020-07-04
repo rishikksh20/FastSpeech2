@@ -33,7 +33,7 @@ batch_size = 16
 
 
 # network architecture related
-#model_module= espnet.nets.pytorch_backend.e2e_tts_transformer=Transformer
+
 embed_dim= 0
 eprenet_conv_layers= 0  # one more linear layer w/o non_linear will be added for 0_centor
 eprenet_conv_filts= 0
