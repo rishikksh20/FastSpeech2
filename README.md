@@ -28,13 +28,14 @@ e_max = Max energy
 python3 train_fastspeech.py --outdir results
 ```
 
-## For inference
+## For inference [WIP]
 Currently only phonemes based Synthesis supported.
 ```buildoutcfg
 python3 synthesis.py --out results --text "DH AH0 N AA1 L AH0 JH AH1 V HH IH1 Z D IH0 F EH1 K SH AH0 N pau pau HH IH1 Z EH1 R AH0 G AH0 N S AH0 N D HH EH0 S T IH1 L AH0 T IY0 T IH0 DH IY0 Y UW0 N AY1 T IH0 D S T EY1 T S pau" --path checkpoints\checkpoint_355k_steps.pyt
 ```
 
 ## Note
+* Coding of this repo is roughly done just to re-produce the paper. Needed a code cleanup and opyimization for better use.
 * Currently this repo produces good quality audio but still it is in WIP, many improvement needed.
 * Loss curve for F0 is quite high.
 * I am using raw F0 and energy for train a model, but we can also use normalize F0 and energy for stable training.
