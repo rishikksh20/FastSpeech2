@@ -1,4 +1,5 @@
-Trainable Parameters: 24.315M
+Batch Size : 16
+Trainable Parameters: 25.637M
 FeedForwardTransformer(
   (encoder): Encoder(
     (embed): Sequential(
@@ -114,6 +115,7 @@ FeedForwardTransformer(
       (linear): Linear(in_features=256, out_features=1, bias=True)
     )
   )
+  (energy_embed): Linear(in_features=256, out_features=256, bias=True)
   (pitch_predictor): PitchPredictor(
     (predictor): VariancePredictor(
       (conv): ModuleList(
@@ -133,6 +135,7 @@ FeedForwardTransformer(
       (linear): Linear(in_features=256, out_features=1, bias=True)
     )
   )
+  (pitch_embed): Linear(in_features=256, out_features=256, bias=True)
   (length_regulator): LengthRegulator()
   (decoder): Encoder(
     (embed): Sequential(
@@ -208,6 +211,39 @@ FeedForwardTransformer(
         (norm1): LayerNorm((256,), eps=1e-12, elementwise_affine=True)
         (norm2): LayerNorm((256,), eps=1e-12, elementwise_affine=True)
         (dropout): Dropout(p=0.2, inplace=False)
+      )
+    )
+  )
+  (postnet): Postnet(
+    (postnet): ModuleList(
+      (0): Sequential(
+        (0): Conv1d(80, 256, kernel_size=(5,), stride=(1,), padding=(2,), bias=False)
+        (1): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (2): Tanh()
+        (3): Dropout(p=0.5, inplace=False)
+      )
+      (1): Sequential(
+        (0): Conv1d(256, 256, kernel_size=(5,), stride=(1,), padding=(2,), bias=False)
+        (1): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (2): Tanh()
+        (3): Dropout(p=0.5, inplace=False)
+      )
+      (2): Sequential(
+        (0): Conv1d(256, 256, kernel_size=(5,), stride=(1,), padding=(2,), bias=False)
+        (1): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (2): Tanh()
+        (3): Dropout(p=0.5, inplace=False)
+      )
+      (3): Sequential(
+        (0): Conv1d(256, 256, kernel_size=(5,), stride=(1,), padding=(2,), bias=False)
+        (1): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (2): Tanh()
+        (3): Dropout(p=0.5, inplace=False)
+      )
+      (4): Sequential(
+        (0): Conv1d(256, 80, kernel_size=(5,), stride=(1,), padding=(2,), bias=False)
+        (1): BatchNorm1d(80, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+        (2): Dropout(p=0.5, inplace=False)
       )
     )
   )
