@@ -24,6 +24,8 @@ If you are traing from scratch than just make sure `pytorch` version should be 1
 pip install -r requirements.txt
 ```
 
+* To use Tensorboard install `tensorboard version 1.14.0` seperatly with supported `tensorflow (1.14.0)`
+
 
 
 ## For Preprocessing :
@@ -61,6 +63,12 @@ python3 synthesis.py --out results --text "DH AH0 N AA1 L AH0 JH AH1 V HH IH1 Z 
 * Checkpoint find [here](https://drive.google.com/drive/folders/1Fh7zr8zoTydNpD6hTNBPKUGN_s93Bqrs?usp=sharing)
 * For samples check `sample` folder.
 
+## Tensorboard
+
+**Training :** <br >
+![Tensorboard](https://github.com/rishikksh20/FastSpeech2/blob/master/img/tensorboard1.png?raw=True) <br>
+**Validation :** <br >
+![Tensorboard](https://github.com/rishikksh20/FastSpeech2/blob/master/img/tensorboard2.png?raw=True)
 ## Note
 * Coding of this repo is roughly done just to re-produce the paper and experimentation purpose. Needed a code cleanup and opyimization for better use.
 * Currently this repo produces good quality audio but still it is in WIP, many improvement needed.
