@@ -8,7 +8,7 @@ import sys
 from utils.util import set_deterministic_pytorch
 from fastspeech import FeedForwardTransformer
 import hparams as hp
-from dataset.texts import  phonemes_to_sequence
+from dataset.texts import  phonemes_to_sequence, text_to_phonemes
 import time
 from dataset.audio_processing import reconstruct_waveform, griffin_lim
 from dataset.audio_processing import save_wav
@@ -200,6 +200,9 @@ def synthesis_tts(args, text, path):
     # read training config
     idim = hp.symbol_len
     odim = hp.num_mels
+    print("Text :", text)
+    input = np.asarray(phonemes_to_sequence(text.split()))
+    print("Input :", input)
     model = FeedForwardTransformer(idim, odim)
 
     if os.path.exists(path):
@@ -214,9 +217,7 @@ def synthesis_tts(args, text, path):
     # set torch device
     device = torch.device("cuda" if args.ngpu > 0 else "cpu")
     model = model.to(device)
-    print("Text :",text)
-    input = np.asarray(phonemes_to_sequence(text.split()))
-    print("Input :",input)
+
     text = torch.LongTensor(input)
     text = text.cuda()
     #[num_char]
@@ -344,6 +345,7 @@ def main(args):
     logging.info('python path = ' + os.environ.get('PYTHONPATH', '(None)'))
 
     print("Text : ", args.text)
+    print("Checkpoint : ", args.path)
     audio = synthesis_tts(args, args.text, args.path)
     m = audio.T
     

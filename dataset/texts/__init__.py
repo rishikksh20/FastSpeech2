@@ -4,6 +4,8 @@ from dataset.texts import cleaners
 from dataset.texts.symbols import symbols, _eos, phonemes_symbols, PAD, EOS, _PHONEME_SEP
 import hparams as hp
 from dataset.texts.dict_ import symbols_
+import nltk
+from g2p_en import G2p
 
 # Mappings from symbol to numeric ID and vice versa:
 _symbol_to_id = {s: i for i, s in enumerate(symbols)}
@@ -104,3 +106,76 @@ def sequence_to_phonemes(sequence, use_eos=False):
     if use_eos:
         string = string.replace(EOS, '')
     return string
+
+def text_to_phonemes(text, custom_words={}):
+    """
+    Convert text into ARPAbet.
+    For known words use CMUDict; for the rest try 'espeak' (to IPA) followed by 'listener'.
+    :param text: str, input text.
+    :param custom_words:
+        dict {str: list of str}, optional
+        Pronounciations (a list of ARPAbet phonemes) you'd like to override.
+        Example: {'word': ['W', 'EU1', 'R', 'D']}
+    :return: list of str, phonemes
+    """
+    g2p = G2p()
+
+    def convert_phoneme_CMU(phoneme):
+        REMAPPING = {
+            'AA0': 'AA1',
+            'AA2': 'AA1',
+            'AE2': 'AE1',
+            'AH2': 'AH1',
+            'AO0': 'AO1',
+            'AO2': 'AO1',
+            'AW2': 'AW1',
+            'AY2': 'AY1',
+            'EH2': 'EH1',
+            'ER0': 'EH1',
+            'ER1': 'EH1',
+            'ER2': 'EH1',
+            'EY2': 'EY1',
+            'IH2': 'IH1',
+            'IY2': 'IY1',
+            'OW2': 'OW1',
+            'OY2': 'OY1',
+            'UH2': 'UH1',
+            'UW2': 'UW1',
+        }
+        return REMAPPING.get(phoneme, phoneme)
+
+    def convert_phoneme_listener(phoneme):
+        VOWELS = ['A', 'E', 'I', 'O', 'U']
+        if phoneme[0] in VOWELS:
+            phoneme += '1'
+        return convert_phoneme_CMU(phoneme)
+
+    try:
+        known_words = nltk.corpus.cmudict.dict()
+    except LookupError:
+        nltk.download('cmudict')
+        known_words = nltk.corpus.cmudict.dict()
+
+    for word, phonemes in custom_words.items():
+        known_words[word.lower()] = [phonemes]
+
+    words = nltk.tokenize.WordPunctTokenizer().tokenize(text.lower())
+
+    phonemes = []
+    PUNCTUATION = '!?.,-:;"\'()'
+    for word in words:
+        if all(c in PUNCTUATION for c in word):
+            pronounciation = ['pau']
+        elif word in known_words:
+            pronounciation = known_words[word][0]
+            pronounciation = list(map(convert_phoneme_CMU, pronounciation))
+        else:
+            pronounciation = g2p(word)
+            pronounciation = list(map(convert_phoneme_CMU, pronounciation))
+
+        phonemes += pronounciation
+
+    return phonemes
+
+
+
