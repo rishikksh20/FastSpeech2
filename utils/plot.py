@@ -2,9 +2,11 @@ import matplotlib
 import numpy as np
 import torch
 matplotlib.use('Agg')
+from matplotlib import pyplot as plt
 import copy
 # matplotlib related
 import os
+import hparams as hp
 
 class PlotAttentionReport():
     """Plot attention reporter.
@@ -193,3 +195,40 @@ class PlotAttentionReport():
             plt = self.draw_attention_plot(att_w)
         plt.savefig(filename)
         plt.close()
+
+def plot_data(data, titles=None, filename=None):
+    fig, axes = plt.subplots(len(data), 1, squeeze=False)
+    if titles is None:
+        titles = [None for i in range(len(data))]
+
+    def add_axis(fig, old_ax, offset=0):
+        ax = fig.add_axes(old_ax.get_position(), anchor='W')
+        ax.set_facecolor("None")
+        return ax
+
+    for i in range(len(data)):
+        spectrogram, pitch, energy = data[i]
+        axes[i][0].imshow(spectrogram, origin='lower')
+        axes[i][0].set_aspect(2.5, adjustable='box')
+        axes[i][0].set_ylim(0, hp.num_mels)
+        axes[i][0].set_title(titles[i], fontsize='medium')
+        axes[i][0].tick_params(labelsize='x-small', left=False, labelleft=False) 
+        axes[i][0].set_anchor('W')
+        
+        ax1 = add_axis(fig, axes[i][0])
+        ax1.plot(pitch, color='tomato')
+        ax1.set_xlim(0, spectrogram.shape[1])
+        ax1.set_ylim(0, hp.p_max)
+        ax1.set_ylabel('F0', color='tomato')
+        ax1.tick_params(labelsize='x-small', colors='tomato', bottom=False, labelbottom=False)
+        
+        ax2 = add_axis(fig, axes[i][0], 1.2)
+        ax2.plot(energy, color='darkviolet')
+        ax2.set_xlim(0, spectrogram.shape[1])
+        ax2.set_ylim(0, hp.e_max)
+        ax2.set_ylabel('Energy', color='darkviolet')
+        ax2.yaxis.set_label_position('right')
+        ax2.tick_params(labelsize='x-small', colors='darkviolet', bottom=False, labelbottom=False, left=False, labelleft=False, right=True, labelright=True)
+       
+    plt.savefig(filename, dpi=200)
+    plt.clf()
