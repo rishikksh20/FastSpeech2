@@ -99,21 +99,9 @@ def train(args):
                 pbar.set_description(
                     "Average Loss %.04f Loss %.04f | step %d" % (running_loss / j, loss.item(), step))
 
-                print("Losses :")
+
                 for r in report_dict:
                     for k, v in r.items():
-                        if k == 'l1_loss':
-                            print("\nL1 loss :", v)
-                        if k == 'before_loss':
-                            print("\nBefore loss :", v)
-                        if k == 'after_loss':
-                            print("\nAfter loss :", v)
-                        if k == 'duration_loss':
-                            print("\nD loss :", v)
-                        if k == 'pitch_loss':
-                            print("\nP loss :", v)
-                        if k == 'energy_loss':
-                            print("\nE loss :", v)
                         if k is not None and v is not None:
                             if 'cupy' in str(type(v)):
                                 v = v.get()
@@ -131,21 +119,8 @@ def train(args):
                         loss_, report_dict_ = model(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda(), dur_.cuda(), e_.cuda(), p_.cuda())
                     att_ws = model.calculate_all_attentions(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda(), dur_.cuda(), e_.cuda(), p_.cuda())
                     model.train()
-                    print(" Validation Losses :")
                     for r in report_dict_:
                         for k, v in r.items():
-                            if k == 'l1_loss':
-                                print("\nL1 loss :", v)
-                            if k == 'before_loss':
-                                print("\nBefore loss :", v)
-                            if k == 'after_loss':
-                                print("\nAfter loss :", v)
-                            if k == 'duration_loss':
-                                print("\nD loss :", v)
-                            if k == 'pitch_loss':
-                                print("\nP loss :", v)
-                            if k == 'energy_loss':
-                                print("\nE loss :", v)
                             if k is not None and v is not None:
                                 if 'cupy' in str(type(v)):
                                     v = v.get()

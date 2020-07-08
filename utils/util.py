@@ -12,6 +12,31 @@ import random
 import subprocess
 from scipy.io.wavfile import read
 
+def is_outlier(x, p25, p75):
+    """Check if value is an outlier."""
+    lower = p25 - 1.5 * (p75 - p25)
+    upper = p75 + 1.5 * (p75 - p25)
+
+    return x <= lower or x >= upper
+
+
+def remove_outlier(x):
+    """Remove outlier from x."""
+    p25 = np.percentile(x, 25)
+    p75 = np.percentile(x, 75)
+
+    indices_of_outliers = []
+    for ind, value in enumerate(x):
+        if is_outlier(value, p25, p75):
+            indices_of_outliers.append(ind)
+
+    x[indices_of_outliers] = 0.0
+
+    # replace by mean f0.
+    x[indices_of_outliers] = np.max(x)
+    return x
+
+
 def str_to_int_list(s):
     return list(map(int, s.split()))
 
