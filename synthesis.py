@@ -15,6 +15,7 @@ from dataset.audio_processing import save_wav
 import librosa
 import numpy as np
 from utils.stft import STFT
+from scipy.io.wavfile import write
 
 def synthesis(args, text):
     """Decode with E2E-TTS model."""
@@ -261,7 +262,7 @@ def synthesis_tts(args, text, path):
         # decode and write
         idx = input[:5]
         start_time = time.time()
-        print("pridicting")
+        print("predicting")
         outs, probs, att_ws = model.inference(text, args)
 
         logging.info("inference speed = %s msec / frame." % (
@@ -369,7 +370,7 @@ def main(args):
         wav = griffin_lim(m, stft, 30)
         wav = wav.cpu().numpy()
     save_path = '{}/test_tts.wav'.format(args.out)
-    save_wav(wav, save_path)
+    write(save_path, hp.sample_rate, wav.astype('int16'))
 
 if __name__ == '__main__':
     print("Starting")
