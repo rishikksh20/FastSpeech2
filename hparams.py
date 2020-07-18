@@ -9,10 +9,6 @@ seed=1       # random seed number
 resume=""    # the snapshot path to resume (if set empty, no effect)
 use_phonemes = True
 
-p_min = 71.0 # 71.07342529296875
-p_max = 795.7948713554541 # 799.8901977539062
-e_min = 0.01786651276051998
-e_max = 314.9619140625
 # feature extraction related
 sample_rate=22050      # sampling frequency
 fmax=8000.0       # maximum frequency
@@ -102,6 +98,17 @@ transferred_encoder_module = "all" # choices=["all", "embed"]
 
 attn_plot = False
 
+# Compute statistics
+e_mean = 21.578571319580078
+e_std = 18.916799545288086
+e_min = 0.01786651276051998
+e_max = 130.5338592529297
+
+f0_mean = 206.5135564772342
+f0_std = 53.633228905750336
+p_min = 71.0 # 71.07342529296875
+p_max = 676.2260946528305 # 799.8901977539062
+
 
 # optimization related
 opt= 'noam'
@@ -123,7 +130,7 @@ chkpt_dir = './checkpoints'
 #fastspeech_chkpt = './fastspeech_checkpoints'
 log_dir = './logs'
 data_dir = './data/'
-summary_interval = 1000
+summary_interval = 200
 validation_step = 1000
 tts_max_mel_len = 870              # if you have a couple of extremely long spectrograms you might want to use this
 tts_bin_lengths = True              # bins the spectrogram lengths before sampling in data loader - speeds up training

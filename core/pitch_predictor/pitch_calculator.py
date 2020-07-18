@@ -3,6 +3,8 @@ import hparams as hp
 import pyworld as pw
 import numpy as np
 import torch.nn.functional as F
+import os
+
 
 def calculate_pitch(y):
     # Extract Pitch/f0 from raw waveform using PyWORLD
@@ -15,9 +17,15 @@ def retreive_pitch(file):
     f0= np.load(file)
     return pitch_to_one_hot(f0)
 
+def de_norm_mean_std(x, mean, std):
+    zero_idxs = torch.where(x == 0.0)[0]
+    x = (x*std) + mean
+    x[zero_idxs] = 0.0
+    return x
+
 def pitch_to_one_hot(f0, is_training = True):
     # Required pytorch >= 1.6.0
-
+    # f0 = de_norm_mean_std(f0, hp.f0_mean, hp.f0_std)
     bins = torch.exp(torch.linspace(np.log(hp.p_min), np.log(hp.p_max), 255)).to(torch.device("cuda" if hp.ngpu > 0 else "cpu"))
     p_quantize = torch.bucketize(f0, bins)
     #p_quantize = p_quantize - 1  # -1 to convert 1 to 256 --> 0 to 255

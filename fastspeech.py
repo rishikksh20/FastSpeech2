@@ -173,7 +173,7 @@ class FeedForwardTransformer(torch.nn.Module):
         self.duration_criterion = DurationPredictorLoss()
         self.energy_criterion = EnergyPredictorLoss()
         self.pitch_criterion = PitchPredictorLoss()
-        self.criterion = torch.nn.L1Loss()
+        self.criterion = torch.nn.L1Loss(reduction='mean')
 
     def _forward(self, xs, ilens, ys=None, olens=None, ds=None, es=None, ps=None, is_inference=False):
         # forward encoder
@@ -189,7 +189,7 @@ class FeedForwardTransformer(torch.nn.Module):
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
             e_outs = self.energy_predictor.inference(hs)
             p_outs = self.pitch_predictor.inference(hs)
-            one_hot_energy = energy_to_one_hot(e_outs)  # (B, Lmax, adim)
+            one_hot_energy = energy_to_one_hot(e_outs, False)  # (B, Lmax, adim)
             one_hot_pitch = pitch_to_one_hot(p_outs, False)  # (B, Lmax, adim)
         else:
             with torch.no_grad():

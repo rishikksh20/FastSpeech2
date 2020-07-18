@@ -109,6 +109,7 @@ class Encoder(torch.nn.Module):
             xs, masks = self.embed(xs, masks)
         else:
             xs = self.embed(xs)
+        
         xs, masks = self.encoders(xs, masks)
         if self.normalize_before:
             xs = self.after_norm(xs)

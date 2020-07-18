@@ -7,7 +7,7 @@ from dataset.texts import phonemes_to_sequence
 import hparams as hp
 import numpy as np
 from dataset.texts import text_to_sequence
-from utils.util import pad_list, str_to_int_list
+from utils.util import pad_list, str_to_int_list, remove_outlier
 
 def get_tts_dataset(path, batch_size, valid=False) :
 
@@ -34,6 +34,10 @@ def get_tts_dataset(path, batch_size, valid=False) :
 class TTSDataset(Dataset):
     def __init__(self, path, file_) :
         self.path = path
+        #self.f0_mean = np.load(f'{self.path}f0_mean.npy')
+        #self.f0_std = np.load(f'{self.path}f0_std.npy')
+        #self.e_mean = np.load(f'{self.path}e_mean.npy')
+        #self.e_std = np.load(f'{self.path}e_std.npy')
         with open('{}'.format(file_), encoding='utf-8') as f:
             self._metadata = [line.strip().split('|') for line in f]
 
@@ -46,14 +50,22 @@ class TTSDataset(Dataset):
             x = text_to_sequence(x_, hp.tts_cleaner_names)
         mel = np.load(f'{self.path}mels/{id}.npy')
         durations = str_to_int_list(self._metadata[index][2])
-        e = np.load(f'{self.path}energy/{id}.npy')
-        p = np.load(f'{self.path}pitch/{id}.npy')
+        e = remove_outlier(np.load(f'{self.path}energy/{id}.npy')) #self._norm_mean_std(np.load(f'{self.path}energy/{id}.npy'), self.e_mean, self.e_std, True)
+        p = remove_outlier(np.load(f'{self.path}pitch/{id}.npy')) #self._norm_mean_std(np.load(f'{self.path}pitch/{id}.npy'), self.f0_mean, self.f0_std, True)
         mel_len = mel.shape[1]
         durations[-1] = durations[-1] + (mel.shape[1] - sum(durations))
         return np.array(x), mel.T, id, mel_len, np.array(durations), e, p # Mel [T, num_mel]
 
     def __len__(self):
         return len(self._metadata)
+
+    def _norm_mean_std(self, x, mean, std, is_remove_outlier = False):
+        if is_remove_outlier:
+            x = remove_outlier(x)
+        zero_idxs = np.where(x == 0.0)[0]
+        x = (x - mean) / std
+        x[zero_idxs] = 0.0
+        return x
 
 
 def pad1d(x, max_len) :
