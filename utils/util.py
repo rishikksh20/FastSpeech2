@@ -24,7 +24,7 @@ def remove_outlier(x):
     """Remove outlier from x."""
     p25 = np.percentile(x, 25)
     p75 = np.percentile(x, 75)
-
+    zero_idxs = np.where(x == 0.0)[0]
     indices_of_outliers = []
     for ind, value in enumerate(x):
         if is_outlier(value, p25, p75):
@@ -34,6 +34,7 @@ def remove_outlier(x):
 
     # replace by mean f0.
     x[indices_of_outliers] = np.max(x)
+    x[zero_idxs] = 0.0
     return x
 
 

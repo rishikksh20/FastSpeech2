@@ -27,7 +27,7 @@ def train(args):
 
     dataloader = loader.get_tts_dataset(hp.data_dir, hp.batch_size)
     validloader = loader.get_tts_dataset(hp.data_dir, 5, True)
-    global_step = 0
+
     idim = hp.symbol_len
     odim = hp.num_mels
     model = fastspeech.FeedForwardTransformer(idim, odim)
@@ -44,19 +44,23 @@ def train(args):
             global_step = hp.accum_grad * optimizer._step
         else:
             print("Checkpoint not exixts")
+            global_step = 0
             return None
     else:
+        print("New Training")
+        global_step = 0
         optimizer = get_std_opt(model, hp.adim, hp.transformer_warmup_steps, hp.transformer_lr)
 
 
     print("Batch Size :",hp.batch_size)
+    
     num_params(model)
 
 
     writer = SummaryWriter(hp.log_dir)
     model.train()
     forward_count = 0
-    print(model)
+    #print(model)
     for epoch in range(hp.epochs):
         start = time.time()
         running_loss=0
@@ -138,6 +142,7 @@ def train(args):
 
                     plot_fn.__call__(step, input_length_, out_length_, att_ws)
                     plot_fn.log_attentions(writer, step, input_length_, out_length_, att_ws)
+                    break
 
             if step % hp.save_interval == 0:
                 save_path = os.path.join(hp.chkpt_dir, 'checkpoint_model_{}k_steps.pyt'.format(step // 1000))
