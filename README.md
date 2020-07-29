@@ -12,11 +12,9 @@ All code written in `Python 3.6.2` .
 > Before installing pytorch please check your Cuda version by running following command : 
 `nvcc --version`
 ```buildoutcfg
-pip install --pre torch==1.6.0.dev20200623 -f https://download.pytorch.org/whl/nightly/cu101/torch_nightly.html --upgrade
+pip install torch===1.6.0 torchvision===0.7.0 -f https://download.pytorch.org/whl/torch_stable.html
 ```
-In this repo I use Pytorch nightly for using `torch.bucketize` feature which is not present in latest PyTorch version i.e 1.5.1. Also use appropriate Cuda version in `-f` on above installation command  while installing nightly version<br />
-> *If you are using my checkpoint for synthesis or re-training please make sure torch version should be `torch==1.6.0.dev20200623` otherwise error will be thrown. 
-If you are traing from scratch than just make sure `pytorch` version should be 1.6.0 or above.*
+In this repo I use Pytorch 1.6.0 for using `torch.bucketize` feature which is not present in previous PyTorch's versions.
 
 
 * Installing other requirements :
