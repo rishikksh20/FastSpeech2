@@ -14,7 +14,7 @@ All code written in `Python 3.6.2` .
 ```buildoutcfg
 pip install torch torchvision
 ```
-In this repo I have used Pytorch 1.6.0 for `torch.bucketize` feature which is not present in previous versions PyTorch.
+In this repo I have used Pytorch 1.6.0 for `torch.bucketize` feature which is not present in previous versions of PyTorch.
 
 
 * Installing other requirements :
