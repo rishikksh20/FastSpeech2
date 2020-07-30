@@ -53,7 +53,9 @@ class TTSDataset(Dataset):
         e = remove_outlier(np.load(f'{self.path}energy/{id}.npy')) #self._norm_mean_std(np.load(f'{self.path}energy/{id}.npy'), self.e_mean, self.e_std, True)
         p = remove_outlier(np.load(f'{self.path}pitch/{id}.npy')) #self._norm_mean_std(np.load(f'{self.path}pitch/{id}.npy'), self.f0_mean, self.f0_std, True)
         mel_len = mel.shape[1]
+        durations = durations[:len(x)]
         durations[-1] = durations[-1] + (mel.shape[1] - sum(durations))
+        assert mel.shape[1] == sum(durations)
         return np.array(x), mel.T, id, mel_len, np.array(durations), e, p # Mel [T, num_mel]
 
     def __len__(self):

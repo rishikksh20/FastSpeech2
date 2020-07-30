@@ -25,8 +25,9 @@ def main(args):
     os.makedirs(mel_path, exist_ok=True)
     os.makedirs(energy_path, exist_ok=True)
     os.makedirs(pitch_path, exist_ok=True)
+    print("Sample Rate : ", hp.sample_rate)
     for wavpath in tqdm.tqdm(wav_files, desc='preprocess wav to mel'):
-        sr, wav = read_wav_np(wavpath)
+        sr, wav = read_wav_np(wavpath, hp.sample_rate)
         p = pitch(wav)  # [T, ] T = Number of frames
         wav = torch.from_numpy(wav).unsqueeze(0)      
         mel, mag = stft.mel_spectrogram(wav) # mel [1, 80, T]  mag [1, num_mag, T]
