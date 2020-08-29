@@ -1,10 +1,9 @@
 from utils.util import get_files
-import hparams as hp
 
 
 
 
-def ljspeech(path, data_dir) :
+def ljspeech(path, hp) :
 
     csv_file = get_files(path, extension='.csv')
 

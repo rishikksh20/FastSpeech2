@@ -2,7 +2,7 @@
 UnOfficial PyTorch implementation of [**FastSpeech 2: Fast and High-Quality End-to-End Text to Speech**](https://arxiv.org/abs/2006.04558). This repo uses the FastSpeech implementation of  [Espnet](https://github.com/espnet/espnet) as a base. In this implementation I tried to replicate the exact paper details but still some modification required for better model, this repo open for any suggettion and improvement. This repo uses Nvidia's tacotron 2 preprocessing for audio pre-processing and [MelGAN](https://github.com/seungwonpark/melgan) as vocoder.
 
 
-![](./img/fastspeech2.png)
+![](./assets/fastspeech2.png)
 
 ## Demo :  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/rishikksh20/FastSpeech2/blob/master/demo_fastspeech2.ipynb) <br />
 
@@ -64,9 +64,9 @@ python3 synthesis.py --out results --text "DH AH0 N AA1 L AH0 JH AH1 V HH IH1 Z 
 ## Tensorboard
 
 **Training :** <br >
-![Tensorboard](https://github.com/rishikksh20/FastSpeech2/blob/master/img/tensorboard1.png?raw=True) <br>
+![Tensorboard](https://github.com/rishikksh20/FastSpeech2/blob/master/assets/tensorboard1.png?raw=True) <br>
 **Validation :** <br >
-![Tensorboard](https://github.com/rishikksh20/FastSpeech2/blob/master/img/tensorboard2.png?raw=True)
+![Tensorboard](https://github.com/rishikksh20/FastSpeech2/blob/master/assets/tensorboard2.png?raw=True)
 ## Note
 * Coding of this repo is roughly done just to re-produce the paper and experimentation purpose. Needed a code cleanup and opyimization for better use.
 * Currently this repo produces good quality audio but still it is in WIP, many improvement needed.

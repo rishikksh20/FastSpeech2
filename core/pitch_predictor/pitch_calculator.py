@@ -1,5 +1,4 @@
 import torch
-import hparams as hp
 import pyworld as pw
 import numpy as np
 import torch.nn.functional as F

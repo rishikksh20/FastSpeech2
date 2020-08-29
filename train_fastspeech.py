@@ -22,7 +22,7 @@ BATCH_SORT_KEY_CHOICES = ["input", "output", "shuffle"]
 def train(args, hp, hp_str, logger, vocoder):
     os.makedirs(os.path.join(hp.train.chkpt_dir, args.name), exist_ok=True)
     os.makedirs(os.path.join(args.outdir, args.name), exist_ok=True)
-    os.makedirs(os.path.join(args.outdir, args.name, 'img'), exist_ok=True)
+    os.makedirs(os.path.join(args.outdir, args.name, 'assets'), exist_ok=True)
     device = torch.device("cuda" if hp.train.ngpu > 0 else "cpu")
 
     dataloader = loader.get_tts_dataset(hp.data.data_dir, hp.train.batch_size, hp)

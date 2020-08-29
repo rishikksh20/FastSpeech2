@@ -4,50 +4,50 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.sampler import Sampler
 from dataset.texts import phonemes_to_sequence
-import hparams as hp
 import numpy as np
 from dataset.texts import text_to_sequence
 from utils.util import pad_list, str_to_int_list, remove_outlier
 
-def get_tts_dataset(path, batch_size, valid=False) :
+def get_tts_dataset(path, batch_size, hp, valid=False) :
 
     if valid:
-        file_ = hp.valid_filelist
+        file_ = hp.data.valid_filelist
         pin_mem = False
         num_workers = 0
+        shuffle = False
     else:
-        file_ = hp.train_filelist
+        file_ = hp.data.train_filelist
         pin_mem = True
         num_workers = 4
-    train_dataset = TTSDataset(path, file_)
+        shuffle = True
+    train_dataset = TTSDataset(path, file_, hp.train.use_phonemes, hp.data.tts_cleaner_names, hp.train.eos)
 
 
     train_set = DataLoader(train_dataset,
                            collate_fn=collate_tts,
                            batch_size=batch_size,
                            num_workers=num_workers,
-                           shuffle=True,
+                           shuffle=shuffle,
                            pin_memory=pin_mem)
     return train_set
 
 
 class TTSDataset(Dataset):
-    def __init__(self, path, file_) :
+    def __init__(self, path, file_, use_phonemes, tts_cleaner_names, eos) :
         self.path = path
-        #self.f0_mean = np.load(f'{self.path}f0_mean.npy')
-        #self.f0_std = np.load(f'{self.path}f0_std.npy')
-        #self.e_mean = np.load(f'{self.path}e_mean.npy')
-        #self.e_std = np.load(f'{self.path}e_std.npy')
         with open('{}'.format(file_), encoding='utf-8') as f:
             self._metadata = [line.strip().split('|') for line in f]
+        self.use_phonemes = use_phonemes
+        self.tts_cleaner_names = tts_cleaner_names
+        self.eos = eos
 
     def __getitem__(self, index):
         id = self._metadata[index][4].split(".")[0]
         x_ = self._metadata[index][3].split()
-        if hp.use_phonemes:
+        if self.use_phonemes:
             x = phonemes_to_sequence(x_)
         else:
-            x = text_to_sequence(x_, hp.tts_cleaner_names)
+            x = text_to_sequence(x_, self.tts_cleaner_names, self.eos)
         mel = np.load(f'{self.path}mels/{id}.npy')
         durations = str_to_int_list(self._metadata[index][2])
         e = remove_outlier(np.load(f'{self.path}energy/{id}.npy')) #self._norm_mean_std(np.load(f'{self.path}energy/{id}.npy'), self.e_mean, self.e_std, True)
