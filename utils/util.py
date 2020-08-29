@@ -124,6 +124,20 @@ def subsequent_mask(size, device="cuda", dtype=torch.uint8):
     return torch.tril(ret, out=ret)
 
 
+@torch.jit.script
+def make_pad_mask_script(lengths: List[int]):
+    if not isinstance(lengths, list):
+        lengths = lengths.tolist()
+    bs = int(len(lengths))
+    maxlen = int(max(lengths))
+
+    seq_range = torch.arange(0, maxlen, dtype=torch.int64)
+    seq_range_expand = seq_range.unsqueeze(0).expand(bs, maxlen)
+    seq_length_expand = torch.tensor(lengths).unsqueeze(-1)
+    mask = seq_range_expand >= seq_length_expand
+
+    return mask
+
 def make_pad_mask(lengths: List[int], xs: torch.Tensor=None, length_dim: int=-1):
     """Make mask tensor containing indices of padded part.
 
@@ -232,6 +246,11 @@ def make_pad_mask(lengths: List[int], xs: torch.Tensor=None, length_dim: int=-1)
                     for i in range(xs.dim()))
         mask = mask[ind].expand_as(xs).to(xs.device)
     return mask
+
+
+@torch.jit.script
+def make_non_pad_mask_script(lengths: List[int]):
+    return ~make_pad_mask_script(lengths)
 
 
 def make_non_pad_mask(lengths, xs=None, length_dim=-1):

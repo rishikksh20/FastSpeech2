@@ -10,7 +10,7 @@ import logging
 
 import torch
 
-from utils.util import pad_list
+from utils.util import pad_list, pad_1d_tensor
 
 
 class LengthRegulator(torch.nn.Module):
@@ -25,7 +25,7 @@ class LengthRegulator(torch.nn.Module):
 
     """
 
-    def __init__(self, pad_value: float=0.0):
+    def __init__(self, pad_value: float = 0.0):
         """Initilize length regulator module.
 
         Args:
@@ -35,7 +35,7 @@ class LengthRegulator(torch.nn.Module):
         super(LengthRegulator, self).__init__()
         self.pad_value = pad_value
 
-    def forward(self, xs: torch.Tensor, ds: torch.LongTensor, ilens: torch.LongTensor, alpha: float=1.0)\
+    def forward(self, xs: torch.Tensor, ds: torch.LongTensor, ilens: torch.LongTensor, alpha: float = 1.0) \
             -> torch.Tensor:
         """Calculate forward propagation.
 
@@ -54,12 +54,12 @@ class LengthRegulator(torch.nn.Module):
             ds = torch.round(ds.float() * alpha).long()
         xs = [x[:ilen] for x, ilen in zip(xs, ilens)]
         ds = [d[:ilen] for d, ilen in zip(ds, ilens)]
-        
+
         xs = [self._repeat_one_sequence(x, d) for x, d in zip(xs, ds)]
 
-        return pad_list(xs, self.pad_value)
+        # return pad_list(xs, self.pad_value) for torchscript
+        return pad_1d_tensor(xs, self.pad_value)
 
-    
     def _repeat_one_sequence(self, x: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
         """Repeat each frame according to duration.
 
@@ -80,6 +80,13 @@ class LengthRegulator(torch.nn.Module):
 
         """
         if d.sum() == 0:
-            logging.warn("all of the predicted durations are 0. fill 0 with 1.")
+            # logging.warn("all of the predicted durations are 0. fill 0 with 1.")
             d = d.fill_(1)
-        return torch.cat([x_.repeat(int(d_), 1) for x_, d_ in zip(x, d) if d_ != 0], dim=0)
+        # return torch.cat([x_.repeat(int(d_), 1) for x_, d_ in zip(x, d) if d_ != 0], dim=0) for torchscript
+        out = []
+        for x_, d_ in zip(x, d):
+            if d_ != 0:
+                out.append(x_.repeat(int(d_), 1))
+
+        return torch.cat(out, dim=0)
+
