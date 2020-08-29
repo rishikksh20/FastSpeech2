@@ -25,7 +25,7 @@ class LengthRegulator(torch.nn.Module):
 
     """
 
-    def __init__(self, pad_value=0.0):
+    def __init__(self, pad_value: float=0.0):
         """Initilize length regulator module.
 
         Args:
@@ -35,7 +35,8 @@ class LengthRegulator(torch.nn.Module):
         super(LengthRegulator, self).__init__()
         self.pad_value = pad_value
 
-    def forward(self, xs, ds, ilens, alpha=1.0):
+    def forward(self, xs: torch.Tensor, ds: torch.LongTensor, ilens: torch.LongTensor, alpha: float=1.0)\
+            -> torch.Tensor:
         """Calculate forward propagation.
 
         Args:
@@ -58,7 +59,8 @@ class LengthRegulator(torch.nn.Module):
 
         return pad_list(xs, self.pad_value)
 
-    def _repeat_one_sequence(self, x, d):
+    
+    def _repeat_one_sequence(self, x: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
         """Repeat each frame according to duration.
 
         Examples:
