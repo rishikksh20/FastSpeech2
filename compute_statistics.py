@@ -1,7 +1,7 @@
 import numpy as np
 import os
 import hparams as hp
-from utils.files import get_files
+from utils.util import get_files
 from tqdm import tqdm
 from utils.util import remove_outlier
 if __name__ == '__main__':

@@ -23,7 +23,7 @@ def de_norm_mean_std(x, mean, std):
     x[zero_idxs] = 0.0
     return x
 
-def pitch_to_one_hot(f0, is_training = True):
+def pitch_to_one_hot(f0, hp):
     # Required pytorch >= 1.6.0
     # f0 = de_norm_mean_std(f0, hp.f0_mean, hp.f0_std)
     bins = torch.exp(torch.linspace(np.log(hp.p_min), np.log(hp.p_max), 255)).to(torch.device("cuda" if hp.ngpu > 0 else "cpu"))

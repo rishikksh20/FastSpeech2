@@ -2,7 +2,6 @@
 import re
 from dataset.texts import cleaners
 from dataset.texts.symbols import symbols, _eos, phonemes_symbols, PAD, EOS, _PHONEME_SEP
-import hparams as hp
 from dataset.texts.dict_ import symbols_
 import nltk
 from g2p_en import G2p
@@ -16,26 +15,31 @@ _curly_re = re.compile(r'(.*?)\{(.+?)\}(.*)')
 
 symbols_inv = {v: k for k, v in symbols_.items()}
 
+valid_symbols = ['AA', 'AA0', 'AA1', 'AA2', 'AE', 'AE0', 'AE1', 'AE2', 'AH', 'AH0', 'AH1', 'AH2',
+                'AO', 'AO0', 'AO1', 'AO2', 'AW', 'AW0', 'AW1', 'AW2', 'AY', 'AY0', 'AY1', 'AY2',
+                'B', 'CH', 'D', 'DH', 'EH', 'EH0', 'EH1', 'EH2', 'ER', 'ER0', 'ER1', 'ER2', 'EY',
+                'EY0', 'EY1', 'EY2', 'F', 'G', 'HH', 'IH', 'IH0', 'IH1', 'IH2', 'IY', 'IY0', 'IY1',
+                'IY2', 'JH', 'K', 'L', 'M', 'N', 'NG', 'OW', 'OW0', 'OW1', 'OW2', 'OY', 'OY0',
+                'OY1', 'OY2', 'P', 'R', 'S', 'SH', 'T', 'TH', 'UH', 'UH0', 'UH1', 'UH2', 'UW',
+                'UW0', 'UW1', 'UW2', 'V', 'W', 'Y', 'Z', 'ZH', 'pau','sil', 'spn' ]
+
 def pad_with_eos_bos(_sequence):
     return _sequence + [_symbol_to_id[_eos]]
 
 
 
-def text_to_sequence(text, cleaner_names):
+def text_to_sequence(text, cleaner_names, eos):
     '''Converts a string of text to a sequence of IDs corresponding to the symbols in the text.
-
       The text can optionally have ARPAbet sequences enclosed in curly braces embedded
       in it. For example, "Turn left on {HH AW1 S S T AH0 N} Street."
-
       Args:
         text: string to convert to a sequence
         cleaner_names: names of the cleaner functions to run the text through
-
       Returns:
         List of integers corresponding to the symbols in the text
     '''
     sequence = []
-    if hp.eos:
+    if eos:
         text = text + '~'
     try:
         sequence += _symbols_to_sequence(_clean_text(text, cleaner_names))
@@ -81,8 +85,8 @@ def _should_keep_symbol(s):
 
 
 # For phonemes
-_phoneme_to_id = {s: i for i, s in enumerate(phonemes_symbols)}
-_id_to_phoneme = {i: s for i, s in enumerate(phonemes_symbols)}
+_phoneme_to_id = {s: i for i, s in enumerate(valid_symbols)}
+_id_to_phoneme = {i: s for i, s in enumerate(valid_symbols)}
 
 
 def _should_keep_token(token, token_dict):
@@ -92,16 +96,16 @@ def _should_keep_token(token, token_dict):
            and token != _phoneme_to_id[EOS]
 
 def phonemes_to_sequence(phonemes):
-    string = phonemes.split(_PHONEME_SEP) if isinstance(phonemes, str) else phonemes
-    string.append(EOS)
-    sequence = [_phoneme_to_id[s] for s in string
-                if _should_keep_token(s, _phoneme_to_id)]
+    string = phonemes.split() if isinstance(phonemes, str) else phonemes
+    #string.append(EOS)
+    sequence = [_phoneme_to_id[s] for s in string]
+                #if _should_keep_token(s, _phoneme_to_id)]
     return sequence
 
 
 def sequence_to_phonemes(sequence, use_eos=False):
-    string = [_id_to_phoneme[idx] for idx in sequence
-              if _should_keep_token(idx, _id_to_phoneme)]
+    string = [_id_to_phoneme[idx] for idx in sequence]
+              #if _should_keep_token(idx, _id_to_phoneme)]
     string = _PHONEME_SEP.join(string)
     if use_eos:
         string = string.replace(EOS, '')
@@ -120,7 +124,7 @@ def text_to_phonemes(text, custom_words={}):
     """
     g2p = G2p()
 
-    def convert_phoneme_CMU(phoneme):
+    '''def convert_phoneme_CMU(phoneme):
         REMAPPING = {
             'AA0': 'AA1',
             'AA2': 'AA1',
@@ -143,12 +147,12 @@ def text_to_phonemes(text, custom_words={}):
             'UW2': 'UW1',
         }
         return REMAPPING.get(phoneme, phoneme)
-
+        '''
     def convert_phoneme_listener(phoneme):
         VOWELS = ['A', 'E', 'I', 'O', 'U']
         if phoneme[0] in VOWELS:
             phoneme += '1'
-        return convert_phoneme_CMU(phoneme)
+        return phoneme #convert_phoneme_CMU(phoneme)
 
     try:
         known_words = nltk.corpus.cmudict.dict()
@@ -168,14 +172,11 @@ def text_to_phonemes(text, custom_words={}):
             pronounciation = ['pau']
         elif word in known_words:
             pronounciation = known_words[word][0]
-            pronounciation = list(map(convert_phoneme_CMU, pronounciation))
+            pronounciation = list(pronounciation)#map(convert_phoneme_CMU, pronounciation))
         else:
             pronounciation = g2p(word)
-            pronounciation = list(map(convert_phoneme_CMU, pronounciation))
+            pronounciation = list(pronounciation)#(map(convert_phoneme_CMU, pronounciation))
 
         phonemes += pronounciation
 
     return phonemes
-
-
-

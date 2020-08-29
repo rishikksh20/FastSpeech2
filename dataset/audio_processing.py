@@ -23,8 +23,8 @@ def load_wav(path) :
     return librosa.load(path, sr=hp.sample_rate)[0]
 
 
-def save_wav(x, path) :
-    librosa.output.write_wav(path, x.astype(np.float32), sr=hp.sample_rate)
+def save_wav(x, path, type = 'float32') :
+    librosa.output.write_wav(path, x.astype(type), sr=hp.sample_rate)
 
 
 def split_signal(x) :

@@ -4,12 +4,11 @@
 # Copyright 2019 Tomoki Hayashi
 #  Apache 2.0  (http://www.apache.org/licenses/LICENSE-2.0)
 
-"""FastSpeech related modules."""
+"""FastSpeech related loss."""
 
 import logging
 
 import torch
-from transformer import TTSPlot
 from core.duration_modeling.duration_predictor import DurationPredictor
 from core.duration_modeling.duration_predictor import DurationPredictorLoss
 from core.energy_predictor.energy_predictor import EnergyPredictor
@@ -25,31 +24,26 @@ from core.attention import MultiHeadedAttention
 from core.embedding import PositionalEncoding
 from core.embedding import ScaledPositionalEncoding
 from core.encoder import Encoder
-from core.initializer import initialize
-import hparams as hp
-from core.postnet import Postnet
+from core.modules import initialize
+from core.modules import Postnet
+
 
 
 class FeedForwardTransformer(torch.nn.Module):
     """Feed Forward Transformer for TTS a.k.a. FastSpeech.
-
     This is a module of FastSpeech, feed-forward Transformer with duration predictor described in
     `FastSpeech: Fast, Robust and Controllable Text to Speech`_, which does not require any auto-regressive
     processing during inference, resulting in fast decoding compared with auto-regressive Transformer.
-
     .. _`FastSpeech: Fast, Robust and Controllable Text to Speech`:
         https://arxiv.org/pdf/1905.09263.pdf
-
     """
 
 
-    def __init__(self, idim, odim):
+    def __init__(self, idim, odim, hp):
         """Initialize feed-forward Transformer module.
-
         Args:
             idim (int): Dimension of the inputs.
             odim (int): Dimension of the outputs.
-
         """
         # initialize base classes
 
@@ -60,9 +54,9 @@ class FeedForwardTransformer(torch.nn.Module):
         # store hyperparameters
         self.idim = idim
         self.odim = odim
-        self.reduction_factor = hp.reduction_factor
-        self.use_scaled_pos_enc = hp.use_scaled_pos_enc
-        self.use_masking = hp.use_masking
+        self.reduction_factor = hp.model.reduction_factor
+        self.use_scaled_pos_enc = hp.model.use_scaled_pos_enc
+        self.use_masking = hp.model.use_masking
 
         # TODO(kan-bayashi): support reduction_factor > 1
         if self.reduction_factor != 1:
@@ -77,51 +71,51 @@ class FeedForwardTransformer(torch.nn.Module):
         # define encoder
         encoder_input_layer = torch.nn.Embedding(
             num_embeddings=idim,
-            embedding_dim=hp.adim,
+            embedding_dim=hp.model.adim,
             padding_idx=padding_idx
         )
         self.encoder = Encoder(
             idim=idim,
-            attention_dim=hp.adim,
-            attention_heads=hp.aheads,
-            linear_units=hp.eunits,
-            num_blocks=hp.elayers,
+            attention_dim=hp.model.adim,
+            attention_heads=hp.model.aheads,
+            linear_units=hp.model.eunits,
+            num_blocks=hp.model.elayers,
             input_layer=encoder_input_layer,
             dropout_rate=0.2,
             positional_dropout_rate=0.2,
             attention_dropout_rate=0.2,
             pos_enc_class=pos_enc_class,
-            normalize_before=hp.encoder_normalize_before,
-            concat_after=hp.encoder_concat_after,
-            positionwise_layer_type=hp.positionwise_layer_type,
-            positionwise_conv_kernel_size=hp.positionwise_conv_kernel_size
+            normalize_before=hp.model.encoder_normalize_before,
+            concat_after=hp.model.encoder_concat_after,
+            positionwise_layer_type=hp.model.positionwise_layer_type,
+            positionwise_conv_kernel_size=hp.model.positionwise_conv_kernel_size
         )
 
         self.duration_predictor = DurationPredictor(
-            idim=hp.adim,
-            n_layers=hp.duration_predictor_layers,
-            n_chans=hp.duration_predictor_chans,
-            kernel_size=hp.duration_predictor_kernel_size,
-            dropout_rate=hp.duration_predictor_dropout_rate,
+            idim=hp.model.adim,
+            n_layers=hp.model.duration_predictor_layers,
+            n_chans=hp.model.duration_predictor_chans,
+            kernel_size=hp.model.duration_predictor_kernel_size,
+            dropout_rate=hp.model.duration_predictor_dropout_rate,
         )
 
         self.energy_predictor = EnergyPredictor(
-            idim=hp.adim,
-            n_layers=hp.duration_predictor_layers,
-            n_chans=hp.duration_predictor_chans,
-            kernel_size=hp.duration_predictor_kernel_size,
-            dropout_rate=hp.duration_predictor_dropout_rate,
+            idim=hp.model.adim,
+            n_layers=hp.model.duration_predictor_layers,
+            n_chans=hp.model.duration_predictor_chans,
+            kernel_size=hp.model.duration_predictor_kernel_size,
+            dropout_rate=hp.model.duration_predictor_dropout_rate,
         )
-        self.energy_embed = torch.nn.Linear(hp.adim, hp.adim)
+        self.energy_embed = torch.nn.Linear(hp.model.adim, hp.model.adim)
 
         self.pitch_predictor = PitchPredictor(
-            idim=hp.adim,
-            n_layers=hp.duration_predictor_layers,
-            n_chans=hp.duration_predictor_chans,
-            kernel_size=hp.duration_predictor_kernel_size,
-            dropout_rate=hp.duration_predictor_dropout_rate,
+            idim=hp.model.adim,
+            n_layers=hp.model.duration_predictor_layers,
+            n_chans=hp.model.duration_predictor_chans,
+            kernel_size=hp.model.duration_predictor_kernel_size,
+            dropout_rate=hp.model.duration_predictor_dropout_rate,
         )
-        self.pitch_embed = torch.nn.Linear(hp.adim, hp.adim)
+        self.pitch_embed = torch.nn.Linear(hp.model.adim, hp.model.adim)
 
         # define length regulator
         self.length_regulator = LengthRegulator()
@@ -131,42 +125,42 @@ class FeedForwardTransformer(torch.nn.Module):
         self.decoder = Encoder(
             idim=256,
             attention_dim=256,
-            attention_heads=hp.aheads,
-            linear_units=hp.dunits,
-            num_blocks=hp.dlayers,
+            attention_heads=hp.model.aheads,
+            linear_units=hp.model.dunits,
+            num_blocks=hp.model.dlayers,
             input_layer=None,
             dropout_rate=0.2,
             positional_dropout_rate=0.2,
             attention_dropout_rate=0.2,
             pos_enc_class=pos_enc_class,
-            normalize_before=hp.decoder_normalize_before,
-            concat_after=hp.decoder_concat_after,
-            positionwise_layer_type=hp.positionwise_layer_type,
-            positionwise_conv_kernel_size=hp.positionwise_conv_kernel_size
+            normalize_before=hp.model.decoder_normalize_before,
+            concat_after=hp.model.decoder_concat_after,
+            positionwise_layer_type=hp.model.positionwise_layer_type,
+            positionwise_conv_kernel_size=hp.model.positionwise_conv_kernel_size
         )
 
         # define postnet
         self.postnet = (
             None
-            if hp.postnet_layers == 0
+            if hp.model.postnet_layers == 0
             else Postnet(
                 idim=idim,
                 odim=odim,
-                n_layers=hp.postnet_layers,
-                n_chans=hp.postnet_chans,
-                n_filts=hp.postnet_filts,
-                use_batch_norm=hp.use_batch_norm,
-                dropout_rate=hp.postnet_dropout_rate,
+                n_layers=hp.model.postnet_layers,
+                n_chans=hp.model.postnet_chans,
+                n_filts=hp.model.postnet_filts,
+                use_batch_norm=hp.model.use_batch_norm,
+                dropout_rate=hp.model.postnet_dropout_rate,
             )
         )
 
         # define final projection
-        self.feat_out = torch.nn.Linear(hp.adim, odim * hp.reduction_factor)
+        self.feat_out = torch.nn.Linear(hp.model.adim, odim * hp.model.reduction_factor)
 
         # initialize parameters
-        self._reset_parameters(init_type=hp.transformer_init,
-                               init_enc_alpha=hp.initial_encoder_alpha,
-                               init_dec_alpha=hp.initial_decoder_alpha)
+        self._reset_parameters(init_type=hp.model.transformer_init,
+                               init_enc_alpha=hp.model.initial_encoder_alpha,
+                               init_dec_alpha=hp.model.initial_decoder_alpha)
 
 
         # define criterions
@@ -175,7 +169,7 @@ class FeedForwardTransformer(torch.nn.Module):
         self.pitch_criterion = PitchPredictorLoss()
         self.criterion = torch.nn.L1Loss(reduction='mean')
 
-    def _forward(self, xs, ilens, ys=None, olens=None, ds=None, es=None, ps=None, is_inference=False):
+    def _forward(self, xs, ilens, ys=None, olens=None, ds=None, es=None, ps=None, hp=None, is_inference=False):
         # forward encoder
         x_masks = self._source_mask(ilens) # (B, Tmax, Tmax) -> torch.Size([32, 121, 121])
         hs, _ = self.encoder(xs, x_masks)  # (B, Tmax, adim) -> torch.Size([32, 121, 256])
@@ -190,14 +184,14 @@ class FeedForwardTransformer(torch.nn.Module):
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
             e_outs = self.energy_predictor.inference(hs)
             p_outs = self.pitch_predictor.inference(hs)
-            one_hot_energy = energy_to_one_hot(e_outs, False)  # (B, Lmax, adim)
-            one_hot_pitch = pitch_to_one_hot(p_outs, False)  # (B, Lmax, adim)
+            one_hot_energy = energy_to_one_hot(e_outs, hp)  # (B, Lmax, adim)
+            one_hot_pitch = pitch_to_one_hot(p_outs, hp)  # (B, Lmax, adim)
         else:
             with torch.no_grad():
                 # ds = self.duration_calculator(xs, ilens, ys, olens)  # (B, Tmax)
-                one_hot_energy = energy_to_one_hot(es) # (B, Lmax, adim)   torch.Size([32, 868, 256])
+                one_hot_energy = energy_to_one_hot(es, hp) # (B, Lmax, adim)   torch.Size([32, 868, 256])
                 # print("one_hot_energy:", one_hot_energy.shape)
-                one_hot_pitch = pitch_to_one_hot(ps)   # (B, Lmax, adim)   torch.Size([32, 868, 256])
+                one_hot_pitch = pitch_to_one_hot(ps, hp)   # (B, Lmax, adim)   torch.Size([32, 868, 256])
                 # print("one_hot_pitch:", one_hot_pitch.shape)
             mel_masks = make_pad_mask(olens).to(xs.device)
             #print("Before Hs:", hs.shape)  # torch.Size([32, 121, 256])
@@ -232,29 +226,26 @@ class FeedForwardTransformer(torch.nn.Module):
         else:
             return before_outs, after_outs, d_outs, e_outs, p_outs
 
-    def forward(self, xs, ilens, ys, olens, ds, es, ps, *args, **kwargs):
+    def forward(self, xs, ilens, ys, olens, ds, es, ps, hp):
         """Calculate forward propagation.
-
         Args:
             xs (Tensor): Batch of padded character ids (B, Tmax).
             ilens (LongTensor): Batch of lengths of each input batch (B,).
             ys (Tensor): Batch of padded target features (B, Lmax, odim).
             olens (LongTensor): Batch of the lengths of each target (B,).
             spembs (Tensor, optional): Batch of speaker embedding vectors (B, spk_embed_dim).
-
         Returns:
             Tensor: Loss value.
-
         """
         # remove unnecessary padded part (for multi-gpus)
         xs = xs[:, :max(ilens)] # torch.Size([32, 121]) -> [B, Tmax]
         ys = ys[:, :max(olens)] # torch.Size([32, 868, 80]) -> [B, Lmax, odim]
 
         # forward propagation
-        before_outs, after_outs, d_outs, e_outs, p_outs = self._forward(xs, ilens, ys, olens, ds, es, ps, is_inference=False)
+        before_outs, after_outs, d_outs, e_outs, p_outs = self._forward(xs, ilens, ys, olens, ds, es, ps, hp, is_inference=False)
 
         # modifiy mod part of groundtruth
-        if hp.reduction_factor > 1:
+        if hp.model.reduction_factor > 1:
             olens = olens.new([olen - olen % self.reduction_factor for olen in olens])
             max_olen = max(olens)
             ys = ys[:, :max_olen]
@@ -287,7 +278,7 @@ class FeedForwardTransformer(torch.nn.Module):
         pitch_loss = self.pitch_criterion(p_outs, ps)
 
         # make weighted mask and apply it
-        if hp.use_weighted_masking:
+        if hp.model.use_weighted_masking:
             out_masks = make_non_pad_mask(olens).unsqueeze(-1).to(ys.device)
             out_weights = out_masks.float() / out_masks.sum(dim=1, keepdim=True).float()
             out_weights /= ys.size(0) * ys.size(2)
@@ -324,19 +315,16 @@ class FeedForwardTransformer(torch.nn.Module):
 
         return loss, report_keys
 
-    def calculate_all_attentions(self, xs, ilens, ys, olens, ds, es, ps, *args, **kwargs):
+    def calculate_all_attentions(self, xs, ilens, ys, olens, ds, es, ps, hp):
         """Calculate all of the attention weights.
-
         Args:
             xs (Tensor): Batch of padded character ids (B, Tmax).
             ilens (LongTensor): Batch of lengths of each input batch (B,).
             ys (Tensor): Batch of padded target features (B, Lmax, odim).
             olens (LongTensor): Batch of the lengths of each target (B,).
             spembs (Tensor, optional): Batch of speaker embedding vectors (B, spk_embed_dim).
-
         Returns:
             dict: Dict of attention weights and outputs.
-
         """
         with torch.no_grad():
             # remove unnecessary padded part (for multi-gpus)
@@ -344,10 +332,10 @@ class FeedForwardTransformer(torch.nn.Module):
             ys = ys[:, :max(olens)]
 
             # forward propagation
-            outs, _, _, _, _ = self._forward(xs, ilens, ys, olens, ds, es, ps, is_inference=False)
+            outs, _, _, _, _ = self._forward(xs, ilens, ys, olens, ds, es, ps, hp, is_inference=False)
 
         att_ws_dict = dict()
-        if hp.attn_plot :
+        if hp.model.attn_plot :
             for name, m in self.named_modules():
                 if isinstance(m, MultiHeadedAttention):
                     attn = m.attn.cpu().numpy()
@@ -367,19 +355,16 @@ class FeedForwardTransformer(torch.nn.Module):
 
         return att_ws_dict
 
-    def inference(self, x, inference_args, *args, **kwargs):
+    def inference(self, x, hp):
         """Generate the sequence of features given the sequences of characters.
-
         Args:
             x (Tensor): Input sequence of characters (T,).
             inference_args (Namespace): Dummy for compatibility.
             spemb (Tensor, optional): Speaker embedding vector (spk_embed_dim).
-
         Returns:
             Tensor: Output sequence of features (1, L, odim).
             None: Dummy for compatibility.
             None: Dummy for compatibility.
-
         """
         # setup batch axis
         ilens = torch.tensor([x.shape[0]], dtype=torch.long, device=x.device)
@@ -387,14 +372,13 @@ class FeedForwardTransformer(torch.nn.Module):
 
 
         # inference
-        _, outs, _ = self._forward(xs, ilens, is_inference=True)  # (L, odim)
+        _, outs, _ = self._forward(xs, ilens, hp = hp, is_inference=True)  # (L, odim)
 
-        return outs[0], None, None
+        return outs[0]
 
 
     def _source_mask(self, ilens):
         """Make masks for self-attention.
-
         Examples:
             >>> ilens = [5, 3]
             >>> self._source_mask(ilens)
@@ -408,7 +392,6 @@ class FeedForwardTransformer(torch.nn.Module):
                      [1, 1, 1, 0, 0],
                      [0, 0, 0, 0, 0],
                      [0, 0, 0, 0, 0]]], dtype=torch.uint8)
-
         """
         x_masks = make_non_pad_mask(ilens).to(next(self.parameters()).device)
         return x_masks.unsqueeze(-2) & x_masks.unsqueeze(-1)
@@ -438,25 +421,3 @@ class FeedForwardTransformer(torch.nn.Module):
                 self.teacher.encoder.embed[0].weight.data)
         else:
             raise NotImplementedError("Support only all or embed.")
-
-    @property
-    def attention_plot_class(self):
-        """Return plot class for attention weight plot."""
-        return TTSPlot
-
-    @property
-    def base_plot_keys(self):
-        """Return base key names to plot during training. keys should match what `chainer.reporter` reports.
-
-        If you add the key `loss`, the reporter will report `main/loss` and `validation/main/loss` values.
-        also `loss.png` will be created as a figure visulizing `main/loss` and `validation/main/loss` values.
-
-        Returns:
-            list: List of strings which are base keys to plot during training.
-
-        """
-        plot_keys = ["loss", "l1_loss", "duration_loss"]
-        if self.use_scaled_pos_enc:
-            plot_keys += ["encoder_alpha", "decoder_alpha"]
-
-        return plot_keys

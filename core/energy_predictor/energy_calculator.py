@@ -1,7 +1,6 @@
 import torch
 import librosa
 import numpy as np
-import hparams as hp
 import torch.nn.functional as F
 import os
 
@@ -23,7 +22,7 @@ def de_norm_mean_std(x, mean, std):
     x[zero_idxs] = 0.0
     return x
 
-def energy_to_one_hot(e, is_training = True):
+def energy_to_one_hot(e, hp):
 
     # e = de_norm_mean_std(e, hp.e_mean, hp.e_std)
     # For pytorch > = 1.6.0

@@ -1,5 +1,5 @@
 import torch
-from core.layer_norm import LayerNorm
+from core.modules import LayerNorm
 
 class VariancePredictor(torch.nn.Module):
 
