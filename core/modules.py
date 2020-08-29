@@ -2,6 +2,48 @@ import torch
 from typing import Tuple
 from core.embedding import PositionalEncoding
 
+
+class Conv(torch.nn.Module):
+    """
+    Convolution Module
+    """
+
+    def __init__(self,
+                 in_channels,
+                 out_channels,
+                 kernel_size=1,
+                 stride=1,
+                 padding=0,
+                 dilation=1,
+                 bias=True,):
+        """
+        :param in_channels: dimension of input
+        :param out_channels: dimension of output
+        :param kernel_size: size of kernel
+        :param stride: size of stride
+        :param padding: size of padding
+        :param dilation: dilation rate
+        :param bias: boolean. if True, bias is included.
+        :param w_init: str. weight inits with xavier initialization.
+        """
+        super(Conv, self).__init__()
+
+        self.conv = torch.nn.Conv1d(in_channels,
+                              out_channels,
+                              kernel_size=kernel_size,
+                              stride=stride,
+                              padding=padding,
+                              dilation=dilation,
+                              bias=bias)
+
+    def forward(self, x):
+        x = x.contiguous().transpose(1, 2)
+        x = self.conv(x)
+        x = x.contiguous().transpose(1, 2)
+
+        return x
+
+
 def initialize(model, init_type="pytorch"):
     """Initialize Transformer module
 
@@ -31,7 +73,7 @@ def initialize(model, init_type="pytorch"):
 
     # reset some loss with default init
     for m in model.modules():
-        if isinstance(m, (torch.nn.Embedding, LayerNorm)):
+        if isinstance(m, (torch.nn.Embedding, torch.nn.LayerNorm)):
             m.reset_parameters()
 
 
@@ -54,6 +96,12 @@ def repeat(N, fn):
     """
     return MultiSequential(*[fn() for _ in range(N)])
 
+def layer_norm(x: torch.Tensor, dim):
+    if dim == -1:
+        return torch.nn.LayerNorm(x)
+    else:
+        out = torch.nn.LayerNorm(x.transpose(1, -1))
+        return out.transpose(1, -1)
 
 class LayerNorm(torch.nn.LayerNorm):
     """Layer normalization module

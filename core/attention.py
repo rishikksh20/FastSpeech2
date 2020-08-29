@@ -23,7 +23,7 @@ class MultiHeadedAttention(nn.Module):
         self.linear_k = nn.Linear(n_feat, n_feat)
         self.linear_v = nn.Linear(n_feat, n_feat)
         self.linear_out = nn.Linear(n_feat, n_feat)
-        self.attn = None
+        self.attn = torch.empty(0)
         self.dropout = nn.Dropout(p=dropout_rate)
 
     def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
@@ -48,7 +48,8 @@ class MultiHeadedAttention(nn.Module):
         scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.d_k)  # (batch, head, time1, time2)
         if mask is not None:
             mask = mask.unsqueeze(1).eq(0)  # (batch, 1, time1, time2)
-            min_value: float = float(numpy.finfo(torch.tensor(0, dtype=scores.dtype).numpy().dtype).min)
+            #min_value: float = float(numpy.finfo(torch.tensor(0, dtype=scores.dtype).numpy().dtype).min)
+            min_value: float = -3.4028234663852886e+38
             scores = scores.masked_fill(mask, min_value)
             self.attn = torch.softmax(scores, dim=-1).masked_fill(mask, 0.0)  # (batch, head, time1, time2)
         else:
