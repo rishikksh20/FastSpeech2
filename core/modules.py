@@ -1,7 +1,5 @@
 import torch
-import six
 from typing import Tuple
-from core.modules import LayerNorm
 from core.embedding import PositionalEncoding
 
 def initialize(model, init_type="pytorch"):

@@ -19,7 +19,7 @@ class PitchPredictor(torch.nn.Module):
 
                 """
         super(PitchPredictor, self).__init__()
-        self.bins = torch.exp(torch.linspace(torch.log(min), torch.log(max), n_bins - 1))
+        self.bins = torch.exp(torch.linspace(torch.log(torch.tensor(min)), torch.log(torch.tensor(max)), n_bins - 1))
         self.predictor = VariancePredictor(idim)
 
     def forward(self, xs, x_masks=None):
