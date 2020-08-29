@@ -4,8 +4,7 @@ import math
 import torch
 
 
-def _pre_hook(state_dict, prefix, local_metadata, strict,
-              missing_keys, unexpected_keys, error_msgs):
+def _pre_hook(state_dict, prefix):
     """Perform pre-hook in load_state_dict for backward compatibility.
 
     Note:
@@ -21,7 +20,7 @@ def _pre_hook(state_dict, prefix, local_metadata, strict,
 class PositionalEncoding(torch.nn.Module):
     """Positional encoding."""
 
-    def __init__(self, d_model, dropout_rate, max_len=5000):
+    def __init__(self, d_model: int, dropout_rate: float, max_len: int = 5000):
         """Initialize class.
 
         :param int d_model: embedding dim
@@ -37,11 +36,11 @@ class PositionalEncoding(torch.nn.Module):
         self.extend_pe(torch.tensor(0.0).expand(1, max_len))
         self._register_load_state_dict_pre_hook(_pre_hook)
 
-    def extend_pe(self, x):
+    def extend_pe(self, x: torch.Tensor):
         """Reset the positional encodings."""
         if self.pe is not None:
             if self.pe.size(1) >= x.size(1):
-                if self.pe.dtype != x.dtype or self.pe.device != x.device:
+                if self.pe.dtype != x.dtype:# or self.pe.device != x.device:    comment because of torchscript
                     self.pe = self.pe.to(dtype=x.dtype, device=x.device)
                 return
         pe = torch.zeros(x.size(1), self.d_model)
@@ -53,7 +52,7 @@ class PositionalEncoding(torch.nn.Module):
         pe = pe.unsqueeze(0)
         self.pe = pe.to(device=x.device, dtype=x.dtype)
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Add positional encoding.
 
         Args:

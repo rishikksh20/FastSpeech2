@@ -20,3 +20,4 @@ idea/*
 /preprocess.py
 /trace_loss_nvidia.txt
 /conf
+/etc

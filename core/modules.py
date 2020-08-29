@@ -1,5 +1,6 @@
 import torch
 import six
+from typing import Tuple
 from core.modules import LayerNorm
 from core.embedding import PositionalEncoding
 
@@ -63,11 +64,11 @@ class LayerNorm(torch.nn.LayerNorm):
     :param int dim: dimension to be normalized
     """
 
-    def __init__(self, nout, dim=-1):
+    def __init__(self, nout: int, dim: int=-1):
         super(LayerNorm, self).__init__(nout, eps=1e-12)
         self.dim = dim
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Apply layer normalization
 
         :param torch.Tensor x: input tensor
@@ -87,7 +88,7 @@ class Conv2dSubsampling(torch.nn.Module):
     :param flaot dropout_rate: dropout rate
     """
 
-    def __init__(self, idim, odim, dropout_rate):
+    def __init__(self, idim: int, odim: int, dropout_rate: float):
         super(Conv2dSubsampling, self).__init__()
         self.conv = torch.nn.Sequential(
             torch.nn.Conv2d(1, odim, 3, 2),
@@ -100,7 +101,7 @@ class Conv2dSubsampling(torch.nn.Module):
             PositionalEncoding(odim, dropout_rate)
         )
 
-    def forward(self, x, x_mask):
+    def forward(self, x: torch.Tensor, x_mask: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """Subsample x
 
         :param torch.Tensor x: input tensor
@@ -125,13 +126,13 @@ class PositionwiseFeedForward(torch.nn.Module):
     :param float dropout_rate: dropout rate
     """
 
-    def __init__(self, idim, hidden_units, dropout_rate):
+    def __init__(self, idim: int, hidden_units: int, dropout_rate: float):
         super(PositionwiseFeedForward, self).__init__()
         self.w_1 = torch.nn.Linear(idim, hidden_units)
         self.w_2 = torch.nn.Linear(hidden_units, idim)
         self.dropout = torch.nn.Dropout(dropout_rate)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         return self.w_2(self.dropout(torch.relu(self.w_1(x))))
 
 
@@ -152,7 +153,7 @@ class MultiLayeredConv1d(torch.nn.Module):
 
     """
 
-    def __init__(self, in_chans, hidden_chans, kernel_size, dropout_rate):
+    def __init__(self, in_chans: int, hidden_chans: int, kernel_size:int, dropout_rate: float):
         super(MultiLayeredConv1d, self).__init__()
         self.w_1 = torch.nn.Conv1d(in_chans, hidden_chans, kernel_size,
                                    stride=1, padding=(kernel_size - 1) // 2)
@@ -160,7 +161,7 @@ class MultiLayeredConv1d(torch.nn.Module):
                                    stride=1, padding=(1 - 1) // 2)
         self.dropout = torch.nn.Dropout(dropout_rate)
 
-    def forward(self, x):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Calculate forward propagation.
 
         Args:
@@ -188,13 +189,13 @@ class Postnet(torch.nn.Module):
 
     def __init__(
         self,
-        idim,
-        odim,
-        n_layers=5,
-        n_chans=512,
-        n_filts=5,
-        dropout_rate=0.5,
-        use_batch_norm=True,
+        idim: int,
+        odim: int,
+        n_layers: int=5,
+        n_chans: int=512,
+        n_filts: int=5,
+        dropout_rate: float=0.5,
+        use_batch_norm: bool=True,
     ):
         """Initialize postnet module.
         Args:
@@ -208,7 +209,7 @@ class Postnet(torch.nn.Module):
         """
         super(Postnet, self).__init__()
         self.postnet = torch.nn.ModuleList()
-        for layer in six.moves.range(n_layers - 1):
+        for layer in range(n_layers - 1):
             ichans = odim if layer == 0 else n_chans
             ochans = odim if layer == n_layers - 1 else n_chans
             if use_batch_norm:
@@ -280,6 +281,6 @@ class Postnet(torch.nn.Module):
         Returns:
             Tensor: Batch of padded output tensor. (B, odim, Tmax).
         """
-        for i in six.moves.range(len(self.postnet)):
-            xs = self.postnet[i](xs)
+        for postnet in self.postnet:
+            xs = postnet(xs)
         return xs

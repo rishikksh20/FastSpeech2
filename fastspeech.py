@@ -13,10 +13,8 @@ from core.duration_modeling.duration_predictor import DurationPredictor
 from core.duration_modeling.duration_predictor import DurationPredictorLoss
 from core.energy_predictor.energy_predictor import EnergyPredictor
 from core.energy_predictor.energy_predictor import EnergyPredictorLoss
-from core.energy_predictor.energy_calculator import energy_to_one_hot
 from core.pitch_predictor.pitch_predictor import PitchPredictor
 from core.pitch_predictor.pitch_predictor import PitchPredictorLoss
-from core.pitch_predictor.pitch_calculator import pitch_to_one_hot
 from core.duration_modeling.length_regulator import LengthRegulator
 from utils.util import make_non_pad_mask
 from utils.util import make_pad_mask
@@ -26,8 +24,8 @@ from core.embedding import ScaledPositionalEncoding
 from core.encoder import Encoder
 from core.modules import initialize
 from core.modules import Postnet
-
-
+from typeguard import check_argument_types
+from typing import Dict, Tuple, Sequence
 
 class FeedForwardTransformer(torch.nn.Module):
     """Feed Forward Transformer for TTS a.k.a. FastSpeech.
@@ -39,14 +37,14 @@ class FeedForwardTransformer(torch.nn.Module):
     """
 
 
-    def __init__(self, idim, odim, hp):
+    def __init__(self, idim:int, odim:int, hp:Dict):
         """Initialize feed-forward Transformer module.
         Args:
             idim (int): Dimension of the inputs.
             odim (int): Dimension of the outputs.
         """
         # initialize base classes
-
+        assert check_argument_types()
         torch.nn.Module.__init__(self)
 
         # fill missing arguments
@@ -105,6 +103,8 @@ class FeedForwardTransformer(torch.nn.Module):
             n_chans=hp.model.duration_predictor_chans,
             kernel_size=hp.model.duration_predictor_kernel_size,
             dropout_rate=hp.model.duration_predictor_dropout_rate,
+            min = hp.data.e_min,
+            max = hp.data.e_max,
         )
         self.energy_embed = torch.nn.Linear(hp.model.adim, hp.model.adim)
 
@@ -114,6 +114,8 @@ class FeedForwardTransformer(torch.nn.Module):
             n_chans=hp.model.duration_predictor_chans,
             kernel_size=hp.model.duration_predictor_kernel_size,
             dropout_rate=hp.model.duration_predictor_dropout_rate,
+            min=hp.data.p_min,
+            max=hp.data.p_max,
         )
         self.pitch_embed = torch.nn.Linear(hp.model.adim, hp.model.adim)
 
@@ -169,7 +171,9 @@ class FeedForwardTransformer(torch.nn.Module):
         self.pitch_criterion = PitchPredictorLoss()
         self.criterion = torch.nn.L1Loss(reduction='mean')
 
-    def _forward(self, xs, ilens, ys=None, olens=None, ds=None, es=None, ps=None, hp=None, is_inference=False):
+    def _forward(self, xs: torch.Tensor, ilens: torch.Tensor, olens: torch.Tensor = None,
+                 ds: torch.Tensor = None, es: torch.Tensor = None, ps: torch.Tensor = None, hp: Dict = None,
+                 is_inference: bool = False) -> Sequence[torch.Tensor]:
         # forward encoder
         x_masks = self._source_mask(ilens) # (B, Tmax, Tmax) -> torch.Size([32, 121, 121])
         hs, _ = self.encoder(xs, x_masks)  # (B, Tmax, adim) -> torch.Size([32, 121, 256])
@@ -182,16 +186,14 @@ class FeedForwardTransformer(torch.nn.Module):
         if is_inference:
             d_outs = self.duration_predictor.inference(hs, d_masks)  # (B, Tmax)
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
-            e_outs = self.energy_predictor.inference(hs)
-            p_outs = self.pitch_predictor.inference(hs)
-            one_hot_energy = energy_to_one_hot(e_outs, hp)  # (B, Lmax, adim)
-            one_hot_pitch = pitch_to_one_hot(p_outs, hp)  # (B, Lmax, adim)
+            one_hot_energy = self.energy_predictor.inference(hs) # (B, Lmax, adim)
+            one_hot_pitch = self.pitch_predictor.inference(hs) # (B, Lmax, adim)
         else:
             with torch.no_grad():
                 # ds = self.duration_calculator(xs, ilens, ys, olens)  # (B, Tmax)
-                one_hot_energy = energy_to_one_hot(es, hp) # (B, Lmax, adim)   torch.Size([32, 868, 256])
+                one_hot_energy = self.energy_predictor.to_one_hot(es) # (B, Lmax, adim)   torch.Size([32, 868, 256])
                 # print("one_hot_energy:", one_hot_energy.shape)
-                one_hot_pitch = pitch_to_one_hot(ps, hp)   # (B, Lmax, adim)   torch.Size([32, 868, 256])
+                one_hot_pitch = self.pitch_predictor.to_one_hot(ps)   # (B, Lmax, adim)   torch.Size([32, 868, 256])
                 # print("one_hot_pitch:", one_hot_pitch.shape)
             mel_masks = make_pad_mask(olens).to(xs.device)
             #print("Before Hs:", hs.shape)  # torch.Size([32, 121, 256])
@@ -226,7 +228,8 @@ class FeedForwardTransformer(torch.nn.Module):
         else:
             return before_outs, after_outs, d_outs, e_outs, p_outs
 
-    def forward(self, xs, ilens, ys, olens, ds, es, ps, hp):
+    def forward(self, xs: torch.Tensor, ilens: torch.Tensor, ys: torch.Tensor, olens: torch.Tensor, ds: torch.Tensor,
+                es: torch.Tensor, ps: torch.Tensor, hp: Dict) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         """Calculate forward propagation.
         Args:
             xs (Tensor): Batch of padded character ids (B, Tmax).
@@ -242,7 +245,8 @@ class FeedForwardTransformer(torch.nn.Module):
         ys = ys[:, :max(olens)] # torch.Size([32, 868, 80]) -> [B, Lmax, odim]
 
         # forward propagation
-        before_outs, after_outs, d_outs, e_outs, p_outs = self._forward(xs, ilens, ys, olens, ds, es, ps, hp, is_inference=False)
+        before_outs, after_outs, d_outs, e_outs, p_outs = self._forward(xs, ilens, ys, olens, ds, es, ps, hp,
+                                                                        is_inference=False)
 
         # modifiy mod part of groundtruth
         if hp.model.reduction_factor > 1:
@@ -315,47 +319,8 @@ class FeedForwardTransformer(torch.nn.Module):
 
         return loss, report_keys
 
-    def calculate_all_attentions(self, xs, ilens, ys, olens, ds, es, ps, hp):
-        """Calculate all of the attention weights.
-        Args:
-            xs (Tensor): Batch of padded character ids (B, Tmax).
-            ilens (LongTensor): Batch of lengths of each input batch (B,).
-            ys (Tensor): Batch of padded target features (B, Lmax, odim).
-            olens (LongTensor): Batch of the lengths of each target (B,).
-            spembs (Tensor, optional): Batch of speaker embedding vectors (B, spk_embed_dim).
-        Returns:
-            dict: Dict of attention weights and outputs.
-        """
-        with torch.no_grad():
-            # remove unnecessary padded part (for multi-gpus)
-            xs = xs[:, :max(ilens)]
-            ys = ys[:, :max(olens)]
 
-            # forward propagation
-            outs, _, _, _, _ = self._forward(xs, ilens, ys, olens, ds, es, ps, hp, is_inference=False)
-
-        att_ws_dict = dict()
-        if hp.model.attn_plot :
-            for name, m in self.named_modules():
-                if isinstance(m, MultiHeadedAttention):
-                    attn = m.attn.cpu().numpy()
-                    if "encoder" in name:
-                        attn = [a[:, :l, :l] for a, l in zip(attn, ilens.tolist())]
-                    elif "decoder" in name:
-                        if "src" in name:
-                            attn = [a[:, :ol, :il] for a, il, ol in zip(attn, ilens.tolist(), olens.tolist())]
-                        elif "self" in name:
-                            attn = [a[:, :l, :l] for a, l in zip(attn, olens.tolist())]
-                        else:
-                            logging.warning("unknown attention module: " + name)
-                    else:
-                        logging.warning("unknown attention module: " + name)
-                    att_ws_dict[name] = attn
-        att_ws_dict["predicted_fbank"] = [m[:l].T for m, l in zip(outs.cpu().numpy(), olens.tolist())]
-
-        return att_ws_dict
-
-    def inference(self, x, hp):
+    def inference(self, x: torch.Tensor, hp: Dict) -> torch.Tensor:
         """Generate the sequence of features given the sequences of characters.
         Args:
             x (Tensor): Input sequence of characters (T,).
@@ -377,7 +342,7 @@ class FeedForwardTransformer(torch.nn.Module):
         return outs[0]
 
 
-    def _source_mask(self, ilens):
+    def _source_mask(self, ilens: torch.Tensor) -> torch.Tensor:
         """Make masks for self-attention.
         Examples:
             >>> ilens = [5, 3]
@@ -397,7 +362,7 @@ class FeedForwardTransformer(torch.nn.Module):
         return x_masks.unsqueeze(-2) & x_masks.unsqueeze(-1)
 
 
-    def _reset_parameters(self, init_type, init_enc_alpha=1.0, init_dec_alpha=1.0):
+    def _reset_parameters(self, init_type: str, init_enc_alpha: float=1.0, init_dec_alpha: float=1.0):
         # initialize parameters
         initialize(self, init_type)
 
@@ -405,19 +370,3 @@ class FeedForwardTransformer(torch.nn.Module):
         if self.use_scaled_pos_enc:
             self.encoder.embed[-1].alpha.data = torch.tensor(init_enc_alpha)
             self.decoder.embed[-1].alpha.data = torch.tensor(init_dec_alpha)
-
-    def _transfer_from_teacher(self, transferred_encoder_module):
-        if transferred_encoder_module == "all":
-            for (n1, p1), (n2, p2) in zip(self.encoder.named_parameters(),
-                                          self.teacher.encoder.named_parameters()):
-                assert n1 == n2, "It seems that encoder structure is different."
-                assert p1.shape == p2.shape, "It seems that encoder size is different."
-                p1.data.copy_(p2.data)
-        elif transferred_encoder_module == "embed":
-            student_shape = self.encoder.embed[0].weight.data.shape
-            teacher_shape = self.teacher.encoder.embed[0].weight.data.shape
-            assert student_shape == teacher_shape, "It seems that embed dimension is different."
-            self.encoder.embed[0].weight.data.copy_(
-                self.teacher.encoder.embed[0].weight.data)
-        else:
-            raise NotImplementedError("Support only all or embed.")

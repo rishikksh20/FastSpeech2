@@ -12,6 +12,8 @@ import subprocess
 from scipy.io.wavfile import read
 import librosa
 import glob
+from typing import List
+import torch.nn.functional as F
 
 def get_files(path, extension='.wav') :
     filenames = []
@@ -64,6 +66,18 @@ def to_device(m, x):
     device = next(m.parameters()).device
     return x.to(device)
 
+@torch.jit.script
+def pad_1d_tensor(xs: List[torch.Tensor]):
+
+  length = torch.jit.annotate(List[int], [])
+  for x in xs:
+    length.append(x.size(0))
+  max_len = max(length)
+  x_padded = []
+  for x in xs:
+    x_padded.append(F.pad(x, (0, max_len - x.shape[0])))
+  padded = torch.stack(x_padded)
+  return padded
 
 def pad_list(xs, pad_value):
     """Perform padding for the list of tensors.
@@ -110,7 +124,7 @@ def subsequent_mask(size, device="cuda", dtype=torch.uint8):
     return torch.tril(ret, out=ret)
 
 
-def make_pad_mask(lengths, xs=None, length_dim=-1):
+def make_pad_mask(lengths: List[int], xs: torch.Tensor=None, length_dim: int=-1):
     """Make mask tensor containing indices of padded part.
 
     Args:
