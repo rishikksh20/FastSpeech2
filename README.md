@@ -64,9 +64,9 @@ python3 synthesis.py --out results --text "DH AH0 N AA1 L AH0 JH AH1 V HH IH1 Z 
 ## Tensorboard
 
 **Training :** <br >
-![Tensorboard](https://github.com/rishikksh20/FastSpeech2/blob/master/assets/tensorboard1.png?raw=True) <br>
+![Tensorboard](./assets/tensorboard1.png) <br>
 **Validation :** <br >
-![Tensorboard](https://github.com/rishikksh20/FastSpeech2/blob/master/assets/tensorboard2.png?raw=True)
+![Tensorboard](./assets/tensorboard2.png)
 ## Note
 * Coding of this repo is roughly done just to re-produce the paper and experimentation purpose. Needed a code cleanup and opyimization for better use.
 * Currently this repo produces good quality audio but still it is in WIP, many improvement needed.
