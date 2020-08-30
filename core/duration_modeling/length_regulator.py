@@ -10,7 +10,7 @@ import logging
 
 import torch
 
-from utils.util import pad_list, pad_1d_tensor
+from utils.util import pad_1d_tensor
 
 
 class LengthRegulator(torch.nn.Module):
@@ -35,7 +35,7 @@ class LengthRegulator(torch.nn.Module):
         super(LengthRegulator, self).__init__()
         self.pad_value = pad_value
 
-    def forward(self, xs: torch.Tensor, ds: torch.LongTensor, ilens: torch.LongTensor, alpha: float = 1.0) \
+    def forward(self, xs: torch.Tensor, ds: torch.Tensor, ilens: torch.Tensor, alpha: float = 1.0) \
             -> torch.Tensor:
         """Calculate forward propagation.
 
@@ -57,8 +57,8 @@ class LengthRegulator(torch.nn.Module):
 
         xs = [self._repeat_one_sequence(x, d) for x, d in zip(xs, ds)]
 
-        # return pad_list(xs, self.pad_value) for torchscript
-        return pad_1d_tensor(xs, self.pad_value)
+
+        return pad_1d_tensor(xs)
 
     def _repeat_one_sequence(self, x: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
         """Repeat each frame according to duration.

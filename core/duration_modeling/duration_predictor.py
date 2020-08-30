@@ -51,7 +51,7 @@ class DurationPredictor(torch.nn.Module):
             )]
         self.linear = torch.nn.Linear(n_chans, 1)
 
-    def _forward(self, xs, x_masks=None, is_inference=False):
+    def _forward(self, xs: torch.Tensor, x_masks: torch.Tensor, is_inference: bool=False):
         xs = xs.transpose(1, -1)  # (B, idim, Tmax)
         for f in self.conv:
             xs = f(xs)  # (B, C, Tmax)
@@ -68,7 +68,7 @@ class DurationPredictor(torch.nn.Module):
 
         return xs
 
-    def forward(self, xs, x_masks=None):
+    def forward(self, xs: torch.Tensor, x_masks: torch.Tensor):
         """Calculate forward propagation.
 
         Args:
@@ -81,7 +81,7 @@ class DurationPredictor(torch.nn.Module):
         """
         return self._forward(xs, x_masks, False)
 
-    def inference(self, xs, x_masks=None):
+    def inference(self, xs, x_masks):
         """Inference duration.
 
         Args:

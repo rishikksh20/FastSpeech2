@@ -123,11 +123,17 @@ def subsequent_mask(size, device="cuda", dtype=torch.uint8):
     ret = torch.ones(size, size, device=device, dtype=dtype)
     return torch.tril(ret, out=ret)
 
+@torch.jit.script
+def tensor_1d_tolist(x):
+    result: List[int] = []
+    for i in x:
+        result.append(i.item())
+    return result
 
 @torch.jit.script
-def make_pad_mask_script(lengths: List[int]):
+def make_pad_mask_script(lengths: torch.Tensor):
     if not isinstance(lengths, list):
-        lengths = lengths.tolist()
+        lengths = tensor_1d_tolist(lengths)
     bs = int(len(lengths))
     maxlen = int(max(lengths))
 
@@ -249,7 +255,7 @@ def make_pad_mask(lengths: List[int], xs: torch.Tensor=None, length_dim: int=-1)
 
 
 @torch.jit.script
-def make_non_pad_mask_script(lengths: List[int]):
+def make_non_pad_mask_script(lengths: torch.Tensor):
     return ~make_pad_mask_script(lengths)
 
 

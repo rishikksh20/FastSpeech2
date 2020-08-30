@@ -22,7 +22,7 @@ class PitchPredictor(torch.nn.Module):
         self.bins = torch.exp(torch.linspace(torch.log(torch.tensor(min)), torch.log(torch.tensor(max)), n_bins - 1))
         self.predictor = VariancePredictor(idim)
 
-    def forward(self, xs, x_masks=None):
+    def forward(self, xs: torch.Tensor, x_masks: torch.Tensor):
         """Calculate forward propagation.
 
         Args:
@@ -35,7 +35,7 @@ class PitchPredictor(torch.nn.Module):
         """
         return self.predictor(xs, x_masks)
 
-    def inference(self, xs, x_masks=None, alpha = 1.0):
+    def inference(self, xs: torch.Tensor, alpha: float = 1.0):
         """Inference duration.
 
         Args:
@@ -46,11 +46,11 @@ class PitchPredictor(torch.nn.Module):
             LongTensor: Batch of predicted durations in linear domain (B, Tmax).
 
         """
-        out = self.predictor.inference(xs, x_masks, False, alpha=alpha)
+        out = self.predictor.inference(xs, False, alpha=alpha)
         return self.to_one_hot(out)
 
 
-    def to_one_hot(self, x):
+    def to_one_hot(self, x: torch.Tensor):
         # e = de_norm_mean_std(e, hp.e_mean, hp.e_std)
         # For pytorch > = 1.6.0
 
