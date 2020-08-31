@@ -185,9 +185,9 @@ class FeedForwardTransformer(torch.nn.Module):
 
         # # forward decoder
         #  h_masks = self._source_mask(olens) we can find olens from length regulator and then calculate mask
-        h_masks = torch.empty(0)
+        # h_masks = torch.empty(0)
 
-        zs, _ = self.decoder(hs, h_masks)  # (B, Lmax, adim)
+        zs, _ = self.decoder(hs, None)  # (B, Lmax, adim)
 
         before_outs = self.feat_out(zs).view(zs.size(0), -1, self.odim)  # (B, Lmax, odim)
 

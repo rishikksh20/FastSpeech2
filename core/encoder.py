@@ -5,7 +5,7 @@ from core.embedding import PositionalEncoding
 from core.modules import MultiLayeredConv1d
 from core.modules import PositionwiseFeedForward
 from core.modules import Conv2dSubsampling
-from typing import Tuple
+from typing import Tuple, Optional
 
 class EncoderLayer(nn.Module):
     """Encoder layer module
@@ -35,7 +35,7 @@ class EncoderLayer(nn.Module):
         #if self.concat_after:
         self.concat_linear = nn.Linear(size + size, size)
 
-    def forward(self, x: torch.Tensor, mask: torch.Tensor):
+    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None):
         """Compute encoded features
 
         :param torch.Tensor x: encoded source features (batch, max_time_in, size)
@@ -162,7 +162,7 @@ class Encoder(torch.nn.Module):
 
 
 
-    def forward(self, xs: torch.Tensor, masks: torch.Tensor):
+    def forward(self, xs: torch.Tensor, masks: Optional[torch.Tensor] = None):
         """Embed positions in tensor
 
         :param torch.Tensor xs: input tensor

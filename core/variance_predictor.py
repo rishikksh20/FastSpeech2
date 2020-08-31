@@ -85,7 +85,8 @@ class EnergyPredictor(torch.nn.Module):
 
                 """
         super(EnergyPredictor, self).__init__()
-        self.bins = torch.linspace(min, max, n_bins - 1).cuda()
+        #self.bins = torch.linspace(min, max, n_bins - 1).cuda()
+        self.register_buffer("energy_bins", torch.linspace(min, max, n_bins - 1))
         self.predictor = VariancePredictor(idim)
 
     def forward(self, xs: torch.Tensor, x_masks: torch.Tensor):
@@ -119,7 +120,7 @@ class EnergyPredictor(torch.nn.Module):
         # e = de_norm_mean_std(e, hp.e_mean, hp.e_std)
         # For pytorch > = 1.6.0
 
-        quantize = torch.bucketize(x, self.bins).cuda()
+        quantize = torch.bucketize(x, self.energy_bins).to(device=x.device)#.cuda()
         return F.one_hot(quantize.long(), 256).float()
 
 
@@ -140,7 +141,8 @@ class PitchPredictor(torch.nn.Module):
 
                 """
         super(PitchPredictor, self).__init__()
-        self.bins = torch.exp(torch.linspace(torch.log(torch.tensor(min)), torch.log(torch.tensor(max)), n_bins - 1)).cuda()
+        #self.bins = torch.exp(torch.linspace(torch.log(torch.tensor(min)), torch.log(torch.tensor(max)), n_bins - 1)).cuda()
+        self.register_buffer("pitch_bins", torch.exp(torch.linspace(torch.log(torch.tensor(min)), torch.log(torch.tensor(max)), n_bins - 1)))
         self.predictor = VariancePredictor(idim)
 
     def forward(self, xs: torch.Tensor, x_masks: torch.Tensor):
@@ -175,7 +177,7 @@ class PitchPredictor(torch.nn.Module):
         # e = de_norm_mean_std(e, hp.e_mean, hp.e_std)
         # For pytorch > = 1.6.0
 
-        quantize = torch.bucketize(x, self.bins).cuda()
+        quantize = torch.bucketize(x, self.pitch_bins).to(device=x.device)#.cuda()
         return F.one_hot(quantize.long(), 256).float()
 
 
