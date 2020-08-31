@@ -247,7 +247,7 @@ class FeedForwardTransformer(torch.nn.Module):
         # initialize parameters
         initialize(self, init_type)
     #
-    #     # initialize alpha in scaled positional encoding
-    #     # if self.use_scaled_pos_enc:
-    #     #     self.encoder.embed[-1].alpha.data = torch.tensor(init_enc_alpha)
-    #     #     self.decoder.embed[-1].alpha.data = torch.tensor(init_dec_alpha)
+        # initialize alpha in scaled positional encoding
+        if self.use_scaled_pos_enc:
+            self.encoder.embed[-1].alpha.data = torch.tensor(init_enc_alpha)
+            self.decoder.embed[-1].alpha.data = torch.tensor(init_dec_alpha)
