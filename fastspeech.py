@@ -16,7 +16,6 @@ from core.variance_predictor import PitchPredictor, PitchPredictorLoss
 from core.duration_modeling.length_regulator import LengthRegulator
 from utils.util import make_non_pad_mask
 from utils.util import make_pad_mask
-from core.attention import MultiHeadedAttention
 from core.embedding import PositionalEncoding
 from core.embedding import ScaledPositionalEncoding
 from core.encoder import Encoder
