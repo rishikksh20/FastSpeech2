@@ -134,6 +134,14 @@ def train(args, hp, hp_str, logger, vocoder):
                         mels_ = model.inference(x_[-1].cuda())  # [T, num_mel]
 
                     model.train()
+                    for r in report_dict_:
+                        for k, v in r.items():
+                            if k is not None and v is not None:
+                                if 'cupy' in str(type(v)):
+                                    v = v.get()
+                                if 'cupy' in str(type(k)):
+                                    k = k.get()
+                                writer.add_scalar("validation/{}".format(k), v, step)
                     break
 
                 mels_ = mels_.T  # Out: [num_mels, T]
