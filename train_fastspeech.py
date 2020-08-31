@@ -5,15 +5,18 @@ from dataset import dataloader as loader
 import logging
 import math
 import os
+import sys
+import numpy as np
 import configargparse
 import random
 import tqdm
+import time
+from utils.plot import generate_audio, plot_spectrogram_to_numpy
 from core.optimizer import get_std_opt
-from utils.display import *
 from utils.util import read_wav_np
 from dataset.texts import valid_symbols
 from utils.util import get_commit_hash
-from utils.hparams import HParam, load_hparam_str
+from utils.hparams import HParam
 
 BATCH_COUNT_CHOICES = ["auto", "seq", "bin", "frame"]
 BATCH_SORT_KEY_CHOICES = ["input", "output", "shuffle"]
@@ -40,7 +43,7 @@ def train(args, hp, hp_str, logger, vocoder):
             logger.info("Resuming from checkpoint: %s" % args.checkpoint_path)
             checkpoint = torch.load(args.checkpoint_path)
             model.load_state_dict(checkpoint['model'])
-            optimizer = get_std_opt(model, hp.adim, hp.transformer_warmup_steps, hp.transformer_lr)
+            optimizer = get_std_opt(model, hp.model.adim, hp.model.transformer_warmup_steps, model.hp.transformer_lr)
             optimizer.load_state_dict(checkpoint['optim'])
             global_step = checkpoint['step']
 
@@ -82,7 +85,7 @@ def train(args, hp, hp_str, logger, vocoder):
             #             # stop_token : [batch, T_in], out_length : [batch]
 
             loss, report_dict = model(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda(), dur.cuda(), e.cuda(),
-                                      p.cuda(), hp)
+                                      p.cuda())
             loss = loss.mean() / hp.train.accum_grad
             running_loss += loss.item()
 
@@ -126,11 +129,19 @@ def train(args, hp, hp_str, logger, vocoder):
                     with torch.no_grad():
                         loss_, report_dict_ = model(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda(),
                                                     dur_.cuda(), e_.cuda(),
-                                                    p_.cuda(), hp)
+                                                    p_.cuda())
 
-                        mels_ = model.inference(x_[-1].cuda(), hp)  # [T, num_mel]
+                        mels_ = model.inference(x_[-1].cuda())  # [T, num_mel]
 
                     model.train()
+                    for r in report_dict_:
+                        for k, v in r.items():
+                            if k is not None and v is not None:
+                                if 'cupy' in str(type(v)):
+                                    v = v.get()
+                                if 'cupy' in str(type(k)):
+                                    k = k.get()
+                                writer.add_scalar("validation/{}".format(k), v, step)
                     break
 
                 mels_ = mels_.T  # Out: [num_mels, T]

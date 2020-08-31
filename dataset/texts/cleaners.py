@@ -18,6 +18,7 @@ import re
 from unidecode import unidecode
 from .numbers import normalize_numbers
 _whitespace_re = re.compile(r'\s+')
+punctuations = '''+-!()[]{};:'"\<>/?@#^&*_~'''
 
 # List of (regular expression, replacement) pairs for abbreviations:
 _abbreviations = [(re.compile('\\b%s\\.' % x[0], re.IGNORECASE), x[1]) for x in [
@@ -87,3 +88,10 @@ def english_cleaners(text):
     text = expand_abbreviations(text)
     text = collapse_whitespace(text)
     return text
+
+def punctuation_removers(text):
+    no_punct = ""
+    for char in text:
+        if char not in punctuations:
+            no_punct = no_punct + char
+    return no_punct

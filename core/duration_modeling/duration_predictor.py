@@ -7,7 +7,7 @@
 """Duration predictor related loss."""
 
 import torch
-
+from typing import Optional
 from core.modules import LayerNorm
 
 
@@ -46,12 +46,12 @@ class DurationPredictor(torch.nn.Module):
             self.conv += [torch.nn.Sequential(
                 torch.nn.Conv1d(in_chans, n_chans, kernel_size, stride=1, padding=(kernel_size - 1) // 2),
                 torch.nn.ReLU(),
-                LayerNorm(n_chans, dim=1),
+                LayerNorm(n_chans),
                 torch.nn.Dropout(dropout_rate)
             )]
         self.linear = torch.nn.Linear(n_chans, 1)
 
-    def _forward(self, xs, x_masks=None, is_inference=False):
+    def _forward(self, xs: torch.Tensor, x_masks: Optional[torch.Tensor] = None, is_inference: bool=False):
         xs = xs.transpose(1, -1)  # (B, idim, Tmax)
         for f in self.conv:
             xs = f(xs)  # (B, C, Tmax)
@@ -68,7 +68,7 @@ class DurationPredictor(torch.nn.Module):
 
         return xs
 
-    def forward(self, xs, x_masks=None):
+    def forward(self, xs: torch.Tensor, x_masks: Optional[torch.Tensor] = None):
         """Calculate forward propagation.
 
         Args:
@@ -81,7 +81,7 @@ class DurationPredictor(torch.nn.Module):
         """
         return self._forward(xs, x_masks, False)
 
-    def inference(self, xs, x_masks=None):
+    def inference(self, xs, x_masks: Optional[torch.Tensor] = None):
         """Inference duration.
 
         Args:

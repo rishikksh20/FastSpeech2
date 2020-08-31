@@ -1,4 +1,4 @@
-# Fastspeech 2 (Experimental)
+# Fastspeech 2
 UnOfficial PyTorch implementation of [**FastSpeech 2: Fast and High-Quality End-to-End Text to Speech**](https://arxiv.org/abs/2006.04558). This repo uses the FastSpeech implementation of  [Espnet](https://github.com/espnet/espnet) as a base. In this implementation I tried to replicate the exact paper details but still some modification required for better model, this repo open for any suggettion and improvement. This repo uses Nvidia's tacotron 2 preprocessing for audio pre-processing and [MelGAN](https://github.com/seungwonpark/melgan) as vocoder.
 
 
@@ -11,14 +11,14 @@ All code written in `Python 3.6.2` .
 * Install Pytorch
 > Before installing pytorch please check your Cuda version by running following command : 
 `nvcc --version`
-```buildoutcfg
+```
 pip install torch torchvision
 ```
 In this repo I have used Pytorch 1.6.0 for `torch.bucketize` feature which is not present in previous versions of PyTorch.
 
 
 * Installing other requirements :
-```buildoutcfg
+```
 pip install -r requirements.txt
 ```
 
@@ -46,17 +46,20 @@ e_max = Max energy
 ```
 
 ## For training
-```buildoutcfg
-python3 train_fastspeech.py --outdir results
+```
+ python train_fastspeech.py --outdir etc -c configs/default.yaml -n "name"
 ```
 
-## For inference [WIP]
+## For inference 
  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/rishikksh20/FastSpeech2/blob/master/demo_fastspeech2.ipynb) <br />
 Currently only phonemes based Synthesis supported.
-```buildoutcfg
-python3 synthesis.py --out results --text "DH AH0 N AA1 L AH0 JH AH1 V HH IH1 Z D IH0 F EH1 K SH AH0 N pau pau HH IH1 Z EH1 R AH0 G AH0 N S AH0 N D HH EH0 S T IH1 L AH0 T IY0 T IH0 DH IY0 Y UW0 N AY1 T IH0 D S T EY1 T S pau" --path checkpoints\checkpoint_355k_steps.pyt
 ```
-
+python .\inference.py -c .\configs\default.yaml -p .\checkpoints\first_1\ts_version2_fastspeech_fe9a2c7_7k_steps.pyt --out output --text "ModuleList can be indexed like a regular Python list but modules it contains are properly registered."
+```
+## For TorchScript Export
+```commandline
+python export_torchscript.py -c configs/default.yaml -n fastspeech_scrip --outdir etc
+```
 ## Checkpoint and samples:
 * Checkpoint find [here](https://drive.google.com/drive/folders/1Fh7zr8zoTydNpD6hTNBPKUGN_s93Bqrs?usp=sharing)
 * For samples check `sample` folder.

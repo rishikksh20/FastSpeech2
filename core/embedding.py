@@ -4,7 +4,8 @@ import math
 import torch
 
 
-def _pre_hook(state_dict, prefix):
+def _pre_hook(state_dict, prefix, local_metadata, strict,
+              missing_keys, unexpected_keys, error_msgs):
     """Perform pre-hook in load_state_dict for backward compatibility.
 
     Note:
@@ -32,9 +33,10 @@ class PositionalEncoding(torch.nn.Module):
         self.d_model = d_model
         self.xscale = math.sqrt(self.d_model)
         self.dropout = torch.nn.Dropout(p=dropout_rate)
-        self.pe = None
+        #self.pe = None
+        self.register_buffer("pe", None)
         self.extend_pe(torch.tensor(0.0).expand(1, max_len))
-        self._register_load_state_dict_pre_hook(_pre_hook)
+        # self._register_load_state_dict_pre_hook(_pre_hook)
 
     def extend_pe(self, x: torch.Tensor):
         """Reset the positional encodings."""
@@ -99,6 +101,9 @@ class ScaledPositionalEncoding(PositionalEncoding):
             torch.Tensor: Encoded tensor. Its shape is (batch, time, ...)
 
         """
+        device = x.device
         self.extend_pe(x)
-        x = x + self.alpha * self.pe[:, :x.size(1)]
+        # print("Devices x :", x.device)
+        self.alpha = self.alpha.to(device=device)
+        x = x + self.alpha * self.pe[:, :x.size(1)].to(device=device)
         return self.dropout(x)

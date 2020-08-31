@@ -4,10 +4,8 @@ from core.attention import MultiHeadedAttention
 from core.embedding import PositionalEncoding
 from core.modules import MultiLayeredConv1d
 from core.modules import PositionwiseFeedForward
-from core.modules import repeat
 from core.modules import Conv2dSubsampling
-from core.modules import LayerNorm
-from typing import Tuple
+from typing import Tuple, Optional
 
 class EncoderLayer(nn.Module):
     """Encoder layer module
@@ -28,16 +26,16 @@ class EncoderLayer(nn.Module):
         super(EncoderLayer, self).__init__()
         self.self_attn = self_attn
         self.feed_forward = feed_forward
-        self.norm1 = LayerNorm(size)
-        self.norm2 = LayerNorm(size)
+        self.norm1 = torch.nn.LayerNorm(size)
+        self.norm2 = torch.nn.LayerNorm(size)
         self.dropout = nn.Dropout(dropout_rate)
         self.size = size
         self.normalize_before = normalize_before
         self.concat_after = concat_after
-        if self.concat_after:
-            self.concat_linear = nn.Linear(size + size, size)
+        #if self.concat_after:
+        self.concat_linear = nn.Linear(size + size, size)
 
-    def forward(self, x: torch.Tensor, mask: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None):
         """Compute encoded features
 
         :param torch.Tensor x: encoded source features (batch, max_time_in, size)
@@ -46,7 +44,7 @@ class EncoderLayer(nn.Module):
         """
         residual = x
         if self.normalize_before:
-            x = self.norm1(x)
+          x = self.norm1(x)
         if self.concat_after:
             x_concat = torch.cat((x, self.self_attn(x, x, x, mask)), dim=-1)
             x = residual + self.concat_linear(x_concat)
@@ -57,7 +55,7 @@ class EncoderLayer(nn.Module):
 
         residual = x
         if self.normalize_before:
-            x = self.norm2(x)
+          x = self.norm2(x)
         x = residual + self.dropout(self.feed_forward(x))
         if not self.normalize_before:
             x = self.norm2(x)
@@ -103,6 +101,8 @@ class Encoder(torch.nn.Module):
                  padding_idx: int =-1):
 
         super(Encoder, self).__init__()
+        # if self.normalize_before:
+        self.after_norm = torch.nn.LayerNorm(attention_dim)
         if input_layer == "linear":
             self.embed = torch.nn.Sequential(
                 torch.nn.Linear(idim, attention_dim),
@@ -138,21 +138,31 @@ class Encoder(torch.nn.Module):
             positionwise_layer_args = (attention_dim, linear_units, positionwise_conv_kernel_size, dropout_rate)
         else:
             raise NotImplementedError("Support only linear or conv1d.")
-        self.encoders = repeat(
-            4,
-            lambda: EncoderLayer(
+        # self.encoders = repeat(
+        #     4,
+        #     lambda: EncoderLayer(
+        #         attention_dim,
+        #         MultiHeadedAttention(attention_heads, attention_dim, attention_dropout_rate),
+        #         positionwise_layer(*positionwise_layer_args),
+        #         dropout_rate,
+        #         normalize_before,
+        #         concat_after
+        #     )
+        # )
+        self.encoders_ = nn.ModuleList([
+            EncoderLayer(
                 attention_dim,
                 MultiHeadedAttention(attention_heads, attention_dim, attention_dropout_rate),
                 positionwise_layer(*positionwise_layer_args),
                 dropout_rate,
                 normalize_before,
                 concat_after
-            )
-        )
-        if self.normalize_before:
-            self.after_norm = LayerNorm(attention_dim)
+            ) for _ in range(num_blocks)])
 
-    def forward(self, xs: torch.Tensor, masks: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+
+
+
+    def forward(self, xs: torch.Tensor, masks: Optional[torch.Tensor] = None):
         """Embed positions in tensor
 
         :param torch.Tensor xs: input tensor
@@ -160,12 +170,15 @@ class Encoder(torch.nn.Module):
         :return: position embedded tensor and mask
         :rtype Tuple[torch.Tensor, torch.Tensor]:
         """
-        if isinstance(self.embed, Conv2dSubsampling):
-            xs, masks = self.embed(xs, masks)
-        else:
-            xs = self.embed(xs)
-        
-        xs, masks = self.encoders(xs, masks)
+        # if isinstance(self.embed, Conv2dSubsampling):
+        #     xs, masks = self.embed(xs, masks)
+        # else:
+        xs = self.embed(xs)
+
+        #xs, masks = self.encoders_(xs, masks)
+        for encoder in self.encoders_:
+            xs, masks = encoder(xs, masks)
         if self.normalize_before:
             xs = self.after_norm(xs)
+
         return xs, masks

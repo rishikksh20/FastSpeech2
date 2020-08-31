@@ -11,8 +11,8 @@ data:
   f0_std:  53.633228905750336
   p_min: 71.0
   p_max: 676.2260946528305 # 799.8901977539062
-  train_filelist: "./filelists/train.txt"
-  valid_filelist: "./filelists/valid.txt"
+  train_filelist: "./filelists/train_filelist.txt"
+  valid_filelist: "./filelists/valid_filelist.txt"
   tts_cleaner_names: ['english_cleaners']
 
 # feature extraction related
