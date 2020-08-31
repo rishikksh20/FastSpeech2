@@ -87,41 +87,43 @@ def preprocess(text):
     clean_content = english_cleaners(text)
     clean_content = punctuation_removers(clean_content)
     phonemes = g2p(clean_content)
+
     phonemes = ["" if x==" " else x for x in phonemes]
     phonemes = ["pau" if x=="," else x for x in phonemes]
     phonemes = ["pau" if x=="." else x for x in phonemes]
+    phonemes.append("pau")
+    phonemes.append("pau")
     phonemes = str1.join(phonemes)
+
     return phonemes
 
-def process_paragraph(para, padd):
+def process_paragraph(para):
     # input - paragraph with lines seperated by "."
     #output - list with each item as lines of paragraph seperated by suitable padding
     text = []
-    for lines in para.split(".")[:-1]:
-        text.append(" ."*padd + lines + " ."*padd)
-        #print(preprocess(lines + "."))
+    for lines in para.split("."):
+        text.append(lines)
+
     return text
 
 def synth(text, model, hp):
     """Decode with E2E-TTS model."""
-    # input - line of text and path to checkpoint
+
     print("TTS synthesis")
-    # read training config
+
     model.eval()
     # set torch device
     device = torch.device("cuda" if hp.train.ngpu > 0 else "cpu")
     model = model.to(device)
-    #print("Text :",text)
+
     input = np.asarray(phonemes_to_sequence(text))
-    #print("Input :",input)
+
     text = torch.LongTensor(input)
     text = text.to(device)
-    #[num_char]
-    #print("Text :", text)
+
     with torch.no_grad():
-        # decode and write
         print("predicting")
-        outs = model.inference(text, hp)
+        outs = model.inference(text)
         mel = outs
     return mel
 
@@ -132,7 +134,7 @@ def main(args):
     parser = get_parser()
     args = parser.parse_args(args)
 
-    # display PYTHONPATH
+
     logging.info('python path = ' + os.environ.get('PYTHONPATH', '(None)'))
 
     print("Text : ", args.text)
@@ -152,7 +154,7 @@ def main(args):
     odim = hp.audio.num_mels
     model = FeedForwardTransformer(idim, odim, hp)
 
-
+    os.makedirs(args.out, exist_ok=True)
     if args.old_model:
         logging.info('\nSynthesis Session...\n')
         model.load_state_dict(checkpoint, strict=False)
@@ -160,10 +162,10 @@ def main(args):
         checkpoint = torch.load(args.checkpoint_path)
         model.load_state_dict(checkpoint['model'])
 
-    text = process_paragraph(args.text, args.pad)
+    text = process_paragraph(args.text)
+
     for i in range(0,len(text)):
         txt = preprocess(text[i])
-        #print(txt, "input to synth")
         audio = synth(txt, model, hp)
         m = audio.T
         para_mel.append(m)
