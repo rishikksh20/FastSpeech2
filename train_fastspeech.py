@@ -127,9 +127,9 @@ def train(args, hp, hp_str, logger, vocoder):
                     with torch.no_grad():
                         loss_, report_dict_ = model(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda(),
                                                     dur_.cuda(), e_.cuda(),
-                                                    p_.cuda(), hp)
+                                                    p_.cuda())
 
-                        mels_ = model.inference(x_[-1].cuda(), hp)  # [T, num_mel]
+                        mels_ = model.inference(x_[-1].cuda())  # [T, num_mel]
 
                     model.train()
                     break
