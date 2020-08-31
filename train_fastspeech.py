@@ -5,13 +5,14 @@ from dataset import dataloader as loader
 import logging
 import math
 import os
+import sys
 import numpy as np
 import configargparse
 import random
 import tqdm
+import time
 from utils.plot import generate_audio, plot_spectrogram_to_numpy
 from core.optimizer import get_std_opt
-from utils.display import *
 from utils.util import read_wav_np
 from dataset.texts import valid_symbols
 from utils.util import get_commit_hash
