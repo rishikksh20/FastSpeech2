@@ -349,7 +349,7 @@ class FeedForwardTransformer(torch.nn.Module):
                      [0, 0, 0, 0, 0],
                      [0, 0, 0, 0, 0]]], dtype=torch.uint8)
         """
-        x_masks = make_non_pad_mask(ilens).to(next(self.parameters()).device)
+        x_masks = make_non_pad_mask(ilens).to(device = next(self.parameters()).device)
         return x_masks.unsqueeze(-2) & x_masks.unsqueeze(-1)
 
 

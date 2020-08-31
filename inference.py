@@ -123,7 +123,7 @@ def synth(text, model, hp):
 
     with torch.no_grad():
         print("predicting")
-        outs = model.inference(text)
+        outs = model.inference(text) # model(text) for jit script
         mel = outs
     return mel
 
@@ -152,7 +152,7 @@ def main(args):
 
     idim = len(valid_symbols)
     odim = hp.audio.num_mels
-    model = FeedForwardTransformer(idim, odim, hp)
+    model = FeedForwardTransformer(idim, odim, hp) # torch.jit.load("./etc/fastspeech_scrip_new.pt")
 
     os.makedirs(args.out, exist_ok=True)
     if args.old_model:

@@ -50,7 +50,7 @@ class MultiHeadedAttention(nn.Module):
         if mask is not None:
             mask = mask.unsqueeze(1).eq(0)  # (batch, 1, time1, time2)
             #min_value: float = float(numpy.finfo(torch.tensor(0, dtype=scores.dtype).numpy().dtype).min)
-
+            mask = mask.to(device=scores.device)
             scores = scores.masked_fill_(mask, -np.inf)
             attn = torch.softmax(scores, dim=-1).masked_fill(mask, 0.0)  # (batch, head, time1, time2)
         else:
