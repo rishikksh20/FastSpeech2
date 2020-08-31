@@ -1,5 +1,5 @@
 import math
-
+from typing import Optional
 import numpy
 import torch
 from torch import nn
@@ -23,7 +23,7 @@ class MultiHeadedAttention(nn.Module):
         self.linear_k = nn.Linear(n_feat, n_feat)
         self.linear_v = nn.Linear(n_feat, n_feat)
         self.linear_out = nn.Linear(n_feat, n_feat)
-        self.attn = torch.empty(0)
+        self.attn: Optional[torch.Tensor] = torch.empty(0)
         self.dropout = nn.Dropout(p=dropout_rate)
 
     def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:

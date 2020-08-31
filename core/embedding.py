@@ -4,7 +4,8 @@ import math
 import torch
 
 
-def _pre_hook(state_dict, prefix):
+def _pre_hook(state_dict, prefix, local_metadata, strict,
+              missing_keys, unexpected_keys, error_msgs):
     """Perform pre-hook in load_state_dict for backward compatibility.
 
     Note:
@@ -99,6 +100,9 @@ class ScaledPositionalEncoding(PositionalEncoding):
             torch.Tensor: Encoded tensor. Its shape is (batch, time, ...)
 
         """
+        device = x.device
         self.extend_pe(x)
-        x = x + self.alpha * self.pe[:, :x.size(1)]
+        # print("Devices x :", x.device)
+        self.alpha = self.alpha.to(device=device)
+        x = x + self.alpha * self.pe[:, :x.size(1)].to(device=device)
         return self.dropout(x)

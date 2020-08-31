@@ -10,7 +10,7 @@ import logging
 
 import torch
 
-from utils.util import pad_1d_tensor
+from utils.util import pad_2d_tensor, pad_list
 
 
 class LengthRegulator(torch.nn.Module):
@@ -58,7 +58,7 @@ class LengthRegulator(torch.nn.Module):
         xs = [self._repeat_one_sequence(x, d) for x, d in zip(xs, ds)]
 
 
-        return pad_1d_tensor(xs)
+        return pad_2d_tensor(xs, 0.0)
 
     def _repeat_one_sequence(self, x: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
         """Repeat each frame according to duration.

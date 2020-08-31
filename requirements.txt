@@ -9,4 +9,5 @@ pyworld==0.2.10
 configargparse
 tensorboardX
 typeguard==2.9.1
+g2p_en
 

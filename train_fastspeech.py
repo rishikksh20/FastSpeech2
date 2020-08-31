@@ -5,6 +5,7 @@ from dataset import dataloader as loader
 import logging
 import math
 import os
+import numpy as np
 import configargparse
 import random
 import tqdm
@@ -82,7 +83,7 @@ def train(args, hp, hp_str, logger, vocoder):
             #             # stop_token : [batch, T_in], out_length : [batch]
 
             loss, report_dict = model(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda(), dur.cuda(), e.cuda(),
-                                      p.cuda(), hp)
+                                      p.cuda())
             loss = loss.mean() / hp.train.accum_grad
             running_loss += loss.item()
 

@@ -11,10 +11,8 @@ import logging
 import torch
 from core.duration_modeling.duration_predictor import DurationPredictor
 from core.duration_modeling.duration_predictor import DurationPredictorLoss
-from core.energy_predictor.energy_predictor import EnergyPredictor
-from core.energy_predictor.energy_predictor import EnergyPredictorLoss
-from core.pitch_predictor.pitch_predictor import PitchPredictor
-from core.pitch_predictor.pitch_predictor import PitchPredictorLoss
+from core.variance_predictor import EnergyPredictor, EnergyPredictorLoss
+from core.variance_predictor import PitchPredictor, PitchPredictorLoss
 from core.duration_modeling.length_regulator import LengthRegulator
 from utils.util import  make_non_pad_mask_script
 from utils.util import  make_pad_mask_script

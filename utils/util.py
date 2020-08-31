@@ -66,18 +66,40 @@ def to_device(m, x):
     device = next(m.parameters()).device
     return x.to(device)
 
+
 @torch.jit.script
 def pad_1d_tensor(xs: List[torch.Tensor]):
 
   length = torch.jit.annotate(List[int], [])
+
   for x in xs:
+
     length.append(x.size(0))
+
   max_len = max(length)
   x_padded = []
+
   for x in xs:
     x_padded.append(F.pad(x, (0, max_len - x.shape[0])))
   padded = torch.stack(x_padded)
+
   return padded
+
+
+@torch.jit.script
+def pad_2d_tensor(xs: List[torch.Tensor], pad_value: float = 0.0):
+    max_len = max([xs[i].size(0)for i in range(len(xs))])
+
+    out_list = []
+
+    for i, batch in enumerate(xs):
+        one_batch_padded = F.pad(
+                batch, (0, 0, 0, max_len - batch.size(0)), "constant", pad_value)
+        out_list.append(one_batch_padded)
+
+    out_padded = torch.stack(out_list)
+    return out_padded
+
 
 def pad_list(xs, pad_value):
     """Perform padding for the list of tensors.
@@ -130,10 +152,13 @@ def tensor_1d_tolist(x):
         result.append(i.item())
     return result
 
+
 @torch.jit.script
 def make_pad_mask_script(lengths: torch.Tensor):
+
     if not isinstance(lengths, list):
         lengths = tensor_1d_tolist(lengths)
+
     bs = int(len(lengths))
     maxlen = int(max(lengths))
 
@@ -143,6 +168,7 @@ def make_pad_mask_script(lengths: torch.Tensor):
     mask = seq_range_expand >= seq_length_expand
 
     return mask
+
 
 def make_pad_mask(lengths: List[int], xs: torch.Tensor=None, length_dim: int=-1):
     """Make mask tensor containing indices of padded part.

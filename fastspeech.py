@@ -11,10 +11,8 @@ import logging
 import torch
 from core.duration_modeling.duration_predictor import DurationPredictor
 from core.duration_modeling.duration_predictor import DurationPredictorLoss
-from core.energy_predictor.energy_predictor import EnergyPredictor
-from core.energy_predictor.energy_predictor import EnergyPredictorLoss
-from core.pitch_predictor.pitch_predictor import PitchPredictor
-from core.pitch_predictor.pitch_predictor import PitchPredictorLoss
+from core.variance_predictor import EnergyPredictor, EnergyPredictorLoss
+from core.variance_predictor import PitchPredictor, PitchPredictorLoss
 from core.duration_modeling.length_regulator import LengthRegulator
 from utils.util import make_non_pad_mask
 from utils.util import make_pad_mask
@@ -52,13 +50,10 @@ class FeedForwardTransformer(torch.nn.Module):
         # store hyperparameters
         self.idim = idim
         self.odim = odim
-        self.reduction_factor = hp.model.reduction_factor
+
         self.use_scaled_pos_enc = hp.model.use_scaled_pos_enc
         self.use_masking = hp.model.use_masking
 
-        # TODO(kan-bayashi): support reduction_factor > 1
-        if self.reduction_factor != 1:
-            raise NotImplementedError("Support only reduction_factor = 1.")
 
         # use idx 0 as padding idx
         padding_idx = 0
@@ -170,6 +165,7 @@ class FeedForwardTransformer(torch.nn.Module):
         self.energy_criterion = EnergyPredictorLoss()
         self.pitch_criterion = PitchPredictorLoss()
         self.criterion = torch.nn.L1Loss(reduction='mean')
+        self.use_weighted_masking = hp.model.use_weighted_masking
 
     def _forward(self, xs: torch.Tensor, ilens: torch.Tensor, olens: torch.Tensor = None,
                  ds: torch.Tensor = None, es: torch.Tensor = None, ps: torch.Tensor = None,
@@ -231,7 +227,7 @@ class FeedForwardTransformer(torch.nn.Module):
             return before_outs, after_outs, d_outs, e_outs, p_outs
 
     def forward(self, xs: torch.Tensor, ilens: torch.Tensor, ys: torch.Tensor, olens: torch.Tensor, ds: torch.Tensor,
-                es: torch.Tensor, ps: torch.Tensor, hp: Dict) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+                es: torch.Tensor, ps: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         """Calculate forward propagation.
         Args:
             xs (Tensor): Batch of padded character ids (B, Tmax).
@@ -247,7 +243,7 @@ class FeedForwardTransformer(torch.nn.Module):
         ys = ys[:, :max(olens)] # torch.Size([32, 868, 80]) -> [B, Lmax, odim]
 
         # forward propagation
-        before_outs, after_outs, d_outs, e_outs, p_outs = self._forward(xs, ilens, ys, olens, ds, es, ps,
+        before_outs, after_outs, d_outs, e_outs, p_outs = self._forward(xs, ilens, olens, ds, es, ps,
                                                                         is_inference=False)
 
         # modifiy mod part of groundtruth
@@ -284,7 +280,7 @@ class FeedForwardTransformer(torch.nn.Module):
         pitch_loss = self.pitch_criterion(p_outs, ps)
 
         # make weighted mask and apply it
-        if hp.model.use_weighted_masking:
+        if self.use_weighted_masking:
             out_masks = make_non_pad_mask(olens).unsqueeze(-1).to(ys.device)
             out_weights = out_masks.float() / out_masks.sum(dim=1, keepdim=True).float()
             out_weights /= ys.size(0) * ys.size(2)
@@ -363,6 +359,6 @@ class FeedForwardTransformer(torch.nn.Module):
         initialize(self, init_type)
 
         # initialize alpha in scaled positional encoding
-        # if self.use_scaled_pos_enc:
-        #     self.encoder.embed[-1].alpha.data = torch.tensor(init_enc_alpha)
-        #     self.decoder.embed[-1].alpha.data = torch.tensor(init_dec_alpha)
+        if self.use_scaled_pos_enc:
+            self.encoder.embed[-1].alpha.data = torch.tensor(init_enc_alpha)
+            self.decoder.embed[-1].alpha.data = torch.tensor(init_dec_alpha)
