@@ -43,7 +43,7 @@ def train(args, hp, hp_str, logger, vocoder):
             logger.info("Resuming from checkpoint: %s" % args.checkpoint_path)
             checkpoint = torch.load(args.checkpoint_path)
             model.load_state_dict(checkpoint['model'])
-            optimizer = get_std_opt(model, hp.adim, hp.transformer_warmup_steps, hp.transformer_lr)
+            optimizer = get_std_opt(model, hp.model.adim, hp.model.transformer_warmup_steps, model.hp.transformer_lr)
             optimizer.load_state_dict(checkpoint['optim'])
             global_step = checkpoint['step']
 
