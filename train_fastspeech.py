@@ -16,7 +16,7 @@ from core.optimizer import get_std_opt
 from utils.util import read_wav_np
 from dataset.texts import valid_symbols
 from utils.util import get_commit_hash
-from utils.hparams import HParam, load_hparam_str
+from utils.hparams import HParam
 
 BATCH_COUNT_CHOICES = ["auto", "seq", "bin", "frame"]
 BATCH_SORT_KEY_CHOICES = ["input", "output", "shuffle"]

@@ -15,7 +15,9 @@ from utils.stft import STFT
 from scipy.io.wavfile import write
 from dataset.texts import valid_symbols
 from utils.hparams import HParam, load_hparam_str
-
+from dataset.texts.cleaners import english_cleaners, punctuation_removers
+import matplotlib.pyplot as plt
+from g2p_en import G2p
 
 def synthesis(args, text, hp):
     """Decode with E2E-TTS model."""
@@ -68,11 +70,10 @@ def synthesis(args, text, hp):
 
 ### for direct text/para input ###
 
-from g2p_en import G2p
+
 g2p = G2p()
-from dataset.texts.cleaners import english_cleaners, punctuation_removers
-import matplotlib.pyplot as plt
-import tkinter
+
+
 def plot_mel(mels):
     melspec = mels.reshape(1,80,-1)
     plt.imshow(melspec.detach().cpu()[0], aspect='auto', origin='lower')
