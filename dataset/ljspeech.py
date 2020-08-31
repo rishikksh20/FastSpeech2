@@ -1,13 +1,9 @@
-from utils.files import get_files
-import hparams as hp
-import os
-from dataset.texts import text_to_sequence
-import re
-#from .phonems_conversion import text2phone
+from utils.util import get_files
 
 
 
-def ljspeech(path, data_dir) :
+
+def ljspeech(path, hp) :
 
     csv_file = get_files(path, extension='.csv')
 

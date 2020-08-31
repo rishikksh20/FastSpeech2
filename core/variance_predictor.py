@@ -1,9 +1,10 @@
 import torch
-from core.layer_norm import LayerNorm
+from core.modules import LayerNorm
 
 class VariancePredictor(torch.nn.Module):
 
-    def __init__(self, idim, n_layers=2, n_chans=256, out=1, kernel_size=3, dropout_rate=0.5, offset=1.0):
+    def __init__(self, idim: int, n_layers: int=2, n_chans: int=256, out: int=1, kernel_size: int=3,
+                 dropout_rate: float=0.5, offset: float=1.0):
         super(VariancePredictor, self).__init__()
         self.offset = offset
         self.conv = torch.nn.ModuleList()
@@ -18,7 +19,8 @@ class VariancePredictor(torch.nn.Module):
         self.linear = torch.nn.Linear(n_chans, out)
 
 
-    def _forward(self, xs, x_masks=None, is_inference=False, is_log_output=False, alpha=1.0):
+    def _forward(self, xs: torch.Tensor, x_masks: torch.Tensor=None, is_inference: bool=False, is_log_output: bool=False,
+                 alpha: float=1.0) -> torch.Tensor:
         xs = xs.transpose(1, -1)  # (B, idim, Tmax)
         for f in self.conv:
             xs = f(xs)  # (B, C, Tmax)
@@ -36,7 +38,7 @@ class VariancePredictor(torch.nn.Module):
 
         return xs
 
-    def forward(self, xs, x_masks=None):
+    def forward(self, xs: torch.Tensor, x_masks: torch.Tensor=None) -> torch.Tensor:
         """Calculate forward propagation.
 
         Args:
@@ -49,7 +51,8 @@ class VariancePredictor(torch.nn.Module):
         """
         return self._forward(xs, x_masks)
 
-    def inference(self, xs, x_masks=None, is_log_output=False, alpha=1.0):
+    def inference(self, xs: torch.Tensor, x_masks: torch.Tensor=None, is_log_output: bool=False, alpha: float=1.0)\
+            -> torch.Tensor:
         """Inference duration.
 
         Args:

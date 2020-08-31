@@ -1,10 +1,12 @@
 import torch
+import torch.nn.functional as F
 from core.variance_predictor import VariancePredictor
 
 
 class EnergyPredictor(torch.nn.Module):
 
-    def __init__(self ,idim, n_layers=2, n_chans=256, kernel_size=3, dropout_rate=0.1, offset=1.0):
+    def __init__(self ,idim, n_layers=2, n_chans=256, kernel_size=3, dropout_rate=0.1, offset=1.0,
+                 min = 0, max = 0, n_bins = 256):
         """Initilize Energy predictor module.
 
                 Args:
@@ -17,6 +19,7 @@ class EnergyPredictor(torch.nn.Module):
 
                 """
         super(EnergyPredictor, self).__init__()
+        self.bins = torch.linspace(min, max, n_bins - 1)
         self.predictor = VariancePredictor(idim)
 
     def forward(self, xs, x_masks=None):
@@ -43,7 +46,15 @@ class EnergyPredictor(torch.nn.Module):
             LongTensor: Batch of predicted durations in linear domain (B, Tmax).
 
         """
-        return self.predictor.inference(xs, x_masks, False, alpha=alpha) # Need to do One hot code
+        out = self.predictor.inference(xs, x_masks, False, alpha=alpha)
+        return self.to_one_hot(out) # Need to do One hot code
+
+    def to_one_hot(self, x):
+        # e = de_norm_mean_std(e, hp.e_mean, hp.e_std)
+        # For pytorch > = 1.6.0
+
+        quantize = torch.bucketize(x, self.bins)
+        return F.one_hot(quantize.long(), 256).float()
 
 
 

@@ -1,14 +1,68 @@
 import torch
-
+from torch import nn
 from core.attention import MultiHeadedAttention
 from core.embedding import PositionalEncoding
-from core.encoder_layer import EncoderLayer
-from core.layer_norm import LayerNorm
-from core.multi_layer_conv import MultiLayeredConv1d
-from core.positionwise_feed_forward import PositionwiseFeedForward
-from core.repeat import repeat
-from core.subsampling import Conv2dSubsampling
+from core.modules import MultiLayeredConv1d
+from core.modules import PositionwiseFeedForward
+from core.modules import repeat
+from core.modules import Conv2dSubsampling
+from core.modules import LayerNorm
+from typing import Tuple
 
+class EncoderLayer(nn.Module):
+    """Encoder layer module
+
+    :param int size: input dim
+    :param espnet.nets.pytorch_backend.core.attention.MultiHeadedAttention self_attn: self attention module
+    :param espnet.nets.pytorch_backend.core.positionwise_feed_forward.PositionwiseFeedForward feed_forward:
+        feed forward module
+    :param float dropout_rate: dropout rate
+    :param bool normalize_before: whether to use layer_norm before the first block
+    :param bool concat_after: whether to concat attention layer's input and output
+        if True, additional linear will be applied. i.e. x -> x + linear(concat(x, att(x)))
+        if False, no additional linear will be applied. i.e. x -> x + att(x)
+    """
+
+    def __init__(self, size, self_attn, feed_forward, dropout_rate,
+                 normalize_before=True, concat_after=False):
+        super(EncoderLayer, self).__init__()
+        self.self_attn = self_attn
+        self.feed_forward = feed_forward
+        self.norm1 = LayerNorm(size)
+        self.norm2 = LayerNorm(size)
+        self.dropout = nn.Dropout(dropout_rate)
+        self.size = size
+        self.normalize_before = normalize_before
+        self.concat_after = concat_after
+        if self.concat_after:
+            self.concat_linear = nn.Linear(size + size, size)
+
+    def forward(self, x: torch.Tensor, mask: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """Compute encoded features
+
+        :param torch.Tensor x: encoded source features (batch, max_time_in, size)
+        :param torch.Tensor mask: mask for x (batch, max_time_in)
+        :rtype: Tuple[torch.Tensor, torch.Tensor]
+        """
+        residual = x
+        if self.normalize_before:
+            x = self.norm1(x)
+        if self.concat_after:
+            x_concat = torch.cat((x, self.self_attn(x, x, x, mask)), dim=-1)
+            x = residual + self.concat_linear(x_concat)
+        else:
+            x = residual + self.dropout(self.self_attn(x, x, x, mask))
+        if not self.normalize_before:
+            x = self.norm1(x)
+
+        residual = x
+        if self.normalize_before:
+            x = self.norm2(x)
+        x = residual + self.dropout(self.feed_forward(x))
+        if not self.normalize_before:
+            x = self.norm2(x)
+
+        return x, mask
 
 class Encoder(torch.nn.Module):
     """Transformer encoder module
@@ -32,21 +86,22 @@ class Encoder(torch.nn.Module):
     :param int padding_idx: padding_idx for input_layer=embed
     """
 
-    def __init__(self, idim,
-                 attention_dim=256,
-                 attention_heads=2,
-                 linear_units=2048,
-                 num_blocks=4,
-                 dropout_rate=0.1,
-                 positional_dropout_rate=0.1,
-                 attention_dropout_rate=0.0,
-                 input_layer="conv2d",
-                 pos_enc_class=PositionalEncoding,
-                 normalize_before=True,
-                 concat_after=False,
-                 positionwise_layer_type="linear",
-                 positionwise_conv_kernel_size=1,
-                 padding_idx=-1):
+    def __init__(self, idim: int,
+                 attention_dim: int = 256,
+                 attention_heads: int =2,
+                 linear_units: int = 2048,
+                 num_blocks: int = 4,
+                 dropout_rate: float = 0.1,
+                 positional_dropout_rate: float = 0.1,
+                 attention_dropout_rate: float = 0.0,
+                 input_layer: str = "conv2d",
+                 pos_enc_class: torch.nn.Module = PositionalEncoding,
+                 normalize_before: bool =True,
+                 concat_after: bool =False,
+                 positionwise_layer_type: str = "linear",
+                 positionwise_conv_kernel_size: int = 1,
+                 padding_idx: int =-1):
+
         super(Encoder, self).__init__()
         if input_layer == "linear":
             self.embed = torch.nn.Sequential(
@@ -97,7 +152,7 @@ class Encoder(torch.nn.Module):
         if self.normalize_before:
             self.after_norm = LayerNorm(attention_dim)
 
-    def forward(self, xs, masks):
+    def forward(self, xs: torch.Tensor, masks: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """Embed positions in tensor
 
         :param torch.Tensor xs: input tensor

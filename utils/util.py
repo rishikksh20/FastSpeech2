@@ -8,10 +8,19 @@ import argparse
 import json
 import os 
 import logging
-import random
 import subprocess
 from scipy.io.wavfile import read
 import librosa
+import glob
+from typing import List
+import torch.nn.functional as F
+
+def get_files(path, extension='.wav') :
+    filenames = []
+    for filename in glob.iglob(f'{path}/**/*{extension}', recursive=True):
+        filenames += [filename]
+    return filenames
+
 
 def is_outlier(x, p25, p75):
     """Check if value is an outlier."""
@@ -57,6 +66,18 @@ def to_device(m, x):
     device = next(m.parameters()).device
     return x.to(device)
 
+@torch.jit.script
+def pad_1d_tensor(xs: List[torch.Tensor]):
+
+  length = torch.jit.annotate(List[int], [])
+  for x in xs:
+    length.append(x.size(0))
+  max_len = max(length)
+  x_padded = []
+  for x in xs:
+    x_padded.append(F.pad(x, (0, max_len - x.shape[0])))
+  padded = torch.stack(x_padded)
+  return padded
 
 def pad_list(xs, pad_value):
     """Perform padding for the list of tensors.
@@ -87,8 +108,23 @@ def pad_list(xs, pad_value):
 
     return pad
 
+def subsequent_mask(size, device="cuda", dtype=torch.uint8):
+    """Create mask for subsequent steps (1, size, size)
 
-def make_pad_mask(lengths, xs=None, length_dim=-1):
+    :param int size: size of mask
+    :param str device: "cpu" or "cuda" or torch.Tensor.device
+    :param torch.dtype dtype: result dtype
+    :rtype: torch.Tensor
+    >>> subsequent_mask(3)
+    [[1, 0, 0],
+     [1, 1, 0],
+     [1, 1, 1]]
+    """
+    ret = torch.ones(size, size, device=device, dtype=dtype)
+    return torch.tril(ret, out=ret)
+
+
+def make_pad_mask(lengths: List[int], xs: torch.Tensor=None, length_dim: int=-1):
     """Make mask tensor containing indices of padded part.
 
     Args:
@@ -464,8 +500,6 @@ def get_model_conf(model_path, conf_path=None):
         # for asr, tts, mt
         idim, odim, args = confs
         return idim, odim, argparse.Namespace(**args)
-    
-
 
 
 def get_commit_hash():

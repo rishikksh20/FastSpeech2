@@ -4,11 +4,11 @@
 # Copyright 2019 Tomoki Hayashi
 #  Apache 2.0  (http://www.apache.org/licenses/LICENSE-2.0)
 
-"""Duration predictor related modules."""
+"""Duration predictor related loss."""
 
 import torch
 
-from core.layer_norm import LayerNorm
+from core.modules import LayerNorm
 
 
 class DurationPredictor(torch.nn.Module):
