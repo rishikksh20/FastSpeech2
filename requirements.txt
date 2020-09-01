@@ -5,6 +5,7 @@ unidecode
 inflect
 nltk
 tqdm
+pyyaml
 pyworld==0.2.10
 configargparse
 tensorboardX
