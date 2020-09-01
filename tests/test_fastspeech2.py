@@ -16,5 +16,5 @@ def test_fastspeech():
     dur = torch.ones(2, 50)
     e = torch.ones(2, 100)
     p = torch.ones(2, 100)
-    loss, report_dict = model(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda(), dur.cuda(), e.cuda(),
-          p.cuda())
+    loss, report_dict = model(x, input_length, y, out_length, dur, e,
+          p)
