@@ -22,6 +22,7 @@ jobs:
         python-version: 3.6
     - name: Install dependencies
       run: |
+        sudo apt install libsndfile1
         python -m pip install --upgrade pip
         pip install flake8 pytest
         pip install torch==1.6.0+cpu torchvision==0.7.0+cpu -f https://download.pytorch.org/whl/torch_stable.html
