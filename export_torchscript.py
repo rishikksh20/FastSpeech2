@@ -19,6 +19,7 @@ def get_parser():
                         help="name of the model for logging, saving checkpoint")
     parser.add_argument('--outdir', type=str, required=True,
                         help='Output directory')
+    parser.add_argument('-t', '--trace', action='store_true', help="For JIT Trace Module")
 
     return parser
 
@@ -39,8 +40,13 @@ def main(cmd_args):
     print("Scripting")
     my_script_module.save("{}/{}.pt".format(args.outdir, args.name))
     print("Script done")
-    # my_trace_module = torch.jit.trace(model, torch.ones(50).to(dtype=torch.int64))
-    # my_trace_module.save("trace_module.pt")
+    if args.trace:
+        print("Tracing")
+        model.eval()
+        with torch.no_grad():
+            my_trace_module = torch.jit.trace(model, torch.ones(50).to(dtype=torch.int64))
+        my_trace_module.save("{}/trace_{}.pt".format(args.outdir, args.name))
+        print("Trace Done")
 
 
 if __name__ == "__main__":
