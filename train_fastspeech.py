@@ -146,7 +146,7 @@ def train(args, hp, hp_str, logger, vocoder):
 
                 mels_ = mels_.T  # Out: [num_mels, T]
                 writer.add_image('melspectrogram_target',
-                                 plot_spectrogram_to_numpy(y_[-1].T.data.cpu().numpy()[:, :mels_.shape[-1]]),
+                                 plot_spectrogram_to_numpy(y_[-1].T.data.cpu().numpy()[:, :out_length_[-1]]),
                                  step, dataformats='HWC')
                 writer.add_image('melspectrogram_prediction',
                                  plot_spectrogram_to_numpy(mels_.data.cpu().numpy()),
