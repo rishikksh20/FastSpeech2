@@ -39,7 +39,7 @@ def main(cmd_args):
     print("Scripting")
     my_script_module.save("{}/{}.pt".format(args.outdir, args.name))
     print("Script done")
-    # my_trace_module = torch.jit.trace(model, torch.ones(50))
+    # my_trace_module = torch.jit.trace(model, torch.ones(50).to(dtype=torch.int64))
     # my_trace_module.save("trace_module.pt")
 
 
