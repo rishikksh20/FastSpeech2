@@ -6,6 +6,7 @@ from fastspeech import FeedForwardTransformer
 def test_fastspeech():
     idim = len(valid_symbols)
     hp = HParam("configs/default.yaml")
+    hp.train.ngpu = 0
     odim = hp.audio.num_mels
     model = FeedForwardTransformer(idim, odim, hp)
     x = torch.ones(2, 50)
