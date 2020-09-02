@@ -15,13 +15,14 @@ _curly_re = re.compile(r'(.*?)\{(.+?)\}(.*)')
 
 symbols_inv = {v: k for k, v in symbols_.items()}
 
-valid_symbols = ['AA', 'AA0', 'AA1', 'AA2', 'AE', 'AE0', 'AE1', 'AE2', 'AH', 'AH0', 'AH1', 'AH2',
-                'AO', 'AO0', 'AO1', 'AO2', 'AW', 'AW0', 'AW1', 'AW2', 'AY', 'AY0', 'AY1', 'AY2',
-                'B', 'CH', 'D', 'DH', 'EH', 'EH0', 'EH1', 'EH2', 'ER', 'ER0', 'ER1', 'ER2', 'EY',
-                'EY0', 'EY1', 'EY2', 'F', 'G', 'HH', 'IH', 'IH0', 'IH1', 'IH2', 'IY', 'IY0', 'IY1',
-                'IY2', 'JH', 'K', 'L', 'M', 'N', 'NG', 'OW', 'OW0', 'OW1', 'OW2', 'OY', 'OY0',
-                'OY1', 'OY2', 'P', 'R', 'S', 'SH', 'T', 'TH', 'UH', 'UH0', 'UH1', 'UH2', 'UW',
-                'UW0', 'UW1', 'UW2', 'V', 'W', 'Y', 'Z', 'ZH', 'pau','sil', 'spn' ]
+valid_symbols = ['AA', 'AA1', 'AE', 'AE0', 'AE1', 'AH', 'AH0', 'AH1',
+                 'AO', 'AO1', 'AW', 'AW0', 'AW1', 'AY', 'AY0', 'AY1', 
+                 'B', 'CH', 'D', 'DH', 'EH', 'EH0', 'EH1', 'ER', 'EY',
+                 'EY0', 'EY1', 'F', 'G', 'HH', 'IH', 'IH0', 'IH1', 'IY',
+                 'IY0', 'IY1', 'JH', 'K', 'L', 'M', 'N', 'NG', 'OW', 'OW0', 
+                 'OW1', 'OY', 'OY0','OY1', 'P', 'R', 'S', 'SH', 'T', 'TH', 
+                 'UH', 'UH0', 'UH1',  'UW','UW0', 'UW1', 'V', 'W', 'Y', 'Z',
+                 'ZH', 'pau', 'sil']
 
 def pad_with_eos_bos(_sequence):
     return _sequence + [_symbol_to_id[_eos]]
@@ -98,6 +99,7 @@ def _should_keep_token(token, token_dict):
 def phonemes_to_sequence(phonemes):
     string = phonemes.split() if isinstance(phonemes, str) else phonemes
     #string.append(EOS)
+    sequence = list(map(convert_phoneme_CMU, sequence))
     sequence = [_phoneme_to_id[s] for s in string]
                 #if _should_keep_token(s, _phoneme_to_id)]
     return sequence
@@ -111,6 +113,33 @@ def sequence_to_phonemes(sequence, use_eos=False):
         string = string.replace(EOS, '')
     return string
 
+
+def convert_phoneme_CMU(phoneme):
+  REMAPPING = {
+      'AA0': 'AA1',
+      'AA2': 'AA1',
+      'AE2': 'AE1',
+      'AH2': 'AH1',
+      'AO0': 'AO1',
+      'AO2': 'AO1',
+      'AW2': 'AW1',
+      'AY2': 'AY1',
+      'EH2': 'EH1',
+      'ER0': 'EH1',
+      'ER1': 'EH1',
+      'ER2': 'EH1',
+      'EY2': 'EY1',
+      'IH2': 'IH1',
+      'IY2': 'IY1',
+      'OW2': 'OW1',
+      'OY2': 'OY1',
+      'UH2': 'UH1',
+      'UW2': 'UW1',
+  }
+  return REMAPPING.get(phoneme, phoneme)
+
+
+  
 def text_to_phonemes(text, custom_words={}):
     """
     Convert text into ARPAbet.
