@@ -7,7 +7,8 @@ import numpy as np
 from dataset.texts import text_to_sequence
 from utils.util import pad_list, str_to_int_list, remove_outlier
 
-def get_tts_dataset(path, batch_size, hp, valid=False) :
+
+def get_tts_dataset(path, batch_size, hp, valid=False):
 
     if valid:
         file_ = hp.data.valid_filelist
@@ -19,23 +20,26 @@ def get_tts_dataset(path, batch_size, hp, valid=False) :
         pin_mem = True
         num_workers = 4
         shuffle = True
-    train_dataset = TTSDataset(path, file_, hp.train.use_phonemes, hp.data.tts_cleaner_names, hp.train.eos)
+    train_dataset = TTSDataset(
+        path, file_, hp.train.use_phonemes, hp.data.tts_cleaner_names, hp.train.eos
+    )
 
-
-    train_set = DataLoader(train_dataset,
-                           collate_fn=collate_tts,
-                           batch_size=batch_size,
-                           num_workers=num_workers,
-                           shuffle=shuffle,
-                           pin_memory=pin_mem)
+    train_set = DataLoader(
+        train_dataset,
+        collate_fn=collate_tts,
+        batch_size=batch_size,
+        num_workers=num_workers,
+        shuffle=shuffle,
+        pin_memory=pin_mem,
+    )
     return train_set
 
 
 class TTSDataset(Dataset):
-    def __init__(self, path, file_, use_phonemes, tts_cleaner_names, eos) :
+    def __init__(self, path, file_, use_phonemes, tts_cleaner_names, eos):
         self.path = path
-        with open('{}'.format(file_), encoding='utf-8') as f:
-            self._metadata = [line.strip().split('|') for line in f]
+        with open("{}".format(file_), encoding="utf-8") as f:
+            self._metadata = [line.strip().split("|") for line in f]
         self.use_phonemes = use_phonemes
         self.tts_cleaner_names = tts_cleaner_names
         self.eos = eos
@@ -47,20 +51,32 @@ class TTSDataset(Dataset):
             x = phonemes_to_sequence(x_)
         else:
             x = text_to_sequence(x_, self.tts_cleaner_names, self.eos)
-        mel = np.load(f'{self.path}mels/{id}.npy')
+        mel = np.load(f"{self.path}mels/{id}.npy")
         durations = str_to_int_list(self._metadata[index][2])
-        e = remove_outlier(np.load(f'{self.path}energy/{id}.npy')) #self._norm_mean_std(np.load(f'{self.path}energy/{id}.npy'), self.e_mean, self.e_std, True)
-        p = remove_outlier(np.load(f'{self.path}pitch/{id}.npy')) #self._norm_mean_std(np.load(f'{self.path}pitch/{id}.npy'), self.f0_mean, self.f0_std, True)
+        e = remove_outlier(
+            np.load(f"{self.path}energy/{id}.npy")
+        )  # self._norm_mean_std(np.load(f'{self.path}energy/{id}.npy'), self.e_mean, self.e_std, True)
+        p = remove_outlier(
+            np.load(f"{self.path}pitch/{id}.npy")
+        )  # self._norm_mean_std(np.load(f'{self.path}pitch/{id}.npy'), self.f0_mean, self.f0_std, True)
         mel_len = mel.shape[1]
-        durations = durations[:len(x)]
+        durations = durations[: len(x)]
         durations[-1] = durations[-1] + (mel.shape[1] - sum(durations))
         assert mel.shape[1] == sum(durations)
-        return np.array(x), mel.T, id, mel_len, np.array(durations), e, p # Mel [T, num_mel]
+        return (
+            np.array(x),
+            mel.T,
+            id,
+            mel_len,
+            np.array(durations),
+            e,
+            p,
+        )  # Mel [T, num_mel]
 
     def __len__(self):
         return len(self._metadata)
 
-    def _norm_mean_std(self, x, mean, std, is_remove_outlier = False):
+    def _norm_mean_std(self, x, mean, std, is_remove_outlier=False):
         if is_remove_outlier:
             x = remove_outlier(x)
         zero_idxs = np.where(x == 0.0)[0]
@@ -69,12 +85,13 @@ class TTSDataset(Dataset):
         return x
 
 
-def pad1d(x, max_len) :
-    return np.pad(x, (0, max_len - len(x)), mode='constant')
+def pad1d(x, max_len):
+    return np.pad(x, (0, max_len - len(x)), mode="constant")
 
 
-def pad2d(x, max_len) :
-    return np.pad(x, ((0, 0), (0, max_len - x.shape[-1])), mode='constant')
+def pad2d(x, max_len):
+    return np.pad(x, ((0, 0), (0, max_len - x.shape[-1])), mode="constant")
+
 
 def collate_tts(batch):
 
@@ -93,12 +110,13 @@ def collate_tts(batch):
     # make labels for stop prediction
     labels = mels.new_zeros(mels.size(0), mels.size(1))
     for i, l in enumerate(olens):
-        labels[i, l - 1:] = 1.0
+        labels[i, l - 1 :] = 1.0
 
     # scale spectrograms to -4 <--> 4
     # mels = (mels * 8.) - 4
 
     return inputs, ilens, mels, labels, olens, ids, durations, energys, pitches
+
 
 class BinnedLengthSampler(Sampler):
     def __init__(self, lengths, batch_size, bin_size):
@@ -114,15 +132,15 @@ class BinnedLengthSampler(Sampler):
         bins = []
 
         for i in range(len(idx) // self.bin_size):
-            this_bin = idx[i * self.bin_size:(i + 1) * self.bin_size]
+            this_bin = idx[i * self.bin_size : (i + 1) * self.bin_size]
             random.shuffle(this_bin)
             bins += [this_bin]
 
         random.shuffle(bins)
         binned_idx = np.stack(bins).reshape(-1)
 
-        if len(binned_idx) < len(idx) :
-            last_bin = idx[len(binned_idx):]
+        if len(binned_idx) < len(idx):
+            last_bin = idx[len(binned_idx) :]
             random.shuffle(last_bin)
             binned_idx = np.concatenate([binned_idx, last_bin])
 
