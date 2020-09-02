@@ -29,7 +29,7 @@ def train(args, hp, hp_str, logger, vocoder):
     device = torch.device("cuda" if hp.train.ngpu > 0 else "cpu")
 
     dataloader = loader.get_tts_dataset(hp.data.data_dir, hp.train.batch_size, hp)
-    validloader = loader.get_tts_dataset(hp.data.data_dir, 5, hp, True)
+    validloader = loader.get_tts_dataset(hp.data.data_dir, 1, hp, True)
 
     idim = len(valid_symbols)
     odim = hp.audio.num_mels
@@ -43,7 +43,7 @@ def train(args, hp, hp_str, logger, vocoder):
             logger.info("Resuming from checkpoint: %s" % args.checkpoint_path)
             checkpoint = torch.load(args.checkpoint_path)
             model.load_state_dict(checkpoint['model'])
-            optimizer = get_std_opt(model, hp.model.adim, hp.model.transformer_warmup_steps, model.hp.transformer_lr)
+            optimizer = get_std_opt(model, hp.model.adim, hp.model.transformer_warmup_steps, hp.model.transformer_lr)
             optimizer.load_state_dict(checkpoint['optim'])
             global_step = checkpoint['step']
 
@@ -159,14 +159,14 @@ def train(args, hp, hp_str, logger, vocoder):
                 audio = audio.cpu().float().numpy()
                 audio = audio / (audio.max() - audio.min())  # get values between -1 and 1
 
-                writer.add_audio(tag=f"generated {ids_[-1]}.wav",
+                writer.add_audio(tag=f"generated_audio",
                                  snd_tensor=torch.Tensor(audio),
                                  global_step=step,
                                  sample_rate=hp.audio.sample_rate)
 
                 _, target = read_wav_np(hp.data.wav_dir + f"{ids_[-1]}.wav", sample_rate=hp.audio.sample_rate)
 
-                writer.add_audio(tag=f" target {ids_[-1]}.wav ",
+                writer.add_audio(tag=f" target_audio ",
                                  snd_tensor=torch.Tensor(target),
                                  global_step=step,
                                  sample_rate=hp.audio.sample_rate)
