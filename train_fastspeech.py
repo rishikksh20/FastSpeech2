@@ -142,34 +142,33 @@ def train(args, hp, hp_str, logger, vocoder):
                                 if 'cupy' in str(type(k)):
                                     k = k.get()
                                 writer.add_scalar("validation/{}".format(k), v, step)
-                    break
 
-                mels_ = mels_.T  # Out: [num_mels, T]
-                writer.add_image('melspectrogram_target',
-                                 plot_spectrogram_to_numpy(y_[-1].T.data.cpu().numpy()[:, :out_length_[-1]]),
-                                 step, dataformats='HWC')
-                writer.add_image('melspectrogram_prediction',
-                                 plot_spectrogram_to_numpy(mels_.data.cpu().numpy()),
-                                 step, dataformats='HWC')
+                    mels_ = mels_.T  # Out: [num_mels, T]
+                    writer.add_image('melspectrogram_target_{}'.format(ids_[-1]),
+                                     plot_spectrogram_to_numpy(y_[-1].T.data.cpu().numpy()[:, :out_length_[-1]]),
+                                     step, dataformats='HWC')
+                    writer.add_image('melspectrogram_prediction_{}'.format(ids_[-1]),
+                                     plot_spectrogram_to_numpy(mels_.data.cpu().numpy()),
+                                     step, dataformats='HWC')
 
-                # print(mels.unsqueeze(0).shape)
+                    # print(mels.unsqueeze(0).shape)
 
-                audio = generate_audio(mels_.unsqueeze(0),
-                                       vocoder)  # selecting the last data point to match mel generated above
-                audio = audio.cpu().float().numpy()
-                audio = audio / (audio.max() - audio.min())  # get values between -1 and 1
+                    audio = generate_audio(mels_.unsqueeze(0),
+                                           vocoder)  # selecting the last data point to match mel generated above
+                    audio = audio.cpu().float().numpy()
+                    audio = audio / (audio.max() - audio.min())  # get values between -1 and 1
 
-                writer.add_audio(tag=f"generated_audio",
-                                 snd_tensor=torch.Tensor(audio),
-                                 global_step=step,
-                                 sample_rate=hp.audio.sample_rate)
+                    writer.add_audio(tag="generated_audio_{}".format(ids_[-1]),
+                                     snd_tensor=torch.Tensor(audio),
+                                     global_step=step,
+                                     sample_rate=hp.audio.sample_rate)
 
-                _, target = read_wav_np(hp.data.wav_dir + f"{ids_[-1]}.wav", sample_rate=hp.audio.sample_rate)
+                    _, target = read_wav_np(hp.data.wav_dir + f"{ids_[-1]}.wav", sample_rate=hp.audio.sample_rate)
 
-                writer.add_audio(tag=f" target_audio ",
-                                 snd_tensor=torch.Tensor(target),
-                                 global_step=step,
-                                 sample_rate=hp.audio.sample_rate)
+                    writer.add_audio(tag=" target_audio_{}".format(ids_[-1]),
+                                     snd_tensor=torch.Tensor(target),
+                                     global_step=step,
+                                     sample_rate=hp.audio.sample_rate)
 
                 ##
             if step % hp.train.save_interval == 0:

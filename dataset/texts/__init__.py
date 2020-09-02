@@ -99,7 +99,7 @@ def _should_keep_token(token, token_dict):
 def phonemes_to_sequence(phonemes):
     string = phonemes.split() if isinstance(phonemes, str) else phonemes
     #string.append(EOS)
-    sequence = list(map(convert_phoneme_CMU, sequence))
+    sequence = list(map(convert_phoneme_CMU, string))
     sequence = [_phoneme_to_id[s] for s in string]
                 #if _should_keep_token(s, _phoneme_to_id)]
     return sequence
