@@ -93,8 +93,6 @@ def preprocess(text):
     phonemes = ["" if x == " " else x for x in phonemes]
     phonemes = ["pau" if x == "," else x for x in phonemes]
     phonemes = ["pau" if x == "." else x for x in phonemes]
-    phonemes.append("pau")
-    phonemes.append("pau")
     phonemes = str1.join(phonemes)
 
     return phonemes
