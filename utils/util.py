@@ -6,7 +6,7 @@ import numpy as np
 import torch
 import argparse
 import json
-import os 
+import os
 import logging
 import subprocess
 from scipy.io.wavfile import read
@@ -15,9 +15,10 @@ import glob
 from typing import List
 import torch.nn.functional as F
 
-def get_files(path, extension='.wav') :
+
+def get_files(path, extension=".wav"):
     filenames = []
-    for filename in glob.iglob(f'{path}/**/*{extension}', recursive=True):
+    for filename in glob.iglob(f"{path}/**/*{extension}", recursive=True):
         filenames += [filename]
     return filenames
 
@@ -51,6 +52,7 @@ def remove_outlier(x):
 def str_to_int_list(s):
     return list(map(int, s.split()))
 
+
 def to_device(m, x):
     """Send tensor into the device of the module.
 
@@ -70,31 +72,32 @@ def to_device(m, x):
 @torch.jit.script
 def pad_1d_tensor(xs: List[torch.Tensor]):
 
-  length = torch.jit.annotate(List[int], [])
+    length = torch.jit.annotate(List[int], [])
 
-  for x in xs:
+    for x in xs:
 
-    length.append(x.size(0))
+        length.append(x.size(0))
 
-  max_len = max(length)
-  x_padded = []
+    max_len = max(length)
+    x_padded = []
 
-  for x in xs:
-    x_padded.append(F.pad(x, (0, max_len - x.shape[0])))
-  padded = torch.stack(x_padded)
+    for x in xs:
+        x_padded.append(F.pad(x, (0, max_len - x.shape[0])))
+    padded = torch.stack(x_padded)
 
-  return padded
+    return padded
 
 
 @torch.jit.script
 def pad_2d_tensor(xs: List[torch.Tensor], pad_value: float = 0.0):
-    max_len = max([xs[i].size(0)for i in range(len(xs))])
+    max_len = max([xs[i].size(0) for i in range(len(xs))])
 
     out_list = []
 
     for i, batch in enumerate(xs):
         one_batch_padded = F.pad(
-                batch, (0, 0, 0, max_len - batch.size(0)), "constant", pad_value)
+            batch, (0, 0, 0, max_len - batch.size(0)), "constant", pad_value
+        )
         out_list.append(one_batch_padded)
 
     out_padded = torch.stack(out_list)
@@ -126,9 +129,10 @@ def pad_list(xs, pad_value):
     pad = xs[0].new(n_batch, max_len, *xs[0].size()[1:]).fill_(pad_value)
 
     for i in range(n_batch):
-        pad[i, :xs[i].size(0)] = xs[i]
+        pad[i, : xs[i].size(0)] = xs[i]
 
     return pad
+
 
 def subsequent_mask(size, device="cuda", dtype=torch.uint8):
     """Create mask for subsequent steps (1, size, size)
@@ -144,6 +148,7 @@ def subsequent_mask(size, device="cuda", dtype=torch.uint8):
     """
     ret = torch.ones(size, size, device=device, dtype=dtype)
     return torch.tril(ret, out=ret)
+
 
 @torch.jit.script
 def tensor_1d_tolist(x):
@@ -170,7 +175,7 @@ def make_pad_mask_script(lengths: torch.Tensor):
     return mask
 
 
-def make_pad_mask(lengths: List[int], xs: torch.Tensor=None, length_dim: int=-1):
+def make_pad_mask(lengths: List[int], xs: torch.Tensor = None, length_dim: int = -1):
     """Make mask tensor containing indices of padded part.
 
     Args:
@@ -253,7 +258,7 @@ def make_pad_mask(lengths: List[int], xs: torch.Tensor=None, length_dim: int=-1)
 
     """
     if length_dim == 0:
-        raise ValueError('length_dim cannot be 0: {}'.format(length_dim))
+        raise ValueError("length_dim cannot be 0: {}".format(length_dim))
 
     if not isinstance(lengths, list):
         lengths = lengths.tolist()
@@ -274,8 +279,9 @@ def make_pad_mask(lengths: List[int], xs: torch.Tensor=None, length_dim: int=-1)
         if length_dim < 0:
             length_dim = xs.dim() + length_dim
         # ind = (:, None, ..., None, :, , None, ..., None)
-        ind = tuple(slice(None) if i in (0, length_dim) else None
-                    for i in range(xs.dim()))
+        ind = tuple(
+            slice(None) if i in (0, length_dim) else None for i in range(xs.dim())
+        )
         mask = mask[ind].expand_as(xs).to(xs.device)
     return mask
 
@@ -414,11 +420,12 @@ def th_accuracy(pad_outputs, pad_targets, ignore_label):
 
     """
     pad_pred = pad_outputs.view(
-        pad_targets.size(0),
-        pad_targets.size(1),
-        pad_outputs.size(1)).argmax(2)
+        pad_targets.size(0), pad_targets.size(1), pad_outputs.size(1)
+    ).argmax(2)
     mask = pad_targets != ignore_label
-    numerator = torch.sum(pad_pred.masked_select(mask) == pad_targets.masked_select(mask))
+    numerator = torch.sum(
+        pad_pred.masked_select(mask) == pad_targets.masked_select(mask)
+    )
     denominator = torch.sum(mask)
     return float(numerator) / float(denominator)
 
@@ -450,9 +457,10 @@ def to_torch_tensor(x):
     """
     # If numpy, change to torch tensor
     if isinstance(x, np.ndarray):
-        if x.dtype.kind == 'c':
+        if x.dtype.kind == "c":
             # Dynamically importing because torch_complex requires python3
             from torch_complex.tensor import ComplexTensor
+
             return ComplexTensor(x)
         else:
             return torch.from_numpy(x)
@@ -462,19 +470,21 @@ def to_torch_tensor(x):
         # Dynamically importing because torch_complex requires python3
         from torch_complex.tensor import ComplexTensor
 
-        if 'real' not in x or 'imag' not in x:
+        if "real" not in x or "imag" not in x:
             raise ValueError("has 'real' and 'imag' keys: {}".format(list(x)))
         # Relative importing because of using python3 syntax
-        return ComplexTensor(x['real'], x['imag'])
+        return ComplexTensor(x["real"], x["imag"])
 
     # If torch.Tensor, as it is
     elif isinstance(x, torch.Tensor):
         return x
 
     else:
-        error = ("x must be numpy.ndarray, torch.Tensor or a dict like "
-                 "{{'real': torch.Tensor, 'imag': torch.Tensor}}, "
-                 "but got {}".format(type(x)))
+        error = (
+            "x must be numpy.ndarray, torch.Tensor or a dict like "
+            "{{'real': torch.Tensor, 'imag': torch.Tensor}}, "
+            "but got {}".format(type(x))
+        )
         try:
             from torch_complex.tensor import ComplexTensor
         except Exception:
@@ -500,7 +510,9 @@ def set_deterministic_pytorch(args):
     # considering reproducibility
     # remove type check
     torch.backends.cudnn.deterministic = True
-    torch.backends.cudnn.benchmark = False  # https://github.com/pytorch/pytorch/issues/6351
+    torch.backends.cudnn.benchmark = (
+        False  # https://github.com/pytorch/pytorch/issues/6351
+    )
 
 
 def torch_load(path, model):
@@ -511,20 +523,23 @@ def torch_load(path, model):
         model (torch.nn.Module): Torch model.
 
     """
-    if 'snapshot' in path:
-        model_state_dict = torch.load(path, map_location=lambda storage, loc: storage)['model']
+    if "snapshot" in path:
+        model_state_dict = torch.load(path, map_location=lambda storage, loc: storage)[
+            "model"
+        ]
     else:
         model_state_dict = torch.load(path, map_location=lambda storage, loc: storage)
 
-    if hasattr(model, 'module'):
+    if hasattr(model, "module"):
         model.module.load_state_dict(model_state_dict)
     else:
         model.load_state_dict(model_state_dict)
 
     del model_state_dict
-    
-    
+
     # * -------------------- general -------------------- *
+
+
 def get_model_conf(model_path, conf_path=None):
     """Get model config information by reading a model config file (model.json).
 
@@ -537,11 +552,11 @@ def get_model_conf(model_path, conf_path=None):
 
     """
     if conf_path is None:
-        model_conf = os.path.dirname(model_path) + '/model.json'
+        model_conf = os.path.dirname(model_path) + "/model.json"
     else:
         model_conf = conf_path
     with open(model_conf, "rb") as f:
-        logging.info('reading a config file from ' + model_conf)
+        logging.info("reading a config file from " + model_conf)
         confs = json.load(f)
     if isinstance(confs, dict):
         # for lm
@@ -555,7 +570,8 @@ def get_model_conf(model_path, conf_path=None):
 
 def get_commit_hash():
     message = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"])
-    return message.strip().decode('utf-8')
+    return message.strip().decode("utf-8")
+
 
 def read_wav_np(path, sample_rate):
     sr, wav = read(path)

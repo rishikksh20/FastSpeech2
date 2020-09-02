@@ -26,7 +26,9 @@ class DurationPredictor(torch.nn.Module):
 
     """
 
-    def __init__(self, idim, n_layers=2, n_chans=256, kernel_size=3, dropout_rate=0.1, offset=1.0):
+    def __init__(
+        self, idim, n_layers=2, n_chans=256, kernel_size=3, dropout_rate=0.1, offset=1.0
+    ):
         """Initilize duration predictor module.
 
         Args:
@@ -43,15 +45,28 @@ class DurationPredictor(torch.nn.Module):
         self.conv = torch.nn.ModuleList()
         for idx in range(n_layers):
             in_chans = idim if idx == 0 else n_chans
-            self.conv += [torch.nn.Sequential(
-                torch.nn.Conv1d(in_chans, n_chans, kernel_size, stride=1, padding=(kernel_size - 1) // 2),
-                torch.nn.ReLU(),
-                LayerNorm(n_chans),
-                torch.nn.Dropout(dropout_rate)
-            )]
+            self.conv += [
+                torch.nn.Sequential(
+                    torch.nn.Conv1d(
+                        in_chans,
+                        n_chans,
+                        kernel_size,
+                        stride=1,
+                        padding=(kernel_size - 1) // 2,
+                    ),
+                    torch.nn.ReLU(),
+                    LayerNorm(n_chans),
+                    torch.nn.Dropout(dropout_rate),
+                )
+            ]
         self.linear = torch.nn.Linear(n_chans, 1)
 
-    def _forward(self, xs: torch.Tensor, x_masks: Optional[torch.Tensor] = None, is_inference: bool=False):
+    def _forward(
+        self,
+        xs: torch.Tensor,
+        x_masks: Optional[torch.Tensor] = None,
+        is_inference: bool = False,
+    ):
         xs = xs.transpose(1, -1)  # (B, idim, Tmax)
         for f in self.conv:
             xs = f(xs)  # (B, C, Tmax)
@@ -61,7 +76,9 @@ class DurationPredictor(torch.nn.Module):
 
         if is_inference:
             # NOTE: calculate in linear domain
-            xs = torch.clamp(torch.round(xs.exp() - self.offset), min=0).long()  # avoid negative value
+            xs = torch.clamp(
+                torch.round(xs.exp() - self.offset), min=0
+            ).long()  # avoid negative value
 
         if x_masks is not None:
             xs = xs.masked_fill(x_masks, 0.0)

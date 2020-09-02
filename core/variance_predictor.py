@@ -3,26 +3,46 @@ import torch.nn.functional as F
 from typing import Optional
 from core.modules import LayerNorm
 
-class VariancePredictor(torch.nn.Module):
 
-    def __init__(self, idim: int, n_layers: int=2, n_chans: int=256, out: int=1, kernel_size: int=3,
-                 dropout_rate: float=0.5, offset: float=1.0):
+class VariancePredictor(torch.nn.Module):
+    def __init__(
+        self,
+        idim: int,
+        n_layers: int = 2,
+        n_chans: int = 256,
+        out: int = 1,
+        kernel_size: int = 3,
+        dropout_rate: float = 0.5,
+        offset: float = 1.0,
+    ):
         super(VariancePredictor, self).__init__()
         self.offset = offset
         self.conv = torch.nn.ModuleList()
         for idx in range(n_layers):
             in_chans = idim if idx == 0 else n_chans
-            self.conv += [torch.nn.Sequential(
-                torch.nn.Conv1d(in_chans, n_chans, kernel_size, stride=1, padding=(kernel_size - 1) // 2),
-                torch.nn.ReLU(),
-                LayerNorm(n_chans),
-                torch.nn.Dropout(dropout_rate)
-            )]
+            self.conv += [
+                torch.nn.Sequential(
+                    torch.nn.Conv1d(
+                        in_chans,
+                        n_chans,
+                        kernel_size,
+                        stride=1,
+                        padding=(kernel_size - 1) // 2,
+                    ),
+                    torch.nn.ReLU(),
+                    LayerNorm(n_chans),
+                    torch.nn.Dropout(dropout_rate),
+                )
+            ]
         self.linear = torch.nn.Linear(n_chans, out)
 
-
-    def _forward(self, xs: torch.Tensor, is_inference: bool=False, is_log_output: bool=False,
-                 alpha: float=1.0) -> torch.Tensor:
+    def _forward(
+        self,
+        xs: torch.Tensor,
+        is_inference: bool = False,
+        is_log_output: bool = False,
+        alpha: float = 1.0,
+    ) -> torch.Tensor:
         xs = xs.transpose(1, -1)  # (B, idim, Tmax)
         for f in self.conv:
             xs = f(xs)  # (B, C, Tmax)
@@ -31,13 +51,17 @@ class VariancePredictor(torch.nn.Module):
         xs = self.linear(xs.transpose(1, -1)).squeeze(-1)  # (B, Tmax)
 
         if is_inference and is_log_output:
-        #     # NOTE: calculate in linear domain
-            xs = torch.clamp(torch.round(xs.exp() - self.offset), min=0).long()  # avoid negative value
+            #     # NOTE: calculate in linear domain
+            xs = torch.clamp(
+                torch.round(xs.exp() - self.offset), min=0
+            ).long()  # avoid negative value
         xs = xs * alpha
 
         return xs
 
-    def forward(self, xs: torch.Tensor, x_masks: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self, xs: torch.Tensor, x_masks: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
         """Calculate forward propagation.
 
         Args:
@@ -53,8 +77,9 @@ class VariancePredictor(torch.nn.Module):
             xs = xs.masked_fill(x_masks, 0.0)
         return xs
 
-    def inference(self, xs: torch.Tensor, is_log_output: bool=False, alpha: float=1.0)\
-            -> torch.Tensor:
+    def inference(
+        self, xs: torch.Tensor, is_log_output: bool = False, alpha: float = 1.0
+    ) -> torch.Tensor:
         """Inference duration.
 
         Args:
@@ -65,27 +90,37 @@ class VariancePredictor(torch.nn.Module):
             LongTensor: Batch of predicted durations in linear domain (B, Tmax).
 
         """
-        return self._forward(xs, is_inference=True, is_log_output=is_log_output, alpha=alpha)
-
+        return self._forward(
+            xs, is_inference=True, is_log_output=is_log_output, alpha=alpha
+        )
 
 
 class EnergyPredictor(torch.nn.Module):
-
-    def __init__(self ,idim, n_layers=2, n_chans=256, kernel_size=3, dropout_rate=0.1, offset=1.0,
-                 min = 0, max = 0, n_bins = 256):
+    def __init__(
+        self,
+        idim,
+        n_layers=2,
+        n_chans=256,
+        kernel_size=3,
+        dropout_rate=0.1,
+        offset=1.0,
+        min=0,
+        max=0,
+        n_bins=256,
+    ):
         """Initilize Energy predictor module.
 
-                Args:
-                    idim (int): Input dimension.
-                    n_layers (int, optional): Number of convolutional layers.
-                    n_chans (int, optional): Number of channels of convolutional layers.
-                    kernel_size (int, optional): Kernel size of convolutional layers.
-                    dropout_rate (float, optional): Dropout rate.
-                    offset (float, optional): Offset value to avoid nan in log domain.
+        Args:
+            idim (int): Input dimension.
+            n_layers (int, optional): Number of convolutional layers.
+            n_chans (int, optional): Number of channels of convolutional layers.
+            kernel_size (int, optional): Kernel size of convolutional layers.
+            dropout_rate (float, optional): Dropout rate.
+            offset (float, optional): Offset value to avoid nan in log domain.
 
-                """
+        """
         super(EnergyPredictor, self).__init__()
-        #self.bins = torch.linspace(min, max, n_bins - 1).cuda()
+        # self.bins = torch.linspace(min, max, n_bins - 1).cuda()
         self.register_buffer("energy_bins", torch.linspace(min, max, n_bins - 1))
         self.predictor = VariancePredictor(idim)
 
@@ -114,35 +149,52 @@ class EnergyPredictor(torch.nn.Module):
 
         """
         out = self.predictor.inference(xs, False, alpha=alpha)
-        return self.to_one_hot(out) # Need to do One hot code
+        return self.to_one_hot(out)  # Need to do One hot code
 
     def to_one_hot(self, x):
         # e = de_norm_mean_std(e, hp.e_mean, hp.e_std)
         # For pytorch > = 1.6.0
 
-        quantize = torch.bucketize(x, self.energy_bins).to(device=x.device)#.cuda()
+        quantize = torch.bucketize(x, self.energy_bins).to(device=x.device)  # .cuda()
         return F.one_hot(quantize.long(), 256).float()
 
 
-
 class PitchPredictor(torch.nn.Module):
-
-    def __init__(self ,idim, n_layers=2, n_chans=384, kernel_size=3, dropout_rate=0.1, offset=1.0,
-                 min = 0, max = 0, n_bins = 256):
+    def __init__(
+        self,
+        idim,
+        n_layers=2,
+        n_chans=384,
+        kernel_size=3,
+        dropout_rate=0.1,
+        offset=1.0,
+        min=0,
+        max=0,
+        n_bins=256,
+    ):
         """Initilize pitch predictor module.
 
-                Args:
-                    idim (int): Input dimension.
-                    n_layers (int, optional): Number of convolutional layers.
-                    n_chans (int, optional): Number of channels of convolutional layers.
-                    kernel_size (int, optional): Kernel size of convolutional layers.
-                    dropout_rate (float, optional): Dropout rate.
-                    offset (float, optional): Offset value to avoid nan in log domain.
+        Args:
+            idim (int): Input dimension.
+            n_layers (int, optional): Number of convolutional layers.
+            n_chans (int, optional): Number of channels of convolutional layers.
+            kernel_size (int, optional): Kernel size of convolutional layers.
+            dropout_rate (float, optional): Dropout rate.
+            offset (float, optional): Offset value to avoid nan in log domain.
 
-                """
+        """
         super(PitchPredictor, self).__init__()
-        #self.bins = torch.exp(torch.linspace(torch.log(torch.tensor(min)), torch.log(torch.tensor(max)), n_bins - 1)).cuda()
-        self.register_buffer("pitch_bins", torch.exp(torch.linspace(torch.log(torch.tensor(min)), torch.log(torch.tensor(max)), n_bins - 1)))
+        # self.bins = torch.exp(torch.linspace(torch.log(torch.tensor(min)), torch.log(torch.tensor(max)), n_bins - 1)).cuda()
+        self.register_buffer(
+            "pitch_bins",
+            torch.exp(
+                torch.linspace(
+                    torch.log(torch.tensor(min)),
+                    torch.log(torch.tensor(max)),
+                    n_bins - 1,
+                )
+            ),
+        )
         self.predictor = VariancePredictor(idim)
 
     def forward(self, xs: torch.Tensor, x_masks: torch.Tensor):
@@ -172,14 +224,12 @@ class PitchPredictor(torch.nn.Module):
         out = self.predictor.inference(xs, False, alpha=alpha)
         return self.to_one_hot(out)
 
-
     def to_one_hot(self, x: torch.Tensor):
         # e = de_norm_mean_std(e, hp.e_mean, hp.e_std)
         # For pytorch > = 1.6.0
 
-        quantize = torch.bucketize(x, self.pitch_bins).to(device=x.device)#.cuda()
+        quantize = torch.bucketize(x, self.pitch_bins).to(device=x.device)  # .cuda()
         return F.one_hot(quantize.long(), 256).float()
-
 
 
 class PitchPredictorLoss(torch.nn.Module):
@@ -223,7 +273,6 @@ class PitchPredictorLoss(torch.nn.Module):
         loss = self.criterion(outputs, targets)
         # print(loss)
         return loss
-
 
 
 class EnergyPredictorLoss(torch.nn.Module):

@@ -1,13 +1,13 @@
 import numpy as np
 import os
-from utils.files import get_files
+from utils.util import get_files
 from tqdm import tqdm
 from utils.util import remove_outlier
 from utils.hparams import HParam
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
-    hp = HParam('./config/default.yaml')
+    hp = HParam("./config/default.yaml")
 
     min_e = []
     min_p = []
@@ -16,12 +16,12 @@ if __name__ == '__main__':
     nz_min_p = []
     nz_min_e = []
 
-    energy_path = os.path.join(hp.data.data_dir, 'energy')
-    pitch_path = os.path.join(hp.data.data_dir, 'pitch')
-    mel_path = os.path.join(hp.data.data_dir, 'mels')
-    energy_files = get_files(energy_path, extension='.npy')
-    pitch_files = get_files(pitch_path, extension='.npy')
-    mel_files = get_files(mel_path, extension='.npy')
+    energy_path = os.path.join(hp.data.data_dir, "energy")
+    pitch_path = os.path.join(hp.data.data_dir, "pitch")
+    mel_path = os.path.join(hp.data.data_dir, "mels")
+    energy_files = get_files(energy_path, extension=".npy")
+    pitch_files = get_files(pitch_path, extension=".npy")
+    mel_files = get_files(mel_path, extension=".npy")
 
     assert len(energy_files) == len(pitch_files) == len(mel_files)
 
@@ -86,9 +86,9 @@ if __name__ == '__main__':
     )
     print("The len of bad Pitch Vectors is ", len(bad_pitch))
     # print(bad_pitch)
-    with open('bad_file.txt', 'a') as f:
+    with open("bad_file.txt", "a") as f:
         for i in bad_pitch:
-            c = i.split('/')[3].split('.')[0]
+            c = i.split("/")[3].split(".")[0]
             f.write(c)
             f.write("\n")
 

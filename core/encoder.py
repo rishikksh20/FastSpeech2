@@ -7,6 +7,7 @@ from core.modules import PositionwiseFeedForward
 from core.modules import Conv2dSubsampling
 from typing import Tuple, Optional
 
+
 class EncoderLayer(nn.Module):
     """Encoder layer module
 
@@ -21,8 +22,15 @@ class EncoderLayer(nn.Module):
         if False, no additional linear will be applied. i.e. x -> x + att(x)
     """
 
-    def __init__(self, size, self_attn, feed_forward, dropout_rate,
-                 normalize_before=True, concat_after=False):
+    def __init__(
+        self,
+        size,
+        self_attn,
+        feed_forward,
+        dropout_rate,
+        normalize_before=True,
+        concat_after=False,
+    ):
         super(EncoderLayer, self).__init__()
         self.self_attn = self_attn
         self.feed_forward = feed_forward
@@ -32,7 +40,7 @@ class EncoderLayer(nn.Module):
         self.size = size
         self.normalize_before = normalize_before
         self.concat_after = concat_after
-        #if self.concat_after:
+        # if self.concat_after:
         self.concat_linear = nn.Linear(size + size, size)
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None):
@@ -44,7 +52,7 @@ class EncoderLayer(nn.Module):
         """
         residual = x
         if self.normalize_before:
-          x = self.norm1(x)
+            x = self.norm1(x)
         if self.concat_after:
             x_concat = torch.cat((x, self.self_attn(x, x, x, mask)), dim=-1)
             x = residual + self.concat_linear(x_concat)
@@ -55,12 +63,13 @@ class EncoderLayer(nn.Module):
 
         residual = x
         if self.normalize_before:
-          x = self.norm2(x)
+            x = self.norm2(x)
         x = residual + self.dropout(self.feed_forward(x))
         if not self.normalize_before:
             x = self.norm2(x)
 
         return x, mask
+
 
 class Encoder(torch.nn.Module):
     """Transformer encoder module
@@ -84,21 +93,24 @@ class Encoder(torch.nn.Module):
     :param int padding_idx: padding_idx for input_layer=embed
     """
 
-    def __init__(self, idim: int,
-                 attention_dim: int = 256,
-                 attention_heads: int =2,
-                 linear_units: int = 2048,
-                 num_blocks: int = 4,
-                 dropout_rate: float = 0.1,
-                 positional_dropout_rate: float = 0.1,
-                 attention_dropout_rate: float = 0.0,
-                 input_layer: str = "conv2d",
-                 pos_enc_class: torch.nn.Module = PositionalEncoding,
-                 normalize_before: bool =True,
-                 concat_after: bool =False,
-                 positionwise_layer_type: str = "linear",
-                 positionwise_conv_kernel_size: int = 1,
-                 padding_idx: int =-1):
+    def __init__(
+        self,
+        idim: int,
+        attention_dim: int = 256,
+        attention_heads: int = 2,
+        linear_units: int = 2048,
+        num_blocks: int = 4,
+        dropout_rate: float = 0.1,
+        positional_dropout_rate: float = 0.1,
+        attention_dropout_rate: float = 0.0,
+        input_layer: str = "conv2d",
+        pos_enc_class: torch.nn.Module = PositionalEncoding,
+        normalize_before: bool = True,
+        concat_after: bool = False,
+        positionwise_layer_type: str = "linear",
+        positionwise_conv_kernel_size: int = 1,
+        padding_idx: int = -1,
+    ):
 
         super(Encoder, self).__init__()
         # if self.normalize_before:
@@ -109,14 +121,14 @@ class Encoder(torch.nn.Module):
                 torch.nn.LayerNorm(attention_dim),
                 torch.nn.Dropout(dropout_rate),
                 torch.nn.ReLU(),
-                pos_enc_class(attention_dim, positional_dropout_rate)
+                pos_enc_class(attention_dim, positional_dropout_rate),
             )
         elif input_layer == "conv2d":
             self.embed = Conv2dSubsampling(idim, attention_dim, dropout_rate)
         elif input_layer == "embed":
             self.embed = torch.nn.Sequential(
                 torch.nn.Embedding(idim, attention_dim, padding_idx=padding_idx),
-                pos_enc_class(attention_dim, positional_dropout_rate)
+                pos_enc_class(attention_dim, positional_dropout_rate),
             )
         elif isinstance(input_layer, torch.nn.Module):
             self.embed = torch.nn.Sequential(
@@ -135,7 +147,12 @@ class Encoder(torch.nn.Module):
             positionwise_layer_args = (attention_dim, linear_units, dropout_rate)
         elif positionwise_layer_type == "conv1d":
             positionwise_layer = MultiLayeredConv1d
-            positionwise_layer_args = (attention_dim, linear_units, positionwise_conv_kernel_size, dropout_rate)
+            positionwise_layer_args = (
+                attention_dim,
+                linear_units,
+                positionwise_conv_kernel_size,
+                dropout_rate,
+            )
         else:
             raise NotImplementedError("Support only linear or conv1d.")
         # self.encoders = repeat(
@@ -149,18 +166,21 @@ class Encoder(torch.nn.Module):
         #         concat_after
         #     )
         # )
-        self.encoders_ = nn.ModuleList([
-            EncoderLayer(
-                attention_dim,
-                MultiHeadedAttention(attention_heads, attention_dim, attention_dropout_rate),
-                positionwise_layer(*positionwise_layer_args),
-                dropout_rate,
-                normalize_before,
-                concat_after
-            ) for _ in range(num_blocks)])
-
-
-
+        self.encoders_ = nn.ModuleList(
+            [
+                EncoderLayer(
+                    attention_dim,
+                    MultiHeadedAttention(
+                        attention_heads, attention_dim, attention_dropout_rate
+                    ),
+                    positionwise_layer(*positionwise_layer_args),
+                    dropout_rate,
+                    normalize_before,
+                    concat_after,
+                )
+                for _ in range(num_blocks)
+            ]
+        )
 
     def forward(self, xs: torch.Tensor, masks: Optional[torch.Tensor] = None):
         """Embed positions in tensor
@@ -175,7 +195,7 @@ class Encoder(torch.nn.Module):
         # else:
         xs = self.embed(xs)
 
-        #xs, masks = self.encoders_(xs, masks)
+        # xs, masks = self.encoders_(xs, masks)
         for encoder in self.encoders_:
             xs, masks = encoder(xs, masks)
         if self.normalize_before:

@@ -3,6 +3,7 @@ from utils.hparams import HParam
 from dataset.texts import valid_symbols
 from fastspeech import FeedForwardTransformer
 
+
 def test_fastspeech():
     idim = len(valid_symbols)
     hp = HParam("configs/default.yaml")
@@ -16,5 +17,4 @@ def test_fastspeech():
     dur = torch.ones(2, 100)
     e = torch.ones(2, 100)
     p = torch.ones(2, 100)
-    loss, report_dict = model(x, input_length, y, out_length, dur, e,
-          p)
+    loss, report_dict = model(x, input_length, y, out_length, dur, e, p)
