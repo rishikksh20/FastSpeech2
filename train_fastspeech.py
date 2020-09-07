@@ -103,6 +103,7 @@ def train(args, hp, hp_str, logger, vocoder):
         j = 0
         d_loss = []
 
+
         pbar = tqdm.tqdm(dataloader, desc="Loading train data")
         for data in pbar:
             global_step += 1
@@ -122,9 +123,12 @@ def train(args, hp, hp_str, logger, vocoder):
             loss = loss.mean() / hp.train.accum_grad
             running_loss += loss.item()
 
+            adv_loss = 0
+
             if global_step >= hp.train.discriminator_start:
                 start_disc = np.random.randint(0, out_length.min()-40)
-                disc_fake = model_d(mel.cuda(), start_disc)
+                print(mel.shape)
+                disc_fake = model_d(mel.unsqueeze(1).cuda(), start_disc)
                 for score_fake in disc_fake:
                     # adv_loss += torch.mean(torch.sum(torch.pow(score_fake - 1.0, 2), dim=[1, 2]))
                     adv_loss += criterion_d(score_fake, torch.ones_like(score_fake))
@@ -155,6 +159,8 @@ def train(args, hp, hp_str, logger, vocoder):
 
             # Discriminator
             loss_d_avg = 0.0
+            loss_d_sum = 0.0
+
             if step > hp.train.discriminator_start:
                 loss, report_dict, mel = model(
                     x.cuda(),
@@ -165,25 +171,24 @@ def train(args, hp, hp_str, logger, vocoder):
                     e.cuda(),
                     p.cuda(),
                 )
-                for _ in range(hp.train.rep_discriminator):
-                    optim_d.zero_grad()
-                    start_disc = np.random.randint(0, out_length.min()-40)
-                    disc_fake = model_d(mel.cuda(), start_disc)
-                    disc_real = model_d(y.cuda(), start_disc)
-                    loss_d = 0.0
-                    loss_d_real = 0.0
-                    loss_d_fake = 0.0
-                    for score_fake, score_real in zip(disc_fake, disc_real):
-                        loss_d_real += criterion_d(score_real, torch.ones_like(score_real))
-                        loss_d_fake += criterion_d(score_fake, torch.zeros_like(score_fake))
-                    loss_d_real = loss_d_real / len(disc_real) # len(disc_real) = 3
-                    loss_d_fake = loss_d_fake / len(disc_fake) # len(disc_fake) = 3
-                    loss_d = loss_d_real + loss_d_fake
-                    loss_d.backward()
-                    optim_d.step()
-                    loss_d_sum += loss_d
-                loss_d_avg = loss_d_sum / hp.train.rep_discriminator
-                loss_d_avg = loss_d_avg.item()
+
+                optim_d.zero_grad()
+                start_disc = np.random.randint(0, out_length.min()-40)
+                disc_fake = model_d(mel.unsqueeze(1).cuda(), start_disc)
+                disc_real = model_d(y.unsqueeze(1).cuda(), start_disc)
+                loss_d = 0.0
+                loss_d_real = 0.0
+                loss_d_fake = 0.0
+                for score_fake, score_real in zip(disc_fake, disc_real):
+                    loss_d_real += criterion_d(score_real, torch.ones_like(score_real))
+                    loss_d_fake += criterion_d(score_fake, torch.zeros_like(score_fake))
+                loss_d_real = loss_d_real / len(disc_real) # len(disc_real) = 3
+                loss_d_fake = loss_d_fake / len(disc_fake) # len(disc_fake) = 3
+                loss_d = loss_d_real + loss_d_fake
+                loss_d.backward()
+                optim_d.step()
+                loss_d_sum += loss_d
+                loss_d_avg = loss_d_sum.item()
 
             if step % hp.train.summary_interval == 0:
                 pbar.set_description(

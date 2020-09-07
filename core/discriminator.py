@@ -7,8 +7,7 @@ class Discriminator(nn.Module):
     def __init__(self):
         super(Discriminator, self).__init__()
 
-        self.discriminator = nn.ModuleList([
-            nn.Sequential(
+        self.discriminator = nn.Sequential(
                 nn.Conv2d(1, 16, kernel_size=3, stride=1, padding = 1),
                 nn.LeakyReLU(0.2, inplace=True),
                 nn.Conv2d(16, 32, kernel_size=3, stride=1, padding = 1),
@@ -19,16 +18,14 @@ class Discriminator(nn.Module):
                 #nn.Flatten(),   # add conv2d a 1 channel
                 #nn.Linear(46240,256)
                 )
-                ])
 
     def forward(self, x):
         '''
         we directly predict score without last sigmoid function
         since we're using Least Squares GAN (https://arxiv.org/abs/1611.04076)
         '''
-        for module in self.discriminator:
-            x = module(x)
-        return x
+        print(x.shape, "Input to Discriminator")
+        return self.discriminator(x)
 
 def weights_init(m):
     classname = m.__class__.__name__
