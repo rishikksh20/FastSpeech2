@@ -122,15 +122,15 @@ def train(args, hp, hp_str, logger, vocoder):
             loss = loss.mean() / hp.train.accum_grad
             running_loss += loss.item()
 
-            if step >= hp.train.discriminator_start:
+            if global_step >= hp.train.discriminator_start:
                 start = np.random.randint(0, out_length.min()-40)
                 disc_fake = model_d(mel.cuda(), start)
                 for score_fake in disc_fake:
                     # adv_loss += torch.mean(torch.sum(torch.pow(score_fake - 1.0, 2), dim=[1, 2]))
                     adv_loss += criterion_d(score_fake, torch.ones_like(score_fake))
                     adv_loss = adv_loss / len(disc_fake) # len(disc_fake) = 3
+                loss = loss + adv_loss
 
-            loss = loss + adv_loss
             loss.backward()
 
             # update parameters
