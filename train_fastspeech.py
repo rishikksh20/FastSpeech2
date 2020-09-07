@@ -36,7 +36,7 @@ def train(args, hp, hp_str, logger, vocoder):
     idim = len(valid_symbols)
     odim = hp.audio.num_mels
     model = fastspeech.FeedForwardTransformer(idim, odim, hp)
-    model_d = SFDiscriminator.cuda()
+    model_d = SFDiscriminator().cuda()
     criterion_d = torch.nn.MSELoss().cuda()
 
     # set torch device
