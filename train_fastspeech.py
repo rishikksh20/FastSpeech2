@@ -123,8 +123,8 @@ def train(args, hp, hp_str, logger, vocoder):
             running_loss += loss.item()
 
             if global_step >= hp.train.discriminator_start:
-                start = np.random.randint(0, out_length.min()-40)
-                disc_fake = model_d(mel.cuda(), start)
+                start_disc = np.random.randint(0, out_length.min()-40)
+                disc_fake = model_d(mel.cuda(), start_disc)
                 for score_fake in disc_fake:
                     # adv_loss += torch.mean(torch.sum(torch.pow(score_fake - 1.0, 2), dim=[1, 2]))
                     adv_loss += criterion_d(score_fake, torch.ones_like(score_fake))
@@ -167,8 +167,9 @@ def train(args, hp, hp_str, logger, vocoder):
                 )
                 for _ in range(hp.train.rep_discriminator):
                     optim_d.zero_grad()
-                    disc_fake = model_d(mel.cuda())
-                    disc_real = model_d(y.cuda())
+                    start_disc = np.random.randint(0, out_length.min()-40)
+                    disc_fake = model_d(mel.cuda(), start_disc)
+                    disc_real = model_d(y.cuda(), start_disc)
                     loss_d = 0.0
                     loss_d_real = 0.0
                     loss_d_fake = 0.0
