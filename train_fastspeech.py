@@ -18,6 +18,8 @@ from dataset.texts import valid_symbols
 from utils.util import get_commit_hash
 from utils.hparams import HParam
 
+from core.discriminator import SFDiscriminator
+
 BATCH_COUNT_CHOICES = ["auto", "seq", "bin", "frame"]
 BATCH_SORT_KEY_CHOICES = ["input", "output", "shuffle"]
 
@@ -34,6 +36,8 @@ def train(args, hp, hp_str, logger, vocoder):
     idim = len(valid_symbols)
     odim = hp.audio.num_mels
     model = fastspeech.FeedForwardTransformer(idim, odim, hp)
+    SFdisc = SFDiscriminator.cuda()
+
     # set torch device
     model = model.to(device)
     print("Model is loaded ...")
@@ -74,10 +78,18 @@ def train(args, hp, hp_str, logger, vocoder):
             hp.model.transformer_warmup_steps,
             hp.model.transformer_lr,
         )
+        optimizer_d = get_std_opt(
+            SFdisc,
+            hp.model.adim,
+            hp.model.transformer_warmup_steps,
+            hp.model.transformer_lr,
+        )
+
 
     print("Batch Size :", hp.train.batch_size)
 
     num_params(model)
+    num_params(SFdisc)
 
     os.makedirs(os.path.join(hp.train.log_dir, args.name), exist_ok=True)
     writer = SummaryWriter(os.path.join(hp.train.log_dir, args.name))
@@ -108,6 +120,11 @@ def train(args, hp, hp_str, logger, vocoder):
             loss = loss.mean() / hp.train.accum_grad
             running_loss += loss.item()
 
+            if step >= hp.train.discriminator_start:
+                loss = SFdisc()
+
+
+
             loss.backward()
 
             # update parameters
@@ -128,6 +145,7 @@ def train(args, hp, hp_str, logger, vocoder):
             else:
                 optimizer.step()
             optimizer.zero_grad()
+
 
             if step % hp.train.summary_interval == 0:
                 pbar.set_description(
