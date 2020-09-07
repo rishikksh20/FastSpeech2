@@ -333,7 +333,7 @@ class FeedForwardTransformer(torch.nn.Module):
 
         # self.reporter.report(report_keys)
 
-        return loss, report_keys
+        return loss, report_keys, after_outs
 
     def inference(self, x: torch.Tensor) -> torch.Tensor:
         """Generate the sequence of features given the sequences of characters.

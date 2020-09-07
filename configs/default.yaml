@@ -107,6 +107,7 @@ model:
 
 train:
   discriminator_start: 10000
+  rep_discriminator: 1
   # optimization related
   eos: False #True
   opt: 'noam'

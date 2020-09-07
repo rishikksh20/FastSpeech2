@@ -9,46 +9,48 @@ class Discriminator(nn.Module):
 
         self.discriminator = nn.ModuleList([
             nn.Sequential(
-                nn.utils.weight_norm(nn.Conv2d(1, 40, kernel_size=3, stride=1)),
+                nn.Conv2d(1, 16, kernel_size=3, stride=1, padding = 1),
                 nn.LeakyReLU(0.2, inplace=True),
-                nn.utils.weight_norm(nn.Conv2d(40, 40, kernel_size=3, stride=1)),
+                nn.Conv2d(16, 32, kernel_size=3, stride=1, padding = 1),
                 nn.LeakyReLU(0.2, inplace=True),
-                nn.utils.weight_norm(nn.Conv2d(40, 40, kernel_size=3, stride=1)),
+                nn.Conv2d(32, 64, kernel_size=3, stride=1, padding = 1),
                 nn.LeakyReLU(0.2, inplace=True),
-                nn.Flatten(),
-                nn.Linear(46240,256)
+                nn.Conv2d(64, 1, kernel_size=3, stride=1, padding = 1)
+                #nn.Flatten(),   # add conv2d a 1 channel
+                #nn.Linear(46240,256)
                 )
                 ])
 
     def forward(self, x):
         '''
-            we directly predict score without last sigmoid function
-            since we're using Least Squares GAN (https://arxiv.org/abs/1611.04076)
+        we directly predict score without last sigmoid function
+        since we're using Least Squares GAN (https://arxiv.org/abs/1611.04076)
         '''
         for module in self.discriminator:
             x = module(x)
         return x
 
+def weights_init(m):
+    classname = m.__class__.__name__
+    if classname.find("Conv") != -1:
+        m.weight.data.normal_(0.0, 0.02)
+    elif classname.find("BatchNorm2d") != -1:
+        m.weight.data.normal_(1.0, 0.02)
+        m.bias.data.fill_(0)
+
 class SFDiscriminator(nn.Module):
     def __init__(self):
-        super(SFDiscriminator, self).__init__()
-
-        self.discriminators = nn.ModuleList(
-            [Discriminator() for _ in range(3)]
-        )
-
-    def forward(self, x):
-        # x - input mel of size [B, 1, 40, 80]
-        x_in = [ x[0:16, 0:1, 0:40, 0:40], x[0:16, 0:1, 0:40, 20:60], x[0:16, 0:1, 0:40, 40:80] ]
-        disc_out = list()
-
-
-        for disc, x_ in zip(self.discriminators, x_in):
-            x = disc(x_)
-            disc_out.append(x)
-
-        return disc_out # [SF_out0, SF_out1, SF_out2]
-
+        super().__init__()
+        self.disc1 = Discriminator()
+        self.disc2 = Discriminator()
+        self.disc3 = Discriminator()
+        self.apply(weights_init)
+    def forward(self, x, start):
+        results = []
+        results.append(self.disc1(x[:, : , 0:40, start: start + 40]))
+        results.append(self.disc2(x[:, :, 20:60, start: start + 40]))
+        results.append(self.disc3(x[:, :, 40:80, start: start + 40]))
+        return results
 
 if __name__ == '__main__':
     model = SFDiscriminator()

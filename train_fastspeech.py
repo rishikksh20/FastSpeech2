@@ -36,7 +36,8 @@ def train(args, hp, hp_str, logger, vocoder):
     idim = len(valid_symbols)
     odim = hp.audio.num_mels
     model = fastspeech.FeedForwardTransformer(idim, odim, hp)
-    SFdisc = SFDiscriminator.cuda()
+    model_d = SFDiscriminator.cuda()
+    criterion_d = torch.nn.MSELoss().cuda()
 
     # set torch device
     model = model.to(device)
@@ -78,8 +79,8 @@ def train(args, hp, hp_str, logger, vocoder):
             hp.model.transformer_warmup_steps,
             hp.model.transformer_lr,
         )
-        optimizer_d = get_std_opt(
-            SFdisc,
+        optim_d = get_std_opt(
+            model_d,
             hp.model.adim,
             hp.model.transformer_warmup_steps,
             hp.model.transformer_lr,
@@ -89,7 +90,7 @@ def train(args, hp, hp_str, logger, vocoder):
     print("Batch Size :", hp.train.batch_size)
 
     num_params(model)
-    num_params(SFdisc)
+    num_params(model_d)
 
     os.makedirs(os.path.join(hp.train.log_dir, args.name), exist_ok=True)
     writer = SummaryWriter(os.path.join(hp.train.log_dir, args.name))
@@ -100,6 +101,7 @@ def train(args, hp, hp_str, logger, vocoder):
         start = time.time()
         running_loss = 0
         j = 0
+        d_loss = []
 
         pbar = tqdm.tqdm(dataloader, desc="Loading train data")
         for data in pbar:
@@ -108,7 +110,7 @@ def train(args, hp, hp_str, logger, vocoder):
             # x : [batch , num_char], input_length : [batch], y : [batch, T_in, num_mel]
             #             # stop_token : [batch, T_in], out_length : [batch]
 
-            loss, report_dict = model(
+            loss, report_dict, mel = model(
                 x.cuda(),
                 input_length.cuda(),
                 y.cuda(),
@@ -121,10 +123,14 @@ def train(args, hp, hp_str, logger, vocoder):
             running_loss += loss.item()
 
             if step >= hp.train.discriminator_start:
-                loss = SFdisc()
+                start = np.random.randint(0, out_length.min()-40)
+                disc_fake = model_d(mel.cuda(), start)
+                for score_fake in disc_fake:
+                    # adv_loss += torch.mean(torch.sum(torch.pow(score_fake - 1.0, 2), dim=[1, 2]))
+                    adv_loss += criterion_d(score_fake, torch.ones_like(score_fake))
+                    adv_loss = adv_loss / len(disc_fake) # len(disc_fake) = 3
 
-
-
+            loss = loss + adv_loss
             loss.backward()
 
             # update parameters
@@ -147,6 +153,37 @@ def train(args, hp, hp_str, logger, vocoder):
             optimizer.zero_grad()
 
 
+            # Discriminator
+            loss_d_avg = 0.0
+            if step > hp.train.discriminator_start:
+                loss, report_dict, mel = model(
+                    x.cuda(),
+                    input_length.cuda(),
+                    y.cuda(),
+                    out_length.cuda(),
+                    dur.cuda(),
+                    e.cuda(),
+                    p.cuda(),
+                )
+                for _ in range(hp.train.rep_discriminator):
+                    optim_d.zero_grad()
+                    disc_fake = model_d(mel.cuda())
+                    disc_real = model_d(y.cuda())
+                    loss_d = 0.0
+                    loss_d_real = 0.0
+                    loss_d_fake = 0.0
+                    for score_fake, score_real in zip(disc_fake, disc_real):
+                        loss_d_real += criterion_d(score_real, torch.ones_like(score_real))
+                        loss_d_fake += criterion_d(score_fake, torch.zeros_like(score_fake))
+                    loss_d_real = loss_d_real / len(disc_real) # len(disc_real) = 3
+                    loss_d_fake = loss_d_fake / len(disc_fake) # len(disc_fake) = 3
+                    loss_d = loss_d_real + loss_d_fake
+                    loss_d.backward()
+                    optim_d.step()
+                    loss_d_sum += loss_d
+                loss_d_avg = loss_d_sum / hp.train.rep_discriminator
+                loss_d_avg = loss_d_avg.item()
+
             if step % hp.train.summary_interval == 0:
                 pbar.set_description(
                     "Average Loss %.04f Loss %.04f | step %d"
@@ -168,7 +205,7 @@ def train(args, hp, hp_str, logger, vocoder):
                     x_, input_length_, y_, _, out_length_, ids_, dur_, e_, p_ = valid
                     model.eval()
                     with torch.no_grad():
-                        loss_, report_dict_ = model(
+                        loss_, report_dict_, _ = model(
                             x_.cuda(),
                             input_length_.cuda(),
                             y_.cuda(),
