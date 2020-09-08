@@ -27,7 +27,13 @@ class MultiHeadedAttention(nn.Module):
         # self.register_buffer("attn", torch.empty(0))
         self.dropout = nn.Dropout(p=dropout_rate)
 
-    def forward(self, query: torch.Tensor, key: torch.Tensor, value: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(
+        self,
+        query: torch.Tensor,
+        key: torch.Tensor,
+        value: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+    ) -> torch.Tensor:
         """Compute 'Scaled Dot Product Attention'
 
         :param torch.Tensor query: (batch, time1, size)
@@ -46,17 +52,23 @@ class MultiHeadedAttention(nn.Module):
         k = k.transpose(1, 2)  # (batch, head, time2, d_k)
         v = v.transpose(1, 2)  # (batch, head, time2, d_k)
 
-        scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(self.d_k)  # (batch, head, time1, time2)
+        scores = torch.matmul(q, k.transpose(-2, -1)) / math.sqrt(
+            self.d_k
+        )  # (batch, head, time1, time2)
         if mask is not None:
             mask = mask.unsqueeze(1).eq(0)  # (batch, 1, time1, time2)
-            #min_value: float = float(numpy.finfo(torch.tensor(0, dtype=scores.dtype).numpy().dtype).min)
+            # min_value: float = float(numpy.finfo(torch.tensor(0, dtype=scores.dtype).numpy().dtype).min)
             mask = mask.to(device=scores.device)
             scores = scores.masked_fill_(mask, -np.inf)
-            attn = torch.softmax(scores, dim=-1).masked_fill(mask, 0.0)  # (batch, head, time1, time2)
+            attn = torch.softmax(scores, dim=-1).masked_fill(
+                mask, 0.0
+            )  # (batch, head, time1, time2)
         else:
             attn = torch.softmax(scores, dim=-1)  # (batch, head, time1, time2)
 
         p_attn = self.dropout(attn)
         x = torch.matmul(p_attn, v)  # (batch, head, time1, d_k)
-        x = x.transpose(1, 2).contiguous().view(n_batch, -1, self.h * self.d_k)  # (batch, time1, d_model)
+        x = (
+            x.transpose(1, 2).contiguous().view(n_batch, -1, self.h * self.d_k)
+        )  # (batch, time1, d_model)
         return self.linear_out(x)  # (batch, time1, d_model)

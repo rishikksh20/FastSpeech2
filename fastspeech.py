@@ -24,6 +24,7 @@ from core.modules import Postnet
 from typeguard import check_argument_types
 from typing import Dict, Tuple, Sequence
 
+
 class FeedForwardTransformer(torch.nn.Module):
     """Feed Forward Transformer for TTS a.k.a. FastSpeech.
     This is a module of FastSpeech, feed-forward Transformer with duration predictor described in
@@ -33,8 +34,7 @@ class FeedForwardTransformer(torch.nn.Module):
         https://arxiv.org/pdf/1905.09263.pdf
     """
 
-
-    def __init__(self, idim:int, odim:int, hp:Dict):
+    def __init__(self, idim: int, odim: int, hp: Dict):
         """Initialize feed-forward Transformer module.
         Args:
             idim (int): Dimension of the inputs.
@@ -53,18 +53,17 @@ class FeedForwardTransformer(torch.nn.Module):
         self.use_scaled_pos_enc = hp.model.use_scaled_pos_enc
         self.use_masking = hp.model.use_masking
 
-
         # use idx 0 as padding idx
         padding_idx = 0
 
         # get positional encoding class
-        pos_enc_class = ScaledPositionalEncoding if self.use_scaled_pos_enc else PositionalEncoding
+        pos_enc_class = (
+            ScaledPositionalEncoding if self.use_scaled_pos_enc else PositionalEncoding
+        )
 
         # define encoder
         encoder_input_layer = torch.nn.Embedding(
-            num_embeddings=idim,
-            embedding_dim=hp.model.adim,
-            padding_idx=padding_idx
+            num_embeddings=idim, embedding_dim=hp.model.adim, padding_idx=padding_idx
         )
         self.encoder = Encoder(
             idim=idim,
@@ -80,7 +79,7 @@ class FeedForwardTransformer(torch.nn.Module):
             normalize_before=hp.model.encoder_normalize_before,
             concat_after=hp.model.encoder_concat_after,
             positionwise_layer_type=hp.model.positionwise_layer_type,
-            positionwise_conv_kernel_size=hp.model.positionwise_conv_kernel_size
+            positionwise_conv_kernel_size=hp.model.positionwise_conv_kernel_size,
         )
 
         self.duration_predictor = DurationPredictor(
@@ -97,8 +96,8 @@ class FeedForwardTransformer(torch.nn.Module):
             n_chans=hp.model.duration_predictor_chans,
             kernel_size=hp.model.duration_predictor_kernel_size,
             dropout_rate=hp.model.duration_predictor_dropout_rate,
-            min = hp.data.e_min,
-            max = hp.data.e_max,
+            min=hp.data.e_min,
+            max=hp.data.e_max,
         )
         self.energy_embed = torch.nn.Linear(hp.model.adim, hp.model.adim)
 
@@ -132,7 +131,7 @@ class FeedForwardTransformer(torch.nn.Module):
             normalize_before=hp.model.decoder_normalize_before,
             concat_after=hp.model.decoder_concat_after,
             positionwise_layer_type=hp.model.positionwise_layer_type,
-            positionwise_conv_kernel_size=hp.model.positionwise_conv_kernel_size
+            positionwise_conv_kernel_size=hp.model.positionwise_conv_kernel_size,
         )
 
         # define postnet
@@ -154,27 +153,38 @@ class FeedForwardTransformer(torch.nn.Module):
         self.feat_out = torch.nn.Linear(hp.model.adim, odim * hp.model.reduction_factor)
 
         # initialize parameters
-        self._reset_parameters(init_type=hp.model.transformer_init,
-                               init_enc_alpha=hp.model.initial_encoder_alpha,
-                               init_dec_alpha=hp.model.initial_decoder_alpha)
-
+        self._reset_parameters(
+            init_type=hp.model.transformer_init,
+            init_enc_alpha=hp.model.initial_encoder_alpha,
+            init_dec_alpha=hp.model.initial_decoder_alpha,
+        )
 
         # define criterions
         self.duration_criterion = DurationPredictorLoss()
         self.energy_criterion = EnergyPredictorLoss()
         self.pitch_criterion = PitchPredictorLoss()
-        self.criterion = torch.nn.L1Loss(reduction='mean')
+        self.criterion = torch.nn.L1Loss(reduction="mean")
         self.use_weighted_masking = hp.model.use_weighted_masking
 
-    def _forward(self, xs: torch.Tensor, ilens: torch.Tensor, olens: torch.Tensor = None,
-                 ds: torch.Tensor = None, es: torch.Tensor = None, ps: torch.Tensor = None,
-                 is_inference: bool = False) -> Sequence[torch.Tensor]:
+    def _forward(
+        self,
+        xs: torch.Tensor,
+        ilens: torch.Tensor,
+        olens: torch.Tensor = None,
+        ds: torch.Tensor = None,
+        es: torch.Tensor = None,
+        ps: torch.Tensor = None,
+        is_inference: bool = False,
+    ) -> Sequence[torch.Tensor]:
         # forward encoder
-        x_masks = self._source_mask(ilens) # (B, Tmax, Tmax) -> torch.Size([32, 121, 121])
+        x_masks = self._source_mask(
+            ilens
+        )  # (B, Tmax, Tmax) -> torch.Size([32, 121, 121])
 
-        hs, _ = self.encoder(xs, x_masks)  # (B, Tmax, adim) -> torch.Size([32, 121, 256])
+        hs, _ = self.encoder(
+            xs, x_masks
+        )  # (B, Tmax, adim) -> torch.Size([32, 121, 256])
         # print("ys :", ys.shape)
-
 
         # forward duration predictor and length regulator
         d_masks = make_pad_mask(ilens).to(xs.device)
@@ -182,27 +192,31 @@ class FeedForwardTransformer(torch.nn.Module):
         if is_inference:
             d_outs = self.duration_predictor.inference(hs, d_masks)  # (B, Tmax)
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
-            one_hot_energy = self.energy_predictor.inference(hs) # (B, Lmax, adim)
-            one_hot_pitch = self.pitch_predictor.inference(hs) # (B, Lmax, adim)
+            one_hot_energy = self.energy_predictor.inference(hs)  # (B, Lmax, adim)
+            one_hot_pitch = self.pitch_predictor.inference(hs)  # (B, Lmax, adim)
         else:
             with torch.no_grad():
                 # ds = self.duration_calculator(xs, ilens, ys, olens)  # (B, Tmax)
-                one_hot_energy = self.energy_predictor.to_one_hot(es) # (B, Lmax, adim)   torch.Size([32, 868, 256])
+                one_hot_energy = self.energy_predictor.to_one_hot(
+                    es
+                )  # (B, Lmax, adim)   torch.Size([32, 868, 256])
                 # print("one_hot_energy:", one_hot_energy.shape)
-                one_hot_pitch = self.pitch_predictor.to_one_hot(ps)   # (B, Lmax, adim)   torch.Size([32, 868, 256])
+                one_hot_pitch = self.pitch_predictor.to_one_hot(
+                    ps
+                )  # (B, Lmax, adim)   torch.Size([32, 868, 256])
                 # print("one_hot_pitch:", one_hot_pitch.shape)
             mel_masks = make_pad_mask(olens).to(xs.device)
-            #print("Before Hs:", hs.shape)  # torch.Size([32, 121, 256])
+            # print("Before Hs:", hs.shape)  # torch.Size([32, 121, 256])
             d_outs = self.duration_predictor(hs, d_masks)  # (B, Tmax)
-            #print("d_outs:", d_outs.shape)      #  torch.Size([32, 121])
+            # print("d_outs:", d_outs.shape)      #  torch.Size([32, 121])
             hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
-            #print("After Hs:",hs.shape)  #torch.Size([32, 868, 256])
+            # print("After Hs:",hs.shape)  #torch.Size([32, 868, 256])
             e_outs = self.energy_predictor(hs, mel_masks)
-            #print("e_outs:", e_outs.shape)  #torch.Size([32, 868])
+            # print("e_outs:", e_outs.shape)  #torch.Size([32, 868])
             p_outs = self.pitch_predictor(hs, mel_masks)
-            #print("p_outs:", p_outs.shape)   #torch.Size([32, 868])
-        hs = hs + self.pitch_embed(one_hot_pitch) # (B, Lmax, adim)
-        hs = hs + self.energy_embed(one_hot_energy) # (B, Lmax, adim)
+            # print("p_outs:", p_outs.shape)   #torch.Size([32, 868])
+        hs = hs + self.pitch_embed(one_hot_pitch)  # (B, Lmax, adim)
+        hs = hs + self.energy_embed(one_hot_energy)  # (B, Lmax, adim)
         # forward decoder
         if olens is not None:
             h_masks = self._source_mask(olens)
@@ -210,7 +224,9 @@ class FeedForwardTransformer(torch.nn.Module):
             h_masks = None
 
         zs, _ = self.decoder(hs, h_masks)  # (B, Lmax, adim)
-        before_outs = self.feat_out(zs).view(zs.size(0), -1, self.odim)  # (B, Lmax, odim)
+        before_outs = self.feat_out(zs).view(
+            zs.size(0), -1, self.odim
+        )  # (B, Lmax, odim)
 
         # postnet -> (B, Lmax//r * r, odim)
         if self.postnet is None:
@@ -225,8 +241,16 @@ class FeedForwardTransformer(torch.nn.Module):
         else:
             return before_outs, after_outs, d_outs, e_outs, p_outs
 
-    def forward(self, xs: torch.Tensor, ilens: torch.Tensor, ys: torch.Tensor, olens: torch.Tensor, ds: torch.Tensor,
-                es: torch.Tensor, ps: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
+    def forward(
+        self,
+        xs: torch.Tensor,
+        ilens: torch.Tensor,
+        ys: torch.Tensor,
+        olens: torch.Tensor,
+        ds: torch.Tensor,
+        es: torch.Tensor,
+        ps: torch.Tensor,
+    ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         """Calculate forward propagation.
         Args:
             xs (Tensor): Batch of padded character ids (B, Tmax).
@@ -238,12 +262,13 @@ class FeedForwardTransformer(torch.nn.Module):
             Tensor: Loss value.
         """
         # remove unnecessary padded part (for multi-gpus)
-        xs = xs[:, :max(ilens)] # torch.Size([32, 121]) -> [B, Tmax]
-        ys = ys[:, :max(olens)] # torch.Size([32, 868, 80]) -> [B, Lmax, odim]
+        xs = xs[:, : max(ilens)]  # torch.Size([32, 121]) -> [B, Tmax]
+        ys = ys[:, : max(olens)]  # torch.Size([32, 868, 80]) -> [B, Lmax, odim]
 
         # forward propagation
-        before_outs, after_outs, d_outs, e_outs, p_outs = self._forward(xs, ilens, olens, ds, es, ps,
-                                                                        is_inference=False)
+        before_outs, after_outs, d_outs, e_outs, p_outs = self._forward(
+            xs, ilens, olens, ds, es, ps, is_inference=False
+        )
 
         # modifiy mod part of groundtruth
         # if hp.model.reduction_factor > 1:
@@ -261,8 +286,8 @@ class FeedForwardTransformer(torch.nn.Module):
             before_outs = before_outs.masked_select(out_masks)
             es = es.masked_select(mel_masks)  # Write size
             ps = ps.masked_select(mel_masks)  # Write size
-            e_outs = e_outs.masked_select(mel_masks) # Write size
-            p_outs = p_outs.masked_select(mel_masks) # Write size
+            e_outs = e_outs.masked_select(mel_masks)  # Write size
+            p_outs = p_outs.masked_select(mel_masks)  # Write size
             after_outs = (
                 after_outs.masked_select(out_masks) if after_outs is not None else None
             )
@@ -285,7 +310,7 @@ class FeedForwardTransformer(torch.nn.Module):
             out_weights /= ys.size(0) * ys.size(2)
             duration_masks = make_non_pad_mask(ilens).to(ys.device)
             duration_weights = (
-                    duration_masks.float() / duration_masks.sum(dim=1, keepdim=True).float()
+                duration_masks.float() / duration_masks.sum(dim=1, keepdim=True).float()
             )
             duration_weights /= ds.size(0)
 
@@ -306,10 +331,9 @@ class FeedForwardTransformer(torch.nn.Module):
             {"loss": loss.item()},
         ]
 
-        #self.reporter.report(report_keys)
+        # self.reporter.report(report_keys)
 
         return loss, report_keys
-
 
     def inference(self, x: torch.Tensor) -> torch.Tensor:
         """Generate the sequence of features given the sequences of characters.
@@ -326,12 +350,10 @@ class FeedForwardTransformer(torch.nn.Module):
         ilens = torch.tensor([x.shape[0]], dtype=torch.long, device=x.device)
         xs = x.unsqueeze(0)
 
-
         # inference
         _, outs, _ = self._forward(xs, ilens, is_inference=True)  # (L, odim)
 
         return outs[0]
-
 
     def _source_mask(self, ilens: torch.Tensor) -> torch.Tensor:
         """Make masks for self-attention.
@@ -349,11 +371,12 @@ class FeedForwardTransformer(torch.nn.Module):
                      [0, 0, 0, 0, 0],
                      [0, 0, 0, 0, 0]]], dtype=torch.uint8)
         """
-        x_masks = make_non_pad_mask(ilens).to(device = next(self.parameters()).device)
+        x_masks = make_non_pad_mask(ilens).to(device=next(self.parameters()).device)
         return x_masks.unsqueeze(-2) & x_masks.unsqueeze(-1)
 
-
-    def _reset_parameters(self, init_type: str, init_enc_alpha: float=1.0, init_dec_alpha: float=1.0):
+    def _reset_parameters(
+        self, init_type: str, init_enc_alpha: float = 1.0, init_dec_alpha: float = 1.0
+    ):
         # initialize parameters
         initialize(self, init_type)
 

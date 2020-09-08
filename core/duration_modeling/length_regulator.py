@@ -35,8 +35,13 @@ class LengthRegulator(torch.nn.Module):
         super(LengthRegulator, self).__init__()
         self.pad_value = pad_value
 
-    def forward(self, xs: torch.Tensor, ds: torch.Tensor, ilens: torch.Tensor, alpha: float = 1.0) \
-            -> torch.Tensor:
+    def forward(
+        self,
+        xs: torch.Tensor,
+        ds: torch.Tensor,
+        ilens: torch.Tensor,
+        alpha: float = 1.0,
+    ) -> torch.Tensor:
         """Calculate forward propagation.
 
         Args:
@@ -56,7 +61,6 @@ class LengthRegulator(torch.nn.Module):
         ds = [d[:ilen] for d, ilen in zip(ds, ilens)]
 
         xs = [self._repeat_one_sequence(x, d) for x, d in zip(xs, ds)]
-
 
         return pad_2d_tensor(xs, 0.0)
 
@@ -89,4 +93,3 @@ class LengthRegulator(torch.nn.Module):
                 out.append(x_.repeat(int(d_), 1))
 
         return torch.cat(out, dim=0)
-

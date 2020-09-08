@@ -4,8 +4,15 @@ import math
 import torch
 
 
-def _pre_hook(state_dict, prefix, local_metadata, strict,
-              missing_keys, unexpected_keys, error_msgs):
+def _pre_hook(
+    state_dict,
+    prefix,
+    local_metadata,
+    strict,
+    missing_keys,
+    unexpected_keys,
+    error_msgs,
+):
     """Perform pre-hook in load_state_dict for backward compatibility.
 
     Note:
@@ -33,7 +40,7 @@ class PositionalEncoding(torch.nn.Module):
         self.d_model = d_model
         self.xscale = math.sqrt(self.d_model)
         self.dropout = torch.nn.Dropout(p=dropout_rate)
-        #self.pe = None
+        # self.pe = None
         self.register_buffer("pe", None)
         self.extend_pe(torch.tensor(0.0).expand(1, max_len))
         # self._register_load_state_dict_pre_hook(_pre_hook)
@@ -42,13 +49,17 @@ class PositionalEncoding(torch.nn.Module):
         """Reset the positional encodings."""
         if self.pe is not None:
             if self.pe.size(1) >= x.size(1):
-                if self.pe.dtype != x.dtype:# or self.pe.device != x.device:    comment because of torchscript
+                if (
+                    self.pe.dtype != x.dtype
+                ):  # or self.pe.device != x.device:    comment because of torchscript
                     self.pe = self.pe.to(dtype=x.dtype, device=x.device)
                 return
         pe = torch.zeros(x.size(1), self.d_model)
         position = torch.arange(0, x.size(1), dtype=torch.float32).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, self.d_model, 2, dtype=torch.float32) *
-                             -(math.log(10000.0) / self.d_model))
+        div_term = torch.exp(
+            torch.arange(0, self.d_model, 2, dtype=torch.float32)
+            * -(math.log(10000.0) / self.d_model)
+        )
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
         pe = pe.unsqueeze(0)
@@ -65,7 +76,7 @@ class PositionalEncoding(torch.nn.Module):
 
         """
         self.extend_pe(x)
-        x = x * self.xscale + self.pe[:, :x.size(1)]
+        x = x * self.xscale + self.pe[:, : x.size(1)]
         return self.dropout(x)
 
 
@@ -105,5 +116,5 @@ class ScaledPositionalEncoding(PositionalEncoding):
         self.extend_pe(x)
         # print("Devices x :", x.device)
         self.alpha = self.alpha.to(device=device)
-        x = x + self.alpha * self.pe[:, :x.size(1)].to(device=device)
+        x = x + self.alpha * self.pe[:, : x.size(1)].to(device=device)
         return self.dropout(x)

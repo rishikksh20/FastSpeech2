@@ -9,12 +9,12 @@ import librosa.util as librosa_util
 
 
 def label_2_float(x, bits):
-    return 2 * x / (2 ** bits - 1.) - 1.
+    return 2 * x / (2 ** bits - 1.0) - 1.0
 
 
 def float_2_label(x, bits):
     assert abs(x).max() <= 1.0
-    x = (x + 1.) * (2 ** bits - 1) / 2
+    x = (x + 1.0) * (2 ** bits - 1) / 2
     return x.clip(0, 2 ** bits - 1)
 
 
@@ -38,7 +38,7 @@ def combine_signal(coarse, fine):
 
 
 def encode_16bits(x):
-    return np.clip(x * 2 ** 15, -2 ** 15, 2 ** 15 - 1).astype(np.int16)
+    return np.clip(x * 2 ** 15, -(2 ** 15), 2 ** 15 - 1).astype(np.int16)
 
 
 mel_basis = None
@@ -54,16 +54,19 @@ def energy(y):
 def pitch(y, hp):
     # Extract Pitch/f0 from raw waveform using PyWORLD
     y = y.astype(np.float64)
-    '''
+    """
     f0_floor : float
         Lower F0 limit in Hz.
         Default: 71.0
     f0_ceil : float
         Upper F0 limit in Hz.
         Default: 800.0
-    '''
-    f0, timeaxis = pw.dio(y, hp.audio.sample_rate,
-                          frame_period=hp.audio.hop_length / hp.audio.sample_rate * 1000)  # For hop size 256 frame period is 11.6 ms
+    """
+    f0, timeaxis = pw.dio(
+        y,
+        hp.audio.sample_rate,
+        frame_period=hp.audio.hop_length / hp.audio.sample_rate * 1000,
+    )  # For hop size 256 frame period is 11.6 ms
     return f0  # (Number of Frames) = (654,)
 
 
@@ -75,7 +78,12 @@ def linear_to_mel(spectrogram, hp):
 
 
 def build_mel_basis(hp):
-    return librosa.filters.mel(hp.audio.sample_rate, hp.audio.n_fft, n_mels=hp.audio.num_mels, fmin=hp.audio.fmin)
+    return librosa.filters.mel(
+        hp.audio.sample_rate,
+        hp.audio.n_fft,
+        n_mels=hp.audio.num_mels,
+        fmin=hp.audio.fmin,
+    )
 
 
 def normalize(S, hp):
@@ -107,7 +115,12 @@ def melspectrogram(y, hp):
 
 
 def stft(y, hp):
-    return librosa.stft(y=y, n_fft=hp.audio.n_fft, hop_length=hp.audio.hop_length, win_length=hp.audio.win_length)
+    return librosa.stft(
+        y=y,
+        n_fft=hp.audio.n_fft,
+        hop_length=hp.audio.hop_length,
+        win_length=hp.audio.win_length,
+    )
 
 
 def pre_emphasis(x, hp):
@@ -126,7 +139,8 @@ def encode_mu_law(x, mu):
 
 def decode_mu_law(y, mu, from_labels=True):
     # TODO : get rid of log2 - makes no sense
-    if from_labels: y = label_2_float(y, math.log2(mu))
+    if from_labels:
+        y = label_2_float(y, math.log2(mu))
     mu = mu - 1
     x = np.sign(y) / mu * ((1 + mu) ** np.abs(y) - 1)
     return x
@@ -138,11 +152,15 @@ def reconstruct_waveform(mel, hp, n_iter=32):
     denormalized = denormalize(mel)
     amp_mel = db_to_amp(denormalized)
     S = librosa.feature.inverse.mel_to_stft(
-        amp_mel, power=1, sr=hp.audio.sample_rate,
-        n_fft=hp.audio.n_fft, fmin=hp.audio.fmin)
+        amp_mel,
+        power=1,
+        sr=hp.audio.sample_rate,
+        n_fft=hp.audio.n_fft,
+        fmin=hp.audio.fmin,
+    )
     wav = librosa.core.griffinlim(
-        S, n_iter=n_iter,
-        hop_length=hp.audio.hop_length, win_length=hp.audio.win_length)
+        S, n_iter=n_iter, hop_length=hp.audio.hop_length, win_length=hp.audio.win_length
+    )
     return wav
 
 
@@ -152,8 +170,15 @@ def quantize_input(input, min, max, num_bins=256):
     return quantize
 
 
-def window_sumsquare(window, n_frames, hop_length=200, win_length=800,
-                     n_fft=800, dtype=np.float32, norm=None):
+def window_sumsquare(
+    window,
+    n_frames,
+    hop_length=200,
+    win_length=800,
+    n_fft=800,
+    dtype=np.float32,
+    norm=None,
+):
     """
     # from librosa 0.6
     Compute the sum-square envelope of a window function at a given hop length.
@@ -192,7 +217,7 @@ def window_sumsquare(window, n_frames, hop_length=200, win_length=800,
     # Fill the envelope
     for i in range(n_frames):
         sample = i * hop_length
-        x[sample:min(n, sample + n_fft)] += win_sq[:max(0, min(n_fft, n - sample))]
+        x[sample : min(n, sample + n_fft)] += win_sq[: max(0, min(n_fft, n - sample))]
     return x
 
 
