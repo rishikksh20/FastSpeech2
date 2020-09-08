@@ -24,7 +24,7 @@ class Discriminator(nn.Module):
         we directly predict score without last sigmoid function
         since we're using Least Squares GAN (https://arxiv.org/abs/1611.04076)
         '''
-        print(x.shape, "Input to Discriminator")
+        # print(x.shape, "Input to Discriminator")
         return self.discriminator(x)
 
 def weights_init(m):
@@ -44,9 +44,9 @@ class SFDiscriminator(nn.Module):
         self.apply(weights_init)
     def forward(self, x, start):
         results = []
-        results.append(self.disc1(x[:, : , 0:40, start: start + 40]))
-        results.append(self.disc2(x[:, :, 20:60, start: start + 40]))
-        results.append(self.disc3(x[:, :, 40:80, start: start + 40]))
+        results.append(self.disc1(x[:, :, start: start + 40, 0:40]))
+        results.append(self.disc2(x[:, :, start: start + 40, 20:60]))
+        results.append(self.disc3(x[:, :, start: start + 40, 40:80, ]))
         return results
 
 if __name__ == '__main__':

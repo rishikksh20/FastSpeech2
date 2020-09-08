@@ -54,6 +54,12 @@ def train(args, hp, hp_str, logger, vocoder):
                 hp.model.transformer_warmup_steps,
                 hp.model.transformer_lr,
             )
+            optim_d = get_std_opt(
+            model_d,
+            hp.model.adim,
+            hp.model.transformer_warmup_steps,
+            hp.model.transformer_lr,
+        )
             optimizer.load_state_dict(checkpoint["optim"])
             global_step = checkpoint["step"]
 
@@ -127,7 +133,7 @@ def train(args, hp, hp_str, logger, vocoder):
 
             if global_step >= hp.train.discriminator_start:
                 start_disc = np.random.randint(0, out_length.min()-40)
-                print(mel.shape)
+
                 disc_fake = model_d(mel.unsqueeze(1).cuda(), start_disc)
                 for score_fake in disc_fake:
                     # adv_loss += torch.mean(torch.sum(torch.pow(score_fake - 1.0, 2), dim=[1, 2]))
