@@ -10,6 +10,7 @@ import sys
 import torch
 from dataset.texts import valid_symbols
 import os 
+from utils.hparams import HParam, load_hparam_str
 
 """def extract_feat(audio, hp):
     stft = TacotronSTFT(
@@ -75,30 +76,22 @@ def evaluate(args, hp):
                 e_.cuda(),
                 p_.cuda(),
             )
-            ilens = torch.tensor([x_[-1].shape[0]], dtype=torch.long, device=x.device)
+            ilens = torch.tensor([x_[-1].shape[0]], dtype=torch.long, device=x_.device)
             xs = x_[-1].unsqueeze(0)
-            _, after_outs, d_outs, e_outs, p_outs = self._forward(xs, x_[-1].cuda())  # [T, num_mel]
+            _, after_outs, d_outs, e_outs, p_outs = model._forward(xs, x_[-1].cuda())  # [T, num_mel]
 
             e_orig = model.energy_predictor.to_one_hot(e_)
             p_orig = model.pitch_predictor.to_one_hot(p_)
             energy_diff.append(e_orig - e_outs)
             pitch_diff.append(p_orig - p_outs)
-
-        audio = generate_audio(
-            mels_.unsqueeze(0), vocoder
-        )  # selecting the last data point to match mel generated above
-        audio = audio.cpu().float().numpy()
-        audio = audio / (
-            audio.max() - audio.min()
-        )  # get values between -1 and 1
-
+            
         '''_, target = read_wav_np( hp.data.wav_dir + f"{ids_[-1]}.wav", sample_rate=hp.audio.sample_rate)
         target_pitch = np.load(hp.data.data_dir + f"pitch/{ids_[-1]}.wav" )
         target_energy = np.load(hp.data.data_dir + f"energy/{ids_[-1]}.wav" )
         '''
 
-    np.save(args.outdir + "score_pitch", target_pitch.numpy())
-    np.save(args.outdir + "score_energy", target_energy.numpy())
+    np.save(args.outdir + "score_pitch", pitch_diff.numpy())
+    np.save(args.outdir + "score_energy", energy_diff.numpy())
     return energy_diff, pitch_diff
 
 
