@@ -7,6 +7,7 @@ from utils.stft import TacotronSTFT
 from dataset.audio_processing import pitch
 from utils.hparams import HParam
 import sys
+import torch
 
 """def extract_feat(audio, hp):
     stft = TacotronSTFT(
