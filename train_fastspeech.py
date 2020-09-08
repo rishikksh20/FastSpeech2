@@ -196,6 +196,8 @@ def train(args, hp, hp_str, logger, vocoder):
                 loss_d_sum += loss_d
                 loss_d_avg = loss_d_sum.item()
 
+                writer.add_scalar("Discriminator Loss", loss_d_avg, step)
+
             if step % hp.train.summary_interval == 0:
                 pbar.set_description(
                     "Average Loss %.04f Loss %.04f | step %d"
