@@ -8,6 +8,8 @@ from dataset.audio_processing import pitch
 from utils.hparams import HParam
 import sys
 import torch
+from dataset.texts import valid_symbols
+import os 
 
 """def extract_feat(audio, hp):
     stft = TacotronSTFT(
