@@ -41,7 +41,7 @@ def evaluate(args, hp):
     if os.path.exists(args.checkpoint_path):
         checkpoint = torch.load(args.checkpoint_path)
     else:
-        logging.info("Checkpoint not exixts")
+        print("Checkpoint not exixts")
         return None
 
     if args.config is not None:
@@ -56,7 +56,6 @@ def evaluate(args, hp):
     )
     os.makedirs(args.out, exist_ok=True)
     if args.old_model:
-        logging.info("\nSynthesis Session...\n")
         model.load_state_dict(checkpoint, strict=False)
     else:
         checkpoint = torch.load(args.checkpoint_path)
