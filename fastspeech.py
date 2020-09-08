@@ -269,7 +269,7 @@ class FeedForwardTransformer(torch.nn.Module):
         before_outs, after_outs, d_outs, e_outs, p_outs = self._forward(
             xs, ilens, olens, ds, es, ps, is_inference=False
         )
-
+        out_mels = after_outs.detach()
         # modifiy mod part of groundtruth
         # if hp.model.reduction_factor > 1:
         #     olens = olens.new([olen - olen % self.reduction_factor for olen in olens])
@@ -332,8 +332,9 @@ class FeedForwardTransformer(torch.nn.Module):
         ]
 
         # self.reporter.report(report_keys)
+        #print(out_mels.shape, "Shape of out_mels in Fs")
 
-        return loss, report_keys
+        return loss, report_keys, out_mels
 
     def inference(self, x: torch.Tensor) -> torch.Tensor:
         """Generate the sequence of features given the sequences of characters.

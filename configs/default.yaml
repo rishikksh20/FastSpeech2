@@ -1,6 +1,6 @@
 data:
-  data_dir: 'H:\Deepsync\backup\fastspeech\data\'
-  wav_dir: 'H:\Deepsync\backup\deepsync\LJSpeech-1.1\wavs\'
+  data_dir: '/workspace/data/'
+  wav_dir: '/workspace/LJSpeech-1.1/wavs/'
   # Compute statistics
   e_mean: 21.578571319580078
   e_std: 18.916799545288086
@@ -106,10 +106,12 @@ model:
 
 
 train:
+  discriminator_start: 20000
+  rep_discriminator: 1
   # optimization related
   eos: False #True
   opt: 'noam'
-  accum_grad: 4
+  accum_grad: 1
   grad_clip: 1.0
   weight_decay: 0.001
   patience: 0
@@ -125,7 +127,7 @@ train:
   seed: 1       # random seed number
   resume: ""    # the snapshot path to resume (if set empty, no effect)
   use_phonemes: True
-  batch_size : 16
+  batch_size : 24
   # other
   melgan_vocoder : True
   save_interval : 1000
