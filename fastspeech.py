@@ -237,7 +237,7 @@ class FeedForwardTransformer(torch.nn.Module):
             ).transpose(1, 2)
 
         if is_inference:
-            return before_outs, after_outs, d_outs
+            return before_outs, after_outs, d_outs, one_hot_energy, one_hot_pitch
         else:
             return before_outs, after_outs, d_outs, e_outs, p_outs
 
@@ -351,7 +351,7 @@ class FeedForwardTransformer(torch.nn.Module):
         xs = x.unsqueeze(0)
 
         # inference
-        _, outs, _ = self._forward(xs, ilens, is_inference=True)  # (L, odim)
+        _, outs, _, _, _ = self._forward(xs, ilens, is_inference=True)  # (L, odim)
 
         return outs[0]
 

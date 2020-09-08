@@ -1,42 +1,19 @@
 import configargparse
-from utils.hparams import HParam
 from dataset import dataloader as loader
 from fastspeech import FeedForwardTransformer
-import numpy as np
-from utils.stft import TacotronSTFT
-from dataset.audio_processing import pitch
-from utils.hparams import HParam
 import sys
 import torch
 from dataset.texts import valid_symbols
 import os 
 from utils.hparams import HParam, load_hparam_str
+import numpy as np
 
-"""def extract_feat(audio, hp):
-    stft = TacotronSTFT(
-        filter_length=hp.audio.n_fft,
-        hop_length=hp.audio.hop_length,
-        win_length=hp.audio.win_length,
-        n_mel_channels=hp.audio.n_mels,
-        sampling_rate=hp.audio.sample_rate,
-        mel_fmin=hp.audio.fmin,
-        mel_fmax=hp.audio.fmax,
-    )
-    p = pitch(wav, hp)
-    wav = torch.from_numpy(wav).unsqueeze(0)
-    mel, mag = stft.mel_spectrogram(wav)  # mel [1, 80, T]  mag [1, num_mag, T]
-    mel = mel.squeeze(0)  # [num_mel, T]
-    mag = mag.squeeze(0)  # [num_mag, T]
-    e = torch.norm(mag, dim=0)  # [T, ]
-    p = p[: mel.shape[1]]
-
-    return p, e
-    """
 
 def evaluate(args, hp):
 
     energy_diff = list()
     pitch_diff = list()
+    dur_diff = list()
 
     validloader = loader.get_tts_dataset(hp.data.data_dir, 1, hp, True)
     print("Checkpoint : ", args.checkpoint_path)
@@ -57,42 +34,36 @@ def evaluate(args, hp):
     model = FeedForwardTransformer(
         idim, odim, hp
     )
-    os.makedirs(args.out, exist_ok=True)
-    if args.old_model:
-        model.load_state_dict(checkpoint, strict=False)
-    else:
-        checkpoint = torch.load(args.checkpoint_path)
-        model.load_state_dict(checkpoint["model"])
+    # os.makedirs(args.out, exist_ok=True)
+    checkpoint = torch.load(args.checkpoint_path)
+    model.load_state_dict(checkpoint["model"])
+    l1 = torch.nn.L1Loss()
     for valid in validloader:
         x_, input_length_, y_, _, out_length_, ids_, dur_, e_, p_ = valid
         model.eval()
         with torch.no_grad():
-            loss_, report_dict_, _ = model(
-                x_.cuda(),
-                input_length_.cuda(),
-                y_.cuda(),
-                out_length_.cuda(),
-                dur_.cuda(),
-                e_.cuda(),
-                p_.cuda(),
-            )
             ilens = torch.tensor([x_[-1].shape[0]], dtype=torch.long, device=x_.device)
-            xs = x_[-1].unsqueeze(0)
-            _, after_outs, d_outs, e_outs, p_outs = model._forward(xs, x_[-1].cuda())  # [T, num_mel]
+            _, after_outs, d_outs, e_outs, p_outs = model._forward(x_, ilens, out_length_, dur_, es=e_, ps=p_, is_inference=False)  # [T, num_mel]
 
-            e_orig = model.energy_predictor.to_one_hot(e_)
-            p_orig = model.pitch_predictor.to_one_hot(p_)
-            energy_diff.append(e_orig - e_outs)
-            pitch_diff.append(p_orig - p_outs)
+            # e_orig = model.energy_predictor.to_one_hot(e_).squeeze()
+            # p_orig = model.pitch_predictor.to_one_hot(p_).squeeze()
+
+            dur_diff.append(l1(d_outs, dur_).item())
+            energy_diff.append(l1(e_outs, e_).item())
+            pitch_diff.append(l1(p_outs, p_).item())
+
             
         '''_, target = read_wav_np( hp.data.wav_dir + f"{ids_[-1]}.wav", sample_rate=hp.audio.sample_rate)
         target_pitch = np.load(hp.data.data_dir + f"pitch/{ids_[-1]}.wav" )
         target_energy = np.load(hp.data.data_dir + f"energy/{ids_[-1]}.wav" )
         '''
 
-    np.save(args.outdir + "score_pitch", pitch_diff.numpy())
-    np.save(args.outdir + "score_energy", energy_diff.numpy())
-    return energy_diff, pitch_diff
+    # np.save(args.outdir + "score_pitch", pitch_diff.numpy())
+    # np.save(args.outdir + "score_energy", energy_diff.numpy())
+    print("Avg Delta Pitch :", np.mean(pitch_diff))
+    print("Avg Delta Energy :", np.mean(energy_diff))
+    print("Avg Delta Dur :", np.mean(dur_diff))
+    return energy_diff, pitch_diff, dur_diff
 
 
 def get_parser():
@@ -124,8 +95,6 @@ def main(cmd_args):
     args = parser.parse_args(cmd_args)
 
     hp = HParam(args.config)
-    with open(args.config, "r") as f:
-        hp_str = "".join(f.readlines())
 
     evaluate(args, hp)
     

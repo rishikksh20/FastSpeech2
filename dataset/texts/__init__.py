@@ -90,6 +90,7 @@ valid_symbols = [
     "ZH",
     "pau",
     "sil",
+    "spn"
 ]
 
 
@@ -172,7 +173,7 @@ def phonemes_to_sequence(phonemes):
     string = phonemes.split() if isinstance(phonemes, str) else phonemes
     # string.append(EOS)
     sequence = list(map(convert_phoneme_CMU, string))
-    sequence = [_phoneme_to_id[s] for s in string]
+    sequence = [_phoneme_to_id[s] for s in sequence]
     # if _should_keep_token(s, _phoneme_to_id)]
     return sequence
 
@@ -188,25 +189,25 @@ def sequence_to_phonemes(sequence, use_eos=False):
 
 def convert_phoneme_CMU(phoneme):
     REMAPPING = {
-        "AA0": "AA1",
-        "AA2": "AA1",
-        "AE2": "AE1",
-        "AH2": "AH1",
-        "AO0": "AO1",
-        "AO2": "AO1",
-        "AW2": "AW1",
-        "AY2": "AY1",
-        "EH2": "EH1",
-        "ER0": "EH1",
-        "ER1": "EH1",
-        "ER2": "EH1",
-        "EY2": "EY1",
-        "IH2": "IH1",
-        "IY2": "IY1",
-        "OW2": "OW1",
-        "OY2": "OY1",
-        "UH2": "UH1",
-        "UW2": "UW1",
+        'AA0': 'AA1',
+        'AA2': 'AA1',
+        'AE2': 'AE1',
+        'AH2': 'AH1',
+        'AO0': 'AO1',
+        'AO2': 'AO1',
+        'AW2': 'AW1',
+        'AY2': 'AY1',
+        'EH2': 'EH1',
+        'ER0': 'EH1',
+        'ER1': 'EH1',
+        'ER2': 'EH1',
+        'EY2': 'EY1',
+        'IH2': 'IH1',
+        'IY2': 'IY1',
+        'OW2': 'OW1',
+        'OY2': 'OY1',
+        'UH2': 'UH1',
+        'UW2': 'UW1',
     }
     return REMAPPING.get(phoneme, phoneme)
 
@@ -250,9 +251,9 @@ def text_to_phonemes(text, custom_words={}):
         """
 
     def convert_phoneme_listener(phoneme):
-        VOWELS = ["A", "E", "I", "O", "U"]
+        VOWELS = ['A', 'E', 'I', 'O', 'U']
         if phoneme[0] in VOWELS:
-            phoneme += "1"
+            phoneme += '1'
         return phoneme  # convert_phoneme_CMU(phoneme)
 
     try:
