@@ -288,7 +288,7 @@ def create_gta(args, hp, hp_str, logger):
             global_step += 1
             x, input_length, y, _, out_length, ids = data
             with torch.no_grad():
-                _, gta, _, _, _ = model._forward(
+                _, gta, _ = model._forward(
                     x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda()
                 )
                 # gta = model._forward(x.cuda(), input_length.cuda(), is_inference=False)
@@ -312,7 +312,7 @@ def create_gta(args, hp, hp_str, logger):
         global_step += 1
         x, input_length, y, _, out_length, ids = data
         with torch.no_grad():
-            gta, _, _ = model._forward(
+            _, gta, _ = model._forward(
                 x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda()
             )
             # gta = model._forward(x.cuda(), input_length.cuda(), is_inference=True)

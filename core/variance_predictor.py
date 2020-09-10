@@ -149,7 +149,7 @@ class EnergyPredictor(torch.nn.Module):
 
         """
         out = self.predictor.inference(xs, False, alpha=alpha)
-        return self.to_one_hot(out)  # Need to do One hot code
+        return out  # Need to do One hot code
 
     def to_one_hot(self, x):
         # e = de_norm_mean_std(e, hp.e_mean, hp.e_std)
@@ -222,7 +222,7 @@ class PitchPredictor(torch.nn.Module):
 
         """
         out = self.predictor.inference(xs, False, alpha=alpha)
-        return self.to_one_hot(out)
+        return out
 
     def to_one_hot(self, x: torch.Tensor):
         # e = de_norm_mean_std(e, hp.e_mean, hp.e_std)

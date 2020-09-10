@@ -21,7 +21,9 @@ def evaluate(hp, validloader, model):
         
         with torch.no_grad():
             ilens = torch.tensor([x_[-1].shape[0]], dtype=torch.long, device=x_.device)
-            _, after_outs, d_outs, e_outs, p_outs = model._forward(x_.cuda(), ilens.cuda(), out_length_.cuda(), dur_.cuda(), es=e_.cuda(), ps=p_.cuda(), is_inference=False)  # [T, num_mel]
+            _, after_outs, d_outs, e_outs, p_outs = model._forward(x_.cuda(), ilens.cuda(), out_length_.cuda(),
+                                                                   dur_.cuda(), es=e_.cuda(), ps=p_.cuda(),
+                                                                   is_inference=False)  # [T, num_mel]
 
             # e_orig = model.energy_predictor.to_one_hot(e_).squeeze()
             # p_orig = model.pitch_predictor.to_one_hot(p_).squeeze()
