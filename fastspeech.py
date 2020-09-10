@@ -118,12 +118,12 @@ class FeedForwardTransformer(torch.nn.Module):
         # define decoder
         # NOTE: we use encoder as decoder because fastspeech's decoder is the same as encoder
         self.decoder = Encoder(
-            idim=256,
-            attention_dim=256,
+            idim=hp.model.adim,
+            attention_dim=hp.model.ddim,
             attention_heads=hp.model.aheads,
             linear_units=hp.model.dunits,
             num_blocks=hp.model.dlayers,
-            input_layer=None,
+            input_layer="linear",
             dropout_rate=0.2,
             positional_dropout_rate=0.2,
             attention_dropout_rate=0.2,
@@ -150,7 +150,7 @@ class FeedForwardTransformer(torch.nn.Module):
         )
 
         # define final projection
-        self.feat_out = torch.nn.Linear(hp.model.adim, odim * hp.model.reduction_factor)
+        self.feat_out = torch.nn.Linear(hp.model.ddim, odim * hp.model.reduction_factor)
 
         # initialize parameters
         self._reset_parameters(
@@ -224,6 +224,7 @@ class FeedForwardTransformer(torch.nn.Module):
             h_masks = None
 
         zs, _ = self.decoder(hs, h_masks)  # (B, Lmax, adim)
+
         before_outs = self.feat_out(zs).view(
             zs.size(0), -1, self.odim
         )  # (B, Lmax, odim)

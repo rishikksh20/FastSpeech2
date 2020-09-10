@@ -46,6 +46,7 @@ model:
   aheads: 2
   elayers: 4
   eunits: 1024
+  ddim: 384
   dlayers: 4
   dunits: 1024
   positionwise_layer_type : "conv1d" # linear
