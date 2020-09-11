@@ -221,9 +221,9 @@ def train(args, hp, hp_str, logger, vocoder):
                 ##
             if step % hp.train.save_interval == 0:
                 avg_p, avg_e, avg_d = evaluate(hp, validloader, model)
-                writer.add_scalar("evaluation/Pitch Loss", avg_p, step)
-                writer.add_scalar("evaluation/Energy Loss", avg_e, step)
-                writer.add_scalar("evaluation/Dur Loss", avg_d, step)
+                writer.add_scalar("evaluation/Pitch_Loss", avg_p, step)
+                writer.add_scalar("evaluation/Energy_Loss", avg_e, step)
+                writer.add_scalar("evaluation/Dur_Loss", avg_d, step)
                 save_path = os.path.join(
                     hp.train.chkpt_dir,
                     args.name,
