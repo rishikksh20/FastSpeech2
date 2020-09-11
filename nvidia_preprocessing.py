@@ -44,16 +44,18 @@ def preprocess(args, hp, file):
 
         dur = str_to_int_list(metadata[2])
         dur = torch.from_numpy(np.array(dur))
+        dur[-1] = dur[-1] + 1
 
         sr, wav = read_wav_np(wavpath, hp.audio.sample_rate)
         input = torch.from_numpy(wav)
+        
 
         mel, mag = stft.mel_spectrogram(input.unsqueeze(0))  # mel [1, 80, T]  mag [1, num_mag, T]
         mel = mel.squeeze(0)  # [num_mel, T]
         mag = mag.squeeze(0)  # [num_mag, T]
 
         e = energy.forward(mag, dur)  # [T, ]
-        p = pitch.forward(wav, mel.shape[1], dur)  # [T, ] T = Number of frames
+        p = pitch.forward(input, durations = dur)  # [T, ] T = Number of frames  mel.shape[1],
         id = os.path.basename(wavpath).split(".")[0]
 
         np.save("{}/{}.npy".format(mel_path, id), mel.numpy(), allow_pickle=False)
