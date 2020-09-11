@@ -215,18 +215,19 @@ class FeedForwardTransformer(torch.nn.Module):
 
         if is_inference:
             d_outs = self.duration_predictor.inference(hs, d_masks)  # (B, Tmax)
-            p_embs = self.pitch_embed(p_outs.transpose(1, 2)).transpose(1, 2) # (B, Tmax, adim)
-            e_embs = self.energy_embed(e_outs.transpose(1, 2)).transpose(1, 2) # (B, Tmax, adim)
+            p_embs = self.pitch_embed(p_outs.unsqueeze(1)).transpose(1, 2) # (B, Tmax, adim) .transpose(1, 2)
+            e_embs = self.energy_embed(e_outs.unsqueeze(1)).transpose(1, 2) # (B, Tmax, adim) .transpose(1, 2)
             hs = hs + e_embs + p_embs
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
         else:
             with torch.no_grad():
                 p_embs = self.pitch_embed(ps).transpose(1, 2) # (B, Tmax, adim)   torch.Size([32, 121, 256]) .transpose(1, 2)
                 e_embs = self.energy_embed(es).transpose(1, 2) # (B, Tmax, adim)   torch.Size([32, 121, 256]) .transpose(1, 2)
-                
+
             d_outs = self.duration_predictor(hs, d_masks)  # (B, Tmax)
             # print("d_outs:", d_outs.shape)      #  torch.Size([32, 121])
             mel_masks = make_pad_mask(olens).to(xs.device)
+            #print(hs.shape, p_embs.shape, e_embs.shape  )
             hs = hs + p_embs + e_embs  # (B, Lmax, adim)
             # print("Before Hs:", hs.shape)  # torch.Size([32, 121, 256])
             hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
