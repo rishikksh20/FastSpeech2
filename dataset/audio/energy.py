@@ -72,7 +72,7 @@ class Energy():
 
     @staticmethod
     def _average_by_duration(x: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
-        print(d.sum(), len(x))
+        #print(d.sum(), len(x))
         assert d.sum() == len(x)
         d_cumsum = F.pad(d.cumsum(dim=0), (1, 0))
         x_avg = [
