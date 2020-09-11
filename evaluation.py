@@ -27,10 +27,12 @@ def evaluate(hp, validloader, model):
 
             # e_orig = model.energy_predictor.to_one_hot(e_).squeeze()
             # p_orig = model.pitch_predictor.to_one_hot(p_).squeeze()
+            
+            #print(d_outs)
 
-            dur_diff.append(l1(d_outs, dur_).item().cpu().numpy())
-            energy_diff.append(l1(e_outs, e_).item().cpu().numpy())
-            pitch_diff.append(l1(p_outs, p_).item().cpu().numpy())
+            dur_diff.append(l1(d_outs, dur_.cuda()).item())      #.numpy()
+            energy_diff.append(l1(e_outs, e_.cuda()).item())      #.numpy()
+            pitch_diff.append(l1(p_outs, p_.cuda()).item())       #.numpy()
 
             
         '''_, target = read_wav_np( hp.data.wav_dir + f"{ids_[-1]}.wav", sample_rate=hp.audio.sample_rate)
