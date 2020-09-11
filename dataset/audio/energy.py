@@ -60,35 +60,23 @@ class Energy():
 
     def forward(
         self,
-        input: torch.Tensor,
-        input_lengths: torch.Tensor = None,
-        feats_lengths: torch.Tensor = None,
-        durations: torch.Tensor = None,
-        durations_lengths: torch.Tensor = None,
+        mag: torch.Tensor,
+        durations: torch.Tensor = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        # If not provide, we assume that the inputs have the same length
-        if input_lengths is None:
-            input_lengths = (
-                input.new_ones(input.shape[0], dtype=torch.long) * input.shape[1]
-            )
+
+
 
         # Domain-conversion: e.g. Stft: time -> time-freq
         #input_stft, energy_lengths = self.stft(input, input_lengths)
-        mel, mag = self.stft.mel_spectrogram(input)
 
         energy = torch.norm(mag, dim=0)
 
-
         # (Optional): Average by duration to calculate token-wise energy
         if self.use_token_averaged_energy:
-            energy = [
-                self._average_by_duration(e[:el].view(-1), d)
-                for e, el, d in zip(energy, feats_lengths, durations)
-            ]
-            energy_lengths = durations_lengths
+            energy = self._average_by_duration(energy, durations)
 
         # Return with the shape (B, T, 1)
-        return energy.unsqueeze(-1), energy_lengths
+        return energy.unsqueeze(-1)
 
     @staticmethod
     def _average_by_duration(x: torch.Tensor, d: torch.Tensor) -> torch.Tensor:

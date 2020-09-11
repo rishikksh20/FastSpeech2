@@ -6,7 +6,9 @@ import argparse
 import numpy as np
 from utils.stft import TacotronSTFT
 from utils.util import read_wav_np
-from dataset.audio_processing import pitch
+from dataset.audio.audio_processing import pitch
+from dataset.audio.pitch import Dio
+from dataset.audio.energy import Energy
 from utils.hparams import HParam
 
 

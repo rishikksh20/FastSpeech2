@@ -9,7 +9,7 @@ from utils.util import set_deterministic_pytorch
 from fastspeech import FeedForwardTransformer
 from dataset.texts import phonemes_to_sequence
 import time
-from dataset.audio_processing import griffin_lim
+from dataset.audio.audio_processing import griffin_lim
 import numpy as np
 from utils.stft import STFT
 from scipy.io.wavfile import write

@@ -71,39 +71,27 @@ class Dio():
     def forward(
         self,
         input: torch.Tensor,
-        input_lengths: torch.Tensor = None,
         feats_lengths: torch.Tensor = None,
         durations: torch.Tensor = None,
         durations_lengths: torch.Tensor = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # If not provide, we assume that the inputs have the same length
-        if input_lengths is None:
-            input_lengths = (
-                input.new_ones(input.shape[0], dtype=torch.long) * input.shape[1]
-            )
 
         # F0 extraction
-        pitch = [self._calculate_f0(x[:xl]) for x, xl in zip(input, input_lengths)]
+        pitch = self._calculate_f0(input)
 
         # (Optional): Adjust length to match with the mel-spectrogram
         if feats_lengths is not None:
-            pitch = [
-                self._adjust_num_frames(p, fl).view(-1)
-                for p, fl in zip(pitch, feats_lengths)
-            ]
+            pitch = self._adjust_num_frames(pitch, feats_lengths)
+
 
         # (Optional): Average by duration to calculate token-wise f0
         if self.use_token_averaged_f0:
-            pitch = [
-                self._average_by_duration(p, d).view(-1)
-                for p, d in zip(pitch, durations)
-            ]
-            pitch_lengths = durations_lengths
-        else:
-            pitch_lengths = input.new_tensor([len(p) for p in pitch], dtype=torch.long)
+            pitch = self._average_by_duration(pitch, durations)
+
 
         # Return with the shape (B, T, 1)
-        return pitch.unsqueeze(-1), pitch_lengths
+        return pitch.unsqueeze(-1)
 
     def _calculate_f0(self, input: torch.Tensor) -> torch.Tensor:
         x = input.cpu().numpy().astype(np.double)
