@@ -68,7 +68,7 @@ class Energy():
             energy = self._average_by_duration(energy, durations)
 
         # Return with the shape (B, T, 1)
-        return energy.unsqueeze(-1)
+        return energy
 
     @staticmethod
     def _average_by_duration(x: torch.Tensor, d: torch.Tensor) -> torch.Tensor:

@@ -6,13 +6,12 @@ import argparse
 import numpy as np
 from utils.stft import TacotronSTFT
 from utils.util import read_wav_np
-from dataset.audio.audio_processing import pitch
+from utils.util import str_to_int_list
 from dataset.audio.pitch import Dio
 from dataset.audio.energy import Energy
 from utils.hparams import HParam
 
-
-def main(args, hp):
+def preprocess(args, hp, file):
     stft = TacotronSTFT(
         filter_length=hp.audio.n_fft,
         hop_length=hp.audio.hop_length,
@@ -23,27 +22,50 @@ def main(args, hp):
         mel_fmax=hp.audio.fmax,
     )
 
-    wav_files = glob.glob(os.path.join(args.data_path, "**", "*.wav"), recursive=True)
+    energy = Energy()
+
+    pitch = Dio()
+    path = args.data_path
+    with open("{}".format(hp.data.train_filelist), encoding="utf-8") as f:
+        _metadata = [line.strip().split("|") for line in f]
+
     mel_path = os.path.join(hp.data.data_dir, "mels")
     energy_path = os.path.join(hp.data.data_dir, "energy")
     pitch_path = os.path.join(hp.data.data_dir, "pitch")
+
     os.makedirs(mel_path, exist_ok=True)
     os.makedirs(energy_path, exist_ok=True)
     os.makedirs(pitch_path, exist_ok=True)
+
     print("Sample Rate : ", hp.audio.sample_rate)
-    for wavpath in tqdm.tqdm(wav_files, desc="preprocess wav to mel"):
+
+    for metadata in tqdm.tqdm(_metadata, desc="preprocess wav to mel"):
+        wavpath = os.path.join(path, metadata[4])
+
+        dur = str_to_int_list(metadata[2])
+        dur = torch.from_numpy(np.array(dur))
+
         sr, wav = read_wav_np(wavpath, hp.audio.sample_rate)
-        p = pitch(wav, hp)  # [T, ] T = Number of frames
-        wav = torch.from_numpy(wav).unsqueeze(0)
-        mel, mag = stft.mel_spectrogram(wav)  # mel [1, 80, T]  mag [1, num_mag, T]
+        input = torch.from_numpy(wav)
+
+        mel, mag = stft.mel_spectrogram(input.unsqueeze(0))  # mel [1, 80, T]  mag [1, num_mag, T]
         mel = mel.squeeze(0)  # [num_mel, T]
         mag = mag.squeeze(0)  # [num_mag, T]
-        e = torch.norm(mag, dim=0)  # [T, ]
-        p = p[: mel.shape[1]]
+
+        e = energy.forward(mag, dur)  # [T, ]
+        p = pitch.forward(wav, mel.shape[1], dur)  # [T, ] T = Number of frames
         id = os.path.basename(wavpath).split(".")[0]
+
         np.save("{}/{}.npy".format(mel_path, id), mel.numpy(), allow_pickle=False)
         np.save("{}/{}.npy".format(energy_path, id), e.numpy(), allow_pickle=False)
         np.save("{}/{}.npy".format(pitch_path, id), p, allow_pickle=False)
+
+
+def main(args, hp):
+    print("Preprocess Training dataset :")
+    preprocess(args, hp, hp.data.train_filelist)
+    print("Preprocess Validation dataset :")
+    preprocess(args, hp, hp.data.valid_filelist)
 
 
 if __name__ == "__main__":

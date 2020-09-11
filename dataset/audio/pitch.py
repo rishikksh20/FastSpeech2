@@ -34,7 +34,7 @@ class Dio():
             fs: int = 22050,
             n_fft: int = 1024,
             hop_length: int = 256,
-            f0min: Optional[int] = 70,
+            f0min: Optional[int] = 71,
             f0max: Optional[int] = 400,
             use_token_averaged_f0: bool = True,
             use_continuous_f0: bool = True,
@@ -72,7 +72,6 @@ class Dio():
             input: torch.Tensor,
             feats_lengths: torch.Tensor = None,
             durations: torch.Tensor = None,
-            durations_lengths: torch.Tensor = None,
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         # If not provide, we assume that the inputs have the same length
         # F0 extraction
@@ -92,7 +91,7 @@ class Dio():
         else:
             pitch_lengths = input.new_tensor([len(p) for p in pitch], dtype=torch.long)
         # Return with the shape (B, T, 1)
-        return pitch.unsqueeze(-1), pitch_lengths
+        return pitch
 
 
     def _calculate_f0(self, input: torch.Tensor) -> torch.Tensor:
