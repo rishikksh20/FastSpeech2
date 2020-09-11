@@ -1,5 +1,3 @@
-"""Energy extractor."""
-
 from typing import Any
 from typing import Dict
 from typing import Optional
@@ -9,10 +7,8 @@ import torch.nn.functional as F
 from typeguard import check_argument_types
 from utils.stft import TacotronSTFT
 
-
 class Energy():
     """Energy extractor."""
-
     def __init__(
         self,
         fs: int= 22050,
@@ -27,7 +23,6 @@ class Energy():
     ):
         assert check_argument_types()
         super().__init__()
-
         self.fs = fs
         self.n_fft = n_fft
         self.hop_length = hop_length
@@ -63,12 +58,9 @@ class Energy():
         mag: torch.Tensor,
         durations: torch.Tensor = None
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-
-
-
         # Domain-conversion: e.g. Stft: time -> time-freq
         #input_stft, energy_lengths = self.stft(input, input_lengths)
-
+        #input mag shape - (h, T)
         energy = torch.norm(mag, dim=0)
 
         # (Optional): Average by duration to calculate token-wise energy
@@ -80,6 +72,7 @@ class Energy():
 
     @staticmethod
     def _average_by_duration(x: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
+        print(d.sum(), len(x))
         assert d.sum() == len(x)
         d_cumsum = F.pad(d.cumsum(dim=0), (1, 0))
         x_avg = [
