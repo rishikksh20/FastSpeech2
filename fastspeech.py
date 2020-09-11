@@ -105,7 +105,7 @@ class FeedForwardTransformer(torch.nn.Module):
                 in_channels=1,
                 out_channels=hp.model.adim,
                 kernel_size=hp.model.energy_embed_kernel_size,
-                padding=(hp.model.energy_embed_kernel_size - 1) // 2,
+                padding= (int(hp.model.energy_embed_kernel_size) - 1)//2,
             ),
             torch.nn.Dropout(hp.model.energy_embed_dropout),
         )
@@ -206,27 +206,32 @@ class FeedForwardTransformer(torch.nn.Module):
 
         # forward duration predictor and length regulator
         d_masks = make_pad_mask(ilens).to(xs.device)
-        p_outs = self.pitch_predictor(hs, d_masks.unsqueeze(-1)) #torch.Size([32, 868])
-        e_outs = self.energy_predictor(hs, d_masks.unsqueeze(-1)) #torch.Size([32, 868])
+        #print(hs.shape,"Shape of Hidden shape")
+        #print(d_masks.shape, "Shape of D mask")
+        p_outs = self.pitch_predictor(hs, d_masks) #torch.Size([32, 868])
+        #print(p_outs.shape,"Shape of Pitch Outs shape")
+        e_outs = self.energy_predictor(hs, d_masks) #torch.Size([32, 868])
+        #print(e_outs.shape,"Shape of Energy Outs shape")
 
         if is_inference:
             d_outs = self.duration_predictor.inference(hs, d_masks)  # (B, Tmax)
-            p_embs = self.pitch_embed(p_outs.transpose(1, 2)).transpose(1, 2) # (B, Tmax, adim)
-            e_embs = self.energy_embed(e_outs.transpose(1, 2)).transpose(1, 2) # (B, Tmax, adim)
+            p_embs = self.pitch_embed(p_outs.unsqueeze(1)).transpose(1, 2) # (B, Tmax, adim) .transpose(1, 2)
+            e_embs = self.energy_embed(e_outs.unsqueeze(1)).transpose(1, 2) # (B, Tmax, adim) .transpose(1, 2)
             hs = hs + e_embs + p_embs
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
         else:
             with torch.no_grad():
-                p_embs = self.pitch_embed(ps.transpose(1, 2)).transpose(1, 2) # (B, Tmax, adim)   torch.Size([32, 121, 256])
-                e_embs = self.energy_embed(es.transpose(1, 2)).transpose(1, 2) # (B, Tmax, adim)   torch.Size([32, 121, 256])
+                p_embs = self.pitch_embed(ps).transpose(1, 2) # (B, Tmax, adim)   torch.Size([32, 121, 256]) .transpose(1, 2)
+                e_embs = self.energy_embed(es).transpose(1, 2) # (B, Tmax, adim)   torch.Size([32, 121, 256]) .transpose(1, 2)
 
             d_outs = self.duration_predictor(hs, d_masks)  # (B, Tmax)
             # print("d_outs:", d_outs.shape)      #  torch.Size([32, 121])
             mel_masks = make_pad_mask(olens).to(xs.device)
+            #print(hs.shape, p_embs.shape, e_embs.shape  )
             hs = hs + p_embs + e_embs  # (B, Lmax, adim)
             # print("Before Hs:", hs.shape)  # torch.Size([32, 121, 256])
             hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
-
+        #print(es.shape, "Shape of es in _forward")
 
         # forward decoder
         if olens is not None:
@@ -273,6 +278,7 @@ class FeedForwardTransformer(torch.nn.Module):
         Returns:
             Tensor: Loss value.
         """
+        #print(es.shape, "shape ES")
         # remove unnecessary padded part (for multi-gpus)
         xs = xs[:, : max(ilens)]  # torch.Size([32, 121]) -> [B, Tmax]
         ys = ys[:, : max(olens)]  # torch.Size([32, 868, 80]) -> [B, Lmax, odim]
@@ -296,10 +302,12 @@ class FeedForwardTransformer(torch.nn.Module):
             out_masks = make_non_pad_mask(olens).unsqueeze(-1).to(ys.device)
             mel_masks = make_non_pad_mask(olens).to(ys.device)
             before_outs = before_outs.masked_select(out_masks)
-            es = es.masked_select(mel_masks)  # Write size
-            ps = ps.masked_select(mel_masks)  # Write size
-            e_outs = e_outs.masked_select(mel_masks)  # Write size
-            p_outs = p_outs.masked_select(mel_masks)  # Write size
+            #print(es.shape, "shape ES")
+            es = es.squeeze(1).masked_select(in_masks)  # Write size
+            ps = ps.squeeze(1).masked_select(in_masks)  # Write size
+            #print(e_outs.shape, "shape Eot")
+            e_outs = e_outs.masked_select(in_masks)  # Write size
+            p_outs = p_outs.masked_select(in_masks)  # Write size
             after_outs = (
                 after_outs.masked_select(out_masks) if after_outs is not None else None
             )
@@ -312,6 +320,7 @@ class FeedForwardTransformer(torch.nn.Module):
             after_loss = self.criterion(after_outs, ys)
             l1_loss = before_loss + after_loss
         duration_loss = self.duration_criterion(d_outs, ds)
+        #print(e_outs.shape, es.shape)
         energy_loss = self.energy_criterion(e_outs, es)
         pitch_loss = self.pitch_criterion(p_outs, ps)
 
