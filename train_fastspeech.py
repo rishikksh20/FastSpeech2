@@ -96,6 +96,8 @@ def train(args, hp, hp_str, logger, vocoder):
             x, input_length, y, _, out_length, _, dur, e, p = data
             # x : [batch , num_char], input_length : [batch], y : [batch, T_in, num_mel]
             #             # stop_token : [batch, T_in], out_length : [batch]
+            e = e.unsqueeze(1)
+            p = p.unsqueeze(1)
 
             loss, report_dict = model(
                 x.cuda(),
@@ -106,7 +108,7 @@ def train(args, hp, hp_str, logger, vocoder):
                 e.cuda(),
                 p.cuda(),
             )
-            loss = loss.mean() / hp.train.accum_grad
+            loss = loss.mean()  #/ hp.train.accum_grad
             running_loss += loss.item()
 
             loss.backward()
@@ -114,8 +116,8 @@ def train(args, hp, hp_str, logger, vocoder):
             # update parameters
             forward_count += 1
             j = j + 1
-            if forward_count != hp.train.accum_grad:
-                continue
+            #if forward_count != hp.train.accum_grad:
+            #    continue
             forward_count = 0
             step = global_step
 
@@ -150,6 +152,7 @@ def train(args, hp, hp_str, logger, vocoder):
                 for valid in validloader:
                     x_, input_length_, y_, _, out_length_, ids_, dur_, e_, p_ = valid
                     model.eval()
+                    
                     with torch.no_grad():
                         loss_, report_dict_ = model(
                             x_.cuda(),
@@ -157,8 +160,8 @@ def train(args, hp, hp_str, logger, vocoder):
                             y_.cuda(),
                             out_length_.cuda(),
                             dur_.cuda(),
-                            e_.cuda(),
-                            p_.cuda(),
+                            e_.cuda().unsqueeze(1),
+                            p_.cuda().unsqueeze(1),
                         )
 
                         mels_ = model.inference(x_[-1].cuda())  # [T, num_mel]
