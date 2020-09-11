@@ -96,7 +96,7 @@ class Dio():
 
     def _calculate_f0(self, input: torch.Tensor) -> torch.Tensor:
         x = input.cpu().numpy().astype(np.double)
-        print(self.frame_period)
+        #print(self.frame_period)
         f0, timeaxis = pyworld.dio(
             x,
             self.fs,
@@ -145,7 +145,7 @@ class Dio():
 
     @staticmethod
     def _average_by_duration(x: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
-        print(d.sum(), len(x))
+        #print(d.sum(), len(x))
         assert d.sum() == len(x)
         d_cumsum = F.pad(d.cumsum(dim=0), (1, 0))
         x_avg = [
