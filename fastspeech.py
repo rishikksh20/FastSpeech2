@@ -92,9 +92,9 @@ class FeedForwardTransformer(torch.nn.Module):
 
         self.energy_predictor = EnergyPredictor(
             idim=hp.model.adim,
-            n_layers=hp.model.duration_predictor_layers,
+            n_layers=5,
             n_chans=hp.model.duration_predictor_chans,
-            kernel_size=hp.model.duration_predictor_kernel_size,
+            kernel_size=5,
             dropout_rate=hp.model.duration_predictor_dropout_rate,
             min=hp.data.e_min,
             max=hp.data.e_max,
@@ -208,9 +208,9 @@ class FeedForwardTransformer(torch.nn.Module):
         d_masks = make_pad_mask(ilens).to(xs.device)
         #print(hs.shape,"Shape of Hidden shape")
         #print(d_masks.shape, "Shape of D mask")
-        p_outs = self.pitch_predictor(hs, d_masks) #torch.Size([32, 868])
+        p_outs = self.pitch_predictor(hs.detach(), d_masks) #torch.Size([32, 868])
         #print(p_outs.shape,"Shape of Pitch Outs shape")
-        e_outs = self.energy_predictor(hs, d_masks) #torch.Size([32, 868])
+        e_outs = self.energy_predictor(hs.detach(), d_masks) #torch.Size([32, 868])
         #print(e_outs.shape,"Shape of Energy Outs shape")
 
         if is_inference:

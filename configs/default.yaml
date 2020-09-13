@@ -95,10 +95,10 @@ model:
   guided_attn_loss_lambda: 1.0
 
   ### FastSpeech
-  energy_embed_kernel_size: 9
-  energy_embed_dropout: 0.5
-  pitch_embed_kernel_size: 9
-  pitch_embed_dropout: 0.5
+  energy_embed_kernel_size: 1
+  energy_embed_dropout: 0.0
+  pitch_embed_kernel_size: 1
+  pitch_embed_dropout: 0.0
   duration_predictor_layers : 2
   duration_predictor_chans : 256
   duration_predictor_kernel_size : 3
@@ -114,7 +114,7 @@ train:
   # optimization related
   eos: False #True
   opt: 'noam'
-  accum_grad: 4
+  accum_grad: 1
   grad_clip: 1.0
   weight_decay: 0.001
   patience: 0
@@ -130,13 +130,13 @@ train:
   seed: 1       # random seed number
   resume: ""    # the snapshot path to resume (if set empty, no effect)
   use_phonemes: True
-  batch_size : 16
+  batch_size : 48
   # other
   melgan_vocoder : True
   save_interval : 1000
   chkpt_dir : './checkpoints'
   log_dir : './logs'
   summary_interval : 200
-  validation_step : 500
+  validation_step : 1000
   tts_max_mel_len : 870              # if you have a couple of extremely long spectrograms you might want to use this
   tts_bin_lengths : True              # bins the spectrogram lengths before sampling in data loader - speeds up training

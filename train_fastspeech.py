@@ -152,7 +152,7 @@ def train(args, hp, hp_str, logger, vocoder):
                 for valid in validloader:
                     x_, input_length_, y_, _, out_length_, ids_, dur_, e_, p_ = valid
                     model.eval()
-                    
+
                     with torch.no_grad():
                         loss_, report_dict_ = model(
                             x_.cuda(),
@@ -210,8 +210,8 @@ def train(args, hp, hp_str, logger, vocoder):
                     )
 
                     _, target = read_wav_np(
-                        hp.data.wav_dir + f"{ids_[-1]}.wav",
-                        sample_rate=hp.audio.sample_rate,
+                        hp.data.wav_dir + f'{ids_[-1]}.wav' ,
+                        sample_rate=hp.audio.sample_rate ,
                     )
 
                     writer.add_audio(
@@ -223,10 +223,10 @@ def train(args, hp, hp_str, logger, vocoder):
 
                 ##
             if step % hp.train.save_interval == 0:
-                avg_p, avg_e, avg_d = evaluate(hp, validloader, model)
-                writer.add_scalar("evaluation/Pitch_Loss", avg_p, step)
-                writer.add_scalar("evaluation/Energy_Loss", avg_e, step)
-                writer.add_scalar("evaluation/Dur_Loss", avg_d, step)
+                # avg_p, avg_e, avg_d = evaluate(hp, validloader, model)
+                # writer.add_scalar("evaluation/Pitch_Loss", avg_p, step)
+                # writer.add_scalar("evaluation/Energy_Loss", avg_e, step)
+                # writer.add_scalar("evaluation/Dur_Loss", avg_d, step)
                 save_path = os.path.join(
                     hp.train.chkpt_dir,
                     args.name,

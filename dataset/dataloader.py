@@ -115,7 +115,7 @@ def collate_tts(batch):
     # scale spectrograms to -4 <--> 4
     # mels = (mels * 8.) - 4
 
-    return inputs, ilens, mels, labels, olens, ids, durations, energys, pitches
+    return inputs, ilens, mels, labels, olens, ids, durations, energys.unsqueeze(-1), pitches.unsqueeze(-1)
 
 
 class BinnedLengthSampler(Sampler):
