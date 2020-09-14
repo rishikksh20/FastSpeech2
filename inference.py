@@ -9,7 +9,7 @@ from utils.util import set_deterministic_pytorch
 from fastspeech import FeedForwardTransformer
 from dataset.texts import phonemes_to_sequence
 import time
-from dataset.audio_processing import griffin_lim
+from dataset.audio.audio_processing import griffin_lim
 import numpy as np
 from utils.stft import STFT
 from scipy.io.wavfile import write
@@ -18,6 +18,7 @@ from utils.hparams import HParam, load_hparam_str
 from dataset.texts.cleaners import english_cleaners, punctuation_removers
 import matplotlib.pyplot as plt
 from g2p_en import G2p
+import time
 
 
 def synthesis(args, text, hp):
@@ -92,7 +93,7 @@ def preprocess(text):
  
     phonemes = ["" if x == " " else x for x in phonemes]
     phonemes = ["pau" if x == "," else x for x in phonemes]
-    phonemes = ["pau" if x == "." else x for x in phonemes]
+    phonemes = ["sil" if x == "." else x for x in phonemes]
     phonemes = str1.join(phonemes)
 
     return phonemes
@@ -132,6 +133,7 @@ def synth(text, model, hp):
 
 def main(args):
     """Run deocding."""
+    start_time = time.time()
     para_mel = []
     parser = get_parser()
     args = parser.parse_args(args)
@@ -171,13 +173,39 @@ def main(args):
         txt = preprocess(text[i])
         audio = synth(txt, model, hp)
         m = audio.T
+        np.save(f"{args.out}/mel_{i}.npy", m.cpu().numpy())
         para_mel.append(m)
-
+        
+    mel_time = time.time() - start_time
+    print(f"text to mel took {mel_time} seconds")
+    
     m = torch.cat(para_mel, dim=1)
     np.save("mel.npy", m.cpu().numpy())
     plot_mel(m)
 
-    if hp.train.melgan_vocoder:
+    if args.vocoder == 1:	
+        print("Using WaveGlow Vocoder")	
+        m = m.unsqueeze(0)	
+        print("Mel shape: ", m.shape)	
+        waveglow = torch.hub.load('nvidia/DeepLearningExamples:torchhub', 'nvidia_waveglow')	
+        waveglow = waveglow.remove_weightnorm(waveglow)	
+        vocoder = waveglow.to('cuda')	
+        #vocoder = torch.hub.load("seungwonpark/melgan", "melgan")	
+        vocoder.eval()	
+        if torch.cuda.is_available():	
+            vocoder = vocoder.cuda()	
+            mel = m.cuda()	
+        with torch.no_grad():	
+            wav = vocoder.infer(	
+                mel	
+            )  # mel ---> batch, num_mels, frames [1, 80, 234]	
+            wav = wav.cpu().float().numpy()	
+        save_path = "{}/test_tts_waveglow.wav".format(args.out)	
+        print(wav.shape)	
+        write(save_path, hp.audio.sample_rate, wav.T)	
+            	
+    if args.vocoder == 0:	
+        print("Using MelGan Vocoder")
         m = m.unsqueeze(0)
         print("Mel shape: ", m.shape)
         vocoder = torch.hub.load("seungwonpark/melgan", "melgan")
@@ -191,15 +219,12 @@ def main(args):
                 mel
             )  # mel ---> batch, num_mels, frames [1, 80, 234]
             wav = wav.cpu().float().numpy()
-    else:
-        stft = STFT(filter_length=1024, hop_length=256, win_length=1024)
-        print(m.size())
-        m = m.unsqueeze(0)
-        wav = griffin_lim(m, stft, 30)
-        wav = wav.cpu().numpy()
-    save_path = "{}/test_tts.wav".format(args.out)
-    write(save_path, hp.audio.sample_rate, wav.astype("int16"))
-
+        save_path = "{}/test_tts_melgan.wav".format(args.out)	
+        write(save_path, hp.audio.sample_rate, wav.astype("int16"))
+    vocoder_time = time.time() - mel_time
+    
+    print(f"The vocoder took {vocoder_time}")
+    print(f"The total time taken for End to End synthesis is {vocoder_time + mel_time} seconds")
 
 # NOTE: you need this func to generate our sphinx doc
 def get_parser():
@@ -232,6 +257,7 @@ def get_parser():
     parser.add_argument(
         "--pad", default=2, type=int, help="padd value at the end of each sentence"
     )
+    parser.add_argument("-v", "--vocoder", type = int, required = True, help = "0: Melgan, 1: WaveGlow")
     return parser
 
 
