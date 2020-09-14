@@ -92,7 +92,6 @@ def train(args, hp, hp_str, logger, vocoder):
 
         pbar = tqdm.tqdm(dataloader, desc="Loading train data")
         for data in pbar:
-            valid_loss_dict = {}
             global_step += 1
             x, input_length, y, _, out_length, _, dur, e, p = data
             # x : [batch , num_char], input_length : [batch], y : [batch, T_in, num_mel]
@@ -147,7 +146,7 @@ def train(args, hp, hp_str, logger, vocoder):
                             writer.add_scalar("main/{}".format(k), v, step)
 
             if step % hp.train.validation_step == 0:
-
+                valid_loss_dict = {}
                 for valid in validloader:
                     x_, input_length_, y_, _, out_length_, ids_, dur_, e_, p_ = valid
                     model.eval()
@@ -172,8 +171,12 @@ def train(args, hp, hp_str, logger, vocoder):
                                     v = v.get()
                                 if "cupy" in str(type(k)):
                                     k = k.get()
-                                writer.add_scalar("validation/{}".format(k), v, step)
-
+                                if k in valid_loss_dict.keys():
+                                    cache = valid_loss_dict[k]
+                                    valid_loss_dict[k] = v + cache
+                                if k not in valid_loss_dict.keys():
+                                    valid_loss_dict.update({k:v})
+                                    
                     mels_ = mels_.T  # Out: [num_mels, T]
                     writer.add_image(
                         "melspectrogram_target_{}".format(ids_[-1]),
@@ -218,6 +221,11 @@ def train(args, hp, hp_str, logger, vocoder):
                         global_step=step,
                         sample_rate=hp.audio.sample_rate,
                     )
+                for key, val in valid_loss_dict.items():
+                    if key is not None and val is not None:
+                        writer.add_scalar("validation/{}".format(key), val/len(valid), step)
+
+
 
                 ##
             if step % hp.train.save_interval == 0:
