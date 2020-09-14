@@ -92,6 +92,7 @@ def train(args, hp, hp_str, logger, vocoder):
 
         pbar = tqdm.tqdm(dataloader, desc="Loading train data")
         for data in pbar:
+            valid_loss_dict = {}
             global_step += 1
             x, input_length, y, _, out_length, _, dur, e, p = data
             # x : [batch , num_char], input_length : [batch], y : [batch, T_in, num_mel]
