@@ -100,13 +100,17 @@ def preprocess(text):
 
 
 def process_paragraph(para):
-    # input - paragraph with lines seperated by "."
+    # input - paragraph with lines seperated by "." the para should end with a full stop.
+    # input can have multiple spaces in between
+    # can have puncuations, special characters
     # output - list with each item as lines of paragraph seperated by suitable padding
+    # 
     text = []
     for lines in para.split("."):
-        text.append(lines)
-
-    return text
+        lines = " ".join(lines.split())
+        text.append(lines.strip() + ".")
+    
+    return text[:-1]
 
 
 def synth(text, model, hp):
