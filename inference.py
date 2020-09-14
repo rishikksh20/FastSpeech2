@@ -83,6 +83,7 @@ def plot_mel(mels):
     plt.savefig("mel.png")
 
 def punctuation_removers(text):
+    
     no_punct = ""
     for char in text:
         if char not in punctuations:
