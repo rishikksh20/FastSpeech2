@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 from g2p_en import G2p
 import time
 
+punctuations = '''!()[]{};:'"\<>./?@#^&_~'''
 
 def synthesis(args, text, hp):
     """Decode with E2E-TTS model."""
@@ -81,6 +82,12 @@ def plot_mel(mels):
     plt.imshow(melspec.detach().cpu()[0], aspect="auto", origin="lower")
     plt.savefig("mel.png")
 
+def punctuation_removers(text):
+    no_punct = ""
+    for char in text:
+        if char not in punctuations:
+            no_punct = no_punct + char
+    return no_punct
 
 def preprocess(text):
 
@@ -108,6 +115,7 @@ def process_paragraph(para):
     text = []
     for lines in para.split("."):
         lines = " ".join(lines.split())
+        lines = punctuation_removers(lines)
         text.append(lines.strip() + ".")
     
     return text[:-1]
