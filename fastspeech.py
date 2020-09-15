@@ -385,3 +385,104 @@ class FeedForwardTransformer(torch.nn.Module):
         if self.use_scaled_pos_enc:
             self.encoder.embed[-1].alpha.data = torch.tensor(init_enc_alpha)
             self.decoder.embed[-1].alpha.data = torch.tensor(init_dec_alpha)
+
+    def _forward_m(
+        self,
+        xs: torch.Tensor,
+        ilens: torch.Tensor,
+        olens: torch.Tensor = None,
+        ds: torch.Tensor = None,
+        es: torch.Tensor = None,
+        ps: torch.Tensor = None,
+        is_inference: bool = False,
+        pau_index = None
+    ) -> Sequence[torch.Tensor]:
+        # forward encoder
+        x_masks = self._source_mask(
+            ilens
+        )  # (B, Tmax, Tmax) -> torch.Size([32, 121, 121])
+
+        hs, _ = self.encoder(
+            xs, x_masks
+        )  # (B, Tmax, adim) -> torch.Size([32, 121, 256])
+        # print("ys :", ys.shape)
+
+        # forward duration predictor and length regulator
+        d_masks = make_pad_mask(ilens).to(xs.device)
+
+        if is_inference:
+            d_outs = self.duration_predictor.inference(hs, d_masks)  # (B, Tmax)
+            print(d_outs, "duration for each symbol")
+            for ind in pau_index:
+                d_outs[:,ind] = 4        #change the frame duration for pau here.
+                print(d_outs[:,ind], f"pau length predicted for pau at index {ind}")
+            hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
+            one_hot_energy = self.energy_predictor.inference(hs)  # (B, Lmax, adim)
+            one_hot_pitch = self.pitch_predictor.inference(hs)  # (B, Lmax, adim)
+        else:
+            with torch.no_grad():
+                # ds = self.duration_calculator(xs, ilens, ys, olens)  # (B, Tmax)
+                one_hot_energy = self.energy_predictor.to_one_hot(
+                    es
+                )  # (B, Lmax, adim)   torch.Size([32, 868, 256])
+                # print("one_hot_energy:", one_hot_energy.shape)
+                one_hot_pitch = self.pitch_predictor.to_one_hot(
+                    ps
+                )  # (B, Lmax, adim)   torch.Size([32, 868, 256])
+                # print("one_hot_pitch:", one_hot_pitch.shape)
+            mel_masks = make_pad_mask(olens).to(xs.device)
+            # print("Before Hs:", hs.shape)  # torch.Size([32, 121, 256])
+            d_outs = self.duration_predictor(hs, d_masks)  # (B, Tmax)
+            # print("d_outs:", d_outs.shape)      #  torch.Size([32, 121])
+            hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
+            # print("After Hs:",hs.shape)  #torch.Size([32, 868, 256])
+            e_outs = self.energy_predictor(hs, mel_masks)
+            # print("e_outs:", e_outs.shape)  #torch.Size([32, 868])
+            p_outs = self.pitch_predictor(hs, mel_masks)
+            # print("p_outs:", p_outs.shape)   #torch.Size([32, 868])
+        hs = hs + self.pitch_embed(one_hot_pitch)  # (B, Lmax, adim)
+        hs = hs + self.energy_embed(one_hot_energy)  # (B, Lmax, adim)
+        # forward decoder
+        if olens is not None:
+            h_masks = self._source_mask(olens)
+        else:
+            h_masks = None
+
+        zs, _ = self.decoder(hs, h_masks)  # (B, Lmax, adim)
+        before_outs = self.feat_out(zs).view(
+            zs.size(0), -1, self.odim
+        )  # (B, Lmax, odim)
+
+        # postnet -> (B, Lmax//r * r, odim)
+        if self.postnet is None:
+            after_outs = before_outs
+        else:
+            after_outs = before_outs + self.postnet(
+                before_outs.transpose(1, 2)
+            ).transpose(1, 2)
+
+        if is_inference:
+            return before_outs, after_outs, d_outs
+        else:
+            return before_outs, after_outs, d_outs, e_outs, p_outs
+
+    def inference_m(self, x: torch.Tensor, pau_index) -> torch.Tensor:
+        """Generate the sequence of features given the sequences of characters.
+        Args:
+            x (Tensor): Input sequence of characters (T,).
+            inference_args (Namespace): Dummy for compatibility.
+            spemb (Tensor, optional): Speaker embedding vector (spk_embed_dim).
+        Returns:
+            Tensor: Output sequence of features (1, L, odim).
+            None: Dummy for compatibility.
+            None: Dummy for compatibility.
+        """
+        # setup batch axis
+        ilens = torch.tensor([x.shape[0]], dtype=torch.long, device=x.device)
+        xs = x.unsqueeze(0)
+
+        # inference
+        _, outs, _ = self._forward_m(xs, ilens, is_inference=True, pau_index = pau_index)  # (L, odim)
+
+        return outs[0]
+
