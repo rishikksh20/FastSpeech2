@@ -88,14 +88,19 @@ def preprocess(text):
     str1 = " "
     clean_content = english_cleaners(text)
     clean_content = punctuation_removers(clean_content)
-    phonemes = g2p(clean_content)
- 
+    phonemes = g2p_m(clean_content)
+    pau_index = []
     phonemes = ["" if x == " " else x for x in phonemes]
     phonemes = ["pau" if x == "," else x for x in phonemes]
     phonemes = ["pau" if x == "." else x for x in phonemes]
+    phonemes.append("sil")
     phonemes = str1.join(phonemes)
-
-    return phonemes
+    print(phonemes.split(), "Input Phonemes")
+    for ind in range(0, len(phonemes.split())):
+        if phonemes.split()[ind] == "pau":
+            pau_index.append(ind)
+    #print(pau_index, "pau_index")
+    return phonemes, pau_index
 
 
 def process_paragraph(para):
@@ -107,8 +112,22 @@ def process_paragraph(para):
 
     return text
 
+def g2p_m(input_sentence, sp_char="*"):
+    input_phonemes = []
+    pau_index = []
+    words = input_sentence.split()
+    for word in words:
+        if word == sp_char:
+            phon = "pau"
+            input_phonemes.append(phon)
+        else:
+            phon = g2p(word)
+            for ph in phon:
+                input_phonemes.append(ph)
+    return input_phonemes
 
-def synth(text, model, hp):
+
+def synth(text, model, hp, pau_index):
     """Decode with E2E-TTS model."""
 
     print("TTS synthesis")
@@ -117,15 +136,18 @@ def synth(text, model, hp):
     # set torch device
     device = torch.device("cuda" if hp.train.ngpu > 0 else "cpu")
     model = model.to(device)
+    #print(len(text.split()), "INput Text before passing to phonemenes to sequence")
 
     input = np.asarray(phonemes_to_sequence(text))
+    #print(len(input), "Input")
 
     text = torch.LongTensor(input)
     text = text.to(device)
 
     with torch.no_grad():
         print("predicting")
-        outs = model.inference(text)  # model(text) for jit script
+        #print(text,"input text")
+        outs = model.inference_m(text, pau_index)  # model(text) for jit script
         mel = outs
     return mel
 
@@ -168,8 +190,8 @@ def main(args):
     text = process_paragraph(args.text)
 
     for i in range(0, len(text)):
-        txt = preprocess(text[i])
-        audio = synth(txt, model, hp)
+        txt, pau_index = preprocess(text[i])
+        audio = synth(txt, model, hp, pau_index)
         m = audio.T
         para_mel.append(m)
 
@@ -177,7 +199,30 @@ def main(args):
     np.save("mel.npy", m.cpu().numpy())
     plot_mel(m)
 
-    if hp.train.melgan_vocoder:
+    if args.vocoder == 1:
+        print("Using WaveGlow Vocoder")
+        m = m.unsqueeze(0)
+        print("Mel shape: ", m.shape)
+        waveglow = torch.hub.load('nvidia/DeepLearningExamples:torchhub', 'nvidia_waveglow')
+        waveglow = waveglow.remove_weightnorm(waveglow)
+        vocoder = waveglow.to('cuda')
+        #vocoder = torch.hub.load("seungwonpark/melgan", "melgan")
+        vocoder.eval()
+        if torch.cuda.is_available():
+            vocoder = vocoder.cuda()
+            mel = m.cuda()
+
+        with torch.no_grad():
+            wav = vocoder.infer(
+                mel
+            )  # mel ---> batch, num_mels, frames [1, 80, 234]
+            wav = wav.cpu().float().numpy()
+        save_path = "{}/test_tts_waveglow.wav".format(args.out)
+        print(wav.shape)
+        write(save_path, hp.audio.sample_rate, wav.T)
+            
+    if args.vocoder == 0:
+        print("Using MelGan Vocoder")
         m = m.unsqueeze(0)
         print("Mel shape: ", m.shape)
         vocoder = torch.hub.load("seungwonpark/melgan", "melgan")
@@ -191,16 +236,19 @@ def main(args):
                 mel
             )  # mel ---> batch, num_mels, frames [1, 80, 234]
             wav = wav.cpu().float().numpy()
-    else:
-        stft = STFT(filter_length=1024, hop_length=256, win_length=1024)
-        print(m.size())
-        m = m.unsqueeze(0)
-        wav = griffin_lim(m, stft, 30)
-        wav = wav.cpu().numpy()
-    save_path = "{}/test_tts.wav".format(args.out)
-    write(save_path, hp.audio.sample_rate, wav.astype("int16"))
-
-
+        save_path = "{}/test_tts_melgan.wav".format(args.out)
+        write(save_path, hp.audio.sample_rate, wav.astype("int16"))
+        
+    #else:
+     #   stft = STFT(filter_length=1024, hop_length=256, win_length=1024)
+    #    print(m.size())
+    #    m = m.unsqueeze(0)
+    #    wav = griffin_lim(m, stft, 30)
+    #    wav = wav[0].data.cpu().numpy()
+    #save_path = "{}/test_tts_waveglow.wav".format(args.out)
+    #print(wav.shape)
+    #write(save_path, hp.audio.sample_rate, wav.T) #astype("int16"))
+    
 # NOTE: you need this func to generate our sphinx doc
 def get_parser():
     """Get parser of decoding arguments."""
@@ -230,8 +278,10 @@ def get_parser():
         "--text", type=str, required=True, help="Filename of train label data (json)"
     )
     parser.add_argument(
-        "--pad", default=2, type=int, help="padd value at the end of each sentence"
+        "--pad", default=0, type=int, help="padd value at the end of each sentence"
     )
+    parser.add_argument("-v", "--vocoder", type = int, required = True, help = "0: Melgan, 1: WaveGlow")
+    
     return parser
 
 
