@@ -211,12 +211,12 @@ class FeedForwardTransformer(torch.nn.Module):
             # print("d_outs:", d_outs.shape)      #  torch.Size([32, 121])
             hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
             # print("After Hs:",hs.shape)  #torch.Size([32, 868, 256])
-            e_outs = self.energy_predictor(hs, mel_masks)
+            e_outs = self.energy_predictor(hs.detach(), mel_masks)
             # print("e_outs:", e_outs.shape)  #torch.Size([32, 868])
-            p_outs = self.pitch_predictor(hs, mel_masks)
+            p_outs = self.pitch_predictor(hs.detach(), mel_masks)
             # print("p_outs:", p_outs.shape)   #torch.Size([32, 868])
-        hs = hs + self.pitch_embed(one_hot_pitch)  # (B, Lmax, adim)
-        hs = hs + self.energy_embed(one_hot_energy)  # (B, Lmax, adim)
+        hs = hs + one_hot_pitch + one_hot_energy # self.pitch_embed(one_hot_pitch)   (B, Lmax, adim)
+        #hs = hs + self.energy_embed(one_hot_energy)  # (B, Lmax, adim)
         # forward decoder
         if olens is not None:
             h_masks = self._source_mask(olens)
