@@ -80,7 +80,16 @@ def plot_mel(mels):
     melspec = mels.reshape(1, 80, -1)
     plt.imshow(melspec.detach().cpu()[0], aspect="auto", origin="lower")
     plt.savefig("mel.png")
-
+    
+    
+def expand_capital(text):
+    #input text is after clean up of punctuation removers
+    for words in text.split():
+        if words.isupper():
+            w =  " ".join(words)
+            text = text.replace(words, w)
+    return text
+    
 def punctuation_removers(text):
     
     no_punct = ""
@@ -95,6 +104,7 @@ def preprocess(text):
     # output - list of phonemes
     str1 = " "
     clean_content = english_cleaners(text)
+    clean_content = expand_capital(clean_content)
     phonemes = g2p_m(clean_content)
     pau_index = []
     phonemes = ["" if x == " " else x for x in phonemes]
@@ -114,15 +124,17 @@ def process_paragraph(para):
     # input - paragraph with lines seperated by "." the para should end with a full stop.
     # input can have multiple spaces in between
     # can have puncuations, special characters
-    # output - list with each item as lines of paragraph seperated by suitable padding
+    # output - list with each item as lines of paragraph seperated by suitable padding. Omits empty lines
     # 
     text = []
     for lines in para.split("."):
-        lines = " ".join(lines.split())
-        lines = punctuation_removers(lines)
-        text.append(lines.strip() + ".")
-    
-    return text[:-1]
+        if lines == "":
+            continue
+        else:
+            lines = " ".join(lines.split())
+            lines = punctuation_removers(lines)
+            text.append(lines.strip() + ".")
+    return text
 
 def g2p_m(input_sentence, sp_char="*"):
     input_phonemes = []
