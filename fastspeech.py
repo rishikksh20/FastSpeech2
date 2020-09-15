@@ -215,6 +215,8 @@ class FeedForwardTransformer(torch.nn.Module):
 
         if is_inference:
             d_outs = self.duration_predictor.inference(hs, d_masks)  # (B, Tmax)
+            p_outs = self.pitch_predictor.inference(hs.detach(), alpha = 1.0)
+            e_outs = self.energy_predictor.inference(hs.detach(), alpha = 0.2)
             p_embs = self.pitch_embed(p_outs.unsqueeze(1)).transpose(1, 2) # (B, Tmax, adim) .transpose(1, 2)
             e_embs = self.energy_embed(e_outs.unsqueeze(1)).transpose(1, 2) # (B, Tmax, adim) .transpose(1, 2)
             hs = hs + e_embs + p_embs
