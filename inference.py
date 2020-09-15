@@ -111,15 +111,17 @@ def process_paragraph(para):
     # input - paragraph with lines seperated by "." the para should end with a full stop.
     # input can have multiple spaces in between
     # can have puncuations, special characters
-    # output - list with each item as lines of paragraph seperated by suitable padding
+    # output - list with each item as lines of paragraph seperated by suitable padding. Omits empty lines
     # 
     text = []
     for lines in para.split("."):
-        lines = " ".join(lines.split())
-        lines = punctuation_removers(lines)
-        text.append(lines.strip() + ".")
-    
-    return text[:-1]
+        if lines == "":
+            continue
+        else:
+            lines = " ".join(lines.split())
+            lines = punctuation_removers(lines)
+            text.append(lines.strip() + ".")
+    return text
 
 
 def synth(text, model, hp):
