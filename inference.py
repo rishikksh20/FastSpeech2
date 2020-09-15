@@ -19,6 +19,7 @@ from dataset.texts.cleaners import english_cleaners, punctuation_removers
 import matplotlib.pyplot as plt
 from g2p_en import G2p
 
+punctuations = '''!()[]{};:'"\<>./?@#^&_~'''
 
 def synthesis(args, text, hp):
     """Decode with E2E-TTS model."""
@@ -80,6 +81,13 @@ def plot_mel(mels):
     plt.imshow(melspec.detach().cpu()[0], aspect="auto", origin="lower")
     plt.savefig("mel.png")
 
+def punctuation_removers(text):
+    
+    no_punct = ""
+    for char in text:
+        if char not in punctuations:
+            no_punct = no_punct + char
+    return no_punct
 
 def preprocess(text):
 
@@ -87,7 +95,6 @@ def preprocess(text):
     # output - list of phonemes
     str1 = " "
     clean_content = english_cleaners(text)
-    clean_content = punctuation_removers(clean_content)
     phonemes = g2p_m(clean_content)
     pau_index = []
     phonemes = ["" if x == " " else x for x in phonemes]
@@ -104,13 +111,18 @@ def preprocess(text):
 
 
 def process_paragraph(para):
-    # input - paragraph with lines seperated by "."
+    # input - paragraph with lines seperated by "." the para should end with a full stop.
+    # input can have multiple spaces in between
+    # can have puncuations, special characters
     # output - list with each item as lines of paragraph seperated by suitable padding
+    # 
     text = []
     for lines in para.split("."):
-        text.append(lines)
-
-    return text
+        lines = " ".join(lines.split())
+        lines = punctuation_removers(lines)
+        text.append(lines.strip() + ".")
+    
+    return text[:-1]
 
 def g2p_m(input_sentence, sp_char="*"):
     input_phonemes = []
