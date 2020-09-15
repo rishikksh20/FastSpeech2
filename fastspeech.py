@@ -220,7 +220,7 @@ class FeedForwardTransformer(torch.nn.Module):
             p_embs = self.pitch_embed(p_outs.unsqueeze(1)).transpose(1, 2) # (B, Tmax, adim) .transpose(1, 2)
             e_embs = self.energy_embed(e_outs.unsqueeze(1)).transpose(1, 2) # (B, Tmax, adim) .transpose(1, 2)
             hs = hs + e_embs + p_embs
-            hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
+            hs = self.length_regulator(hs, d_outs, ilens, alpha = 1.0)  # (B, Lmax, adim)
         else:
             with torch.no_grad():
                 p_embs = self.pitch_embed(ps).transpose(1, 2) # (B, Tmax, adim)   torch.Size([32, 121, 256]) .transpose(1, 2)
