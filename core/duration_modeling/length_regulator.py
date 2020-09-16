@@ -64,36 +64,32 @@ class LengthRegulator(torch.nn.Module):
 
         return pad_2d_tensor(xs, 0.0)
 
-    def _repeat_one_sequence(self, x, d):
-        """Repeat each frame according to duration for torch 1.1+."""
-        return torch.repeat_interleave(x, d, dim=0)
+    def _repeat_one_sequence(self, x: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
+        """Repeat each frame according to duration.
 
-    # def _repeat_one_sequence(self, x: torch.Tensor, d: torch.Tensor) -> torch.Tensor:
-    #     """Repeat each frame according to duration.
-    #
-    #     Examples:
-    #         >>> x = torch.tensor([[1], [2], [3]])
-    #         tensor([[1],
-    #                 [2],
-    #                 [3]])
-    #         >>> d = torch.tensor([1, 2, 3])
-    #         tensor([1, 2, 3])
-    #         >>> self._repeat_one_sequence(x, d)
-    #         tensor([[1],
-    #                 [2],
-    #                 [2],
-    #                 [3],
-    #                 [3],
-    #                 [3]])
-    #
-    #     """
-    #     if d.sum() == 0:
-    #         # logging.warn("all of the predicted durations are 0. fill 0 with 1.")
-    #         d = d.fill_(1)
-    #     # return torch.cat([x_.repeat(int(d_), 1) for x_, d_ in zip(x, d) if d_ != 0], dim=0) for torchscript
-    #     out = []
-    #     for x_, d_ in zip(x, d):
-    #         if d_ != 0:
-    #             out.append(x_.repeat(int(d_), 1))
-    #
-    #     return torch.cat(out, dim=0)
+        Examples:
+            >>> x = torch.tensor([[1], [2], [3]])
+            tensor([[1],
+                    [2],
+                    [3]])
+            >>> d = torch.tensor([1, 2, 3])
+            tensor([1, 2, 3])
+            >>> self._repeat_one_sequence(x, d)
+            tensor([[1],
+                    [2],
+                    [2],
+                    [3],
+                    [3],
+                    [3]])
+
+        """
+        if d.sum() == 0:
+            # logging.warn("all of the predicted durations are 0. fill 0 with 1.")
+            d = d.fill_(1)
+        # return torch.cat([x_.repeat(int(d_), 1) for x_, d_ in zip(x, d) if d_ != 0], dim=0) for torchscript
+        out = []
+        for x_, d_ in zip(x, d):
+            if d_ != 0:
+                out.append(x_.repeat(int(d_), 1))
+
+        return torch.cat(out, dim=0)
