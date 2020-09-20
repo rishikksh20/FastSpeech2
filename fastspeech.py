@@ -6,7 +6,6 @@
 
 """FastSpeech related loss."""
 
-import logging
 
 import torch
 from core.duration_modeling.duration_predictor import DurationPredictor
