@@ -21,3 +21,7 @@ idea/*
 /trace_loss_nvidia.txt
 /conf
 /etc
+.ipynb_checkpoints/Untitled-checkpoint.ipynb
+dataset/audio/__pycache__/__init__.cpython-36.pyc
+*.pyc
+Untitled.ipynb
