@@ -59,6 +59,9 @@ class TTSDataset(Dataset):
         p = remove_outlier(
             np.load(f"{self.path}pitch/{id}.npy")
         )  # self._norm_mean_std(np.load(f'{self.path}pitch/{id}.npy'), self.f0_mean, self.f0_std, True)
+        p_avg = np.load(f"{self.path}p_avg/{id}.npy")
+        p_std = np.load(f"{self.path}p_std/{id}.npy")
+        p_cwt_cont = np.load(f"{self.path}p_cwt_coef/{id}.npy")
         mel_len = mel.shape[1]
         durations = durations[: len(x)]
         durations[-1] = durations[-1] + (mel.shape[1] - sum(durations))
@@ -71,6 +74,9 @@ class TTSDataset(Dataset):
             np.array(durations),
             e,
             p,
+            p_avg,
+            p_std,
+            p_cwt_cont
         )  # Mel [T, num_mel]
 
     def __len__(self):
@@ -107,6 +113,13 @@ def collate_tts(batch):
     energys = pad_list([torch.from_numpy(y[5]).float() for y in batch], 0)
     pitches = pad_list([torch.from_numpy(y[6]).float() for y in batch], 0)
 
+    pitches_avg = pad_list([torch.from_numpy(y[7]).float() for y in batch], 0)
+    pitches_std = pad_list([torch.from_numpy(y[8]).float() for y in batch], 0)
+    pitches_contour = pad_list([torch.from_numpy(y[9]).float() for y in batch], 0)
+
+
+
+
     # make labels for stop prediction
     labels = mels.new_zeros(mels.size(0), mels.size(1))
     for i, l in enumerate(olens):
@@ -115,7 +128,7 @@ def collate_tts(batch):
     # scale spectrograms to -4 <--> 4
     # mels = (mels * 8.) - 4
 
-    return inputs, ilens, mels, labels, olens, ids, durations, energys, pitches
+    return inputs, ilens, mels, labels, olens, ids, durations, energys, pitches, pitches_avg, pitches_std, pitches_contour 
 
 
 class BinnedLengthSampler(Sampler):

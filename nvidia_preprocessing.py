@@ -14,7 +14,7 @@ import torch.nn.functional as F
 import pywt
 
 
-def main(data_path, hp, file):
+def preprocess(data_path, hp, file):
     stft = TacotronSTFT(
         filter_length=hp.audio.n_fft,
         hop_length=hp.audio.hop_length,
@@ -56,7 +56,7 @@ def main(data_path, hp, file):
         dur = torch.from_numpy(np.array(dur))
 
         p, avg, std, p_coef = pitch.forward(input_wav, durations = dur)  # shape in order - (T,) (no of utternace, ), (no of utternace, ), (10, T)
-        print(p.shape, avg.shape, std.shape, p_coef.shape)
+        #print(p.shape, avg.shape, std.shape, p_coef.shape)
 
         wav = torch.from_numpy(wav).unsqueeze(0)
         mel, mag = stft.mel_spectrogram(wav)  # mel [1, 80, T]  mag [1, num_mag, T]
@@ -77,9 +77,9 @@ def main(data_path, hp, file):
 
 def main(args, hp):
     print("Preprocess Training dataset :")
-    preprocess(args, hp, hp.data.train_filelist)
+    preprocess(args.data_path, hp, hp.data.train_filelist)
     print("Preprocess Validation dataset :")
-    preprocess(args, hp, hp.data.valid_filelist)
+    preprocess(args.data_path, hp, hp.data.valid_filelist)
 
 
 if __name__ == "__main__":
