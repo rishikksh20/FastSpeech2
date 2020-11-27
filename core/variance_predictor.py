@@ -171,6 +171,7 @@ class PitchPredictor(torch.nn.Module):
         min=0,
         max=0,
         n_bins=256,
+        out=10,
     ):
         """Initilize pitch predictor module.
 
@@ -195,9 +196,29 @@ class PitchPredictor(torch.nn.Module):
                 )
             ),
         )
-        self.predictor = VariancePredictor(idim)
+        self.offset = offset
+        self.conv = torch.nn.ModuleList()
+        for idx in range(n_layers):
+            in_chans = idim if idx == 0 else n_chans
+            self.conv += [
+                torch.nn.Sequential(
+                    torch.nn.Conv1d(
+                        in_chans,
+                        n_chans,
+                        kernel_size,
+                        stride=1,
+                        padding=(kernel_size - 1) // 2,
+                    ),
+                    torch.nn.ReLU(),
+                    LayerNorm(n_chans),
+                    torch.nn.Dropout(dropout_rate),
+                )
+            ]
+        self.spectrogram_out = torch.nn.Linear(n_chans, out)
+        self.mean = torch.nn.Linear(n_chans, 1)
+        self.std = torch.nn.Linear(n_chans, 1)
 
-    def forward(self, xs: torch.Tensor, x_masks: torch.Tensor):
+    def forward(self, xs: torch.Tensor, olens: torch.Tensor, x_masks: torch.Tensor):
         """Calculate forward propagation.
 
         Args:
@@ -208,7 +229,25 @@ class PitchPredictor(torch.nn.Module):
             Tensor: Batch of predicted durations in log domain (B, Tmax).
 
         """
-        return self.predictor(xs, x_masks)
+        xs = xs.transpose(1, -1)  # (B, idim, Tmax)
+        for f in self.conv:
+            xs = f(xs)  # (B, C, Tmax)
+
+        # NOTE: calculate in log domain
+        xs = xs.transpose(1, -1)
+        f0_spec = self.spectrogram_out(xs)  # (B, Tmax, 10)
+
+        if x_masks is not None:
+            f0_spec = f0_spec.masked_fill(x_masks, 0.0)
+            xs = xs.masked_fill(x_masks, 0.0)
+        x_avg = xs.sum(dim=1) / olens
+        f0_mean = self.mean(x_avg).squeeze(-1)
+        f0_std = self.std(x_avg).squeeze(-1)
+
+        if x_masks is not None:
+            f0_spec = f0_spec.masked_fill(x_masks, 0.0)
+
+        return f0_spec, f0_mean, f0_std
 
     def inference(self, xs: torch.Tensor, alpha: float = 1.0):
         """Inference duration.
