@@ -93,7 +93,7 @@ def train(args, hp, hp_str, logger, vocoder):
         pbar = tqdm.tqdm(dataloader, desc="Loading train data")
         for data in pbar:
             global_step += 1
-            x, input_length, y, _, out_length, _, dur, e, p = data
+            x, input_length, y, _, out_length, _, dur, e, p_avg, p_std, p_cwt_cont = data
             # x : [batch , num_char], input_length : [batch], y : [batch, T_in, num_mel]
             #             # stop_token : [batch, T_in], out_length : [batch]
 
@@ -104,7 +104,9 @@ def train(args, hp, hp_str, logger, vocoder):
                 out_length.cuda(),
                 dur.cuda(),
                 e.cuda(),
-                p.cuda(),
+                p_cwt_cont.cuda(),
+                p_avg.cuda(),
+                p_std.cuda()
             )
             loss = loss.mean() / hp.train.accum_grad
             running_loss += loss.item()

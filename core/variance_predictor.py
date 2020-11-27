@@ -260,8 +260,15 @@ class PitchPredictor(torch.nn.Module):
             LongTensor: Batch of predicted durations in linear domain (B, Tmax).
 
         """
-        out = self.predictor.inference(xs, False, alpha=alpha)
-        return self.to_one_hot(out)
+        #### WIP #####
+        xs = xs.transpose(1, -1)  # (B, idim, Tmax)
+        for f in self.conv:
+            xs = f(xs)  # (B, C, Tmax)
+
+        # NOTE: calculate in log domain
+        xs = xs.transpose(1, -1)
+        f0_spec = self.spectrogram_out(xs)  # (B, Tmax, 10)
+        return self.to_one_hot(f0_spec)
 
     def to_one_hot(self, x: torch.Tensor):
         # e = de_norm_mean_std(e, hp.e_mean, hp.e_std)
