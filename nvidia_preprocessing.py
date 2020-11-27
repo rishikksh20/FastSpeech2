@@ -71,7 +71,7 @@ def preprocess(data_path, hp, file):
         np.save("{}/{}.npy".format(pitch_path, id), p, allow_pickle=False)
         np.save("{}/{}.npy".format(pitch_avg_path, id), avg, allow_pickle=False)
         np.save("{}/{}.npy".format(pitch_std_path, id), std, allow_pickle=False)
-        np.save("{}/{}.npy".format(pitch_cwt_coefs, id), p_coef, allow_pickle=False)
+        np.save("{}/{}.npy".format(pitch_cwt_coefs, id), p_coef.reshape(-1,10), allow_pickle=False)
 
 
 

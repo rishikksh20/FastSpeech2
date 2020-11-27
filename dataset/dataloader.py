@@ -117,9 +117,6 @@ def collate_tts(batch):
     pitches_std = pad_list([torch.from_numpy(y[8]).float() for y in batch], 0)
     pitches_contour = pad_list([torch.from_numpy(y[9]).float() for y in batch], 0)
 
-
-
-
     # make labels for stop prediction
     labels = mels.new_zeros(mels.size(0), mels.size(1))
     for i, l in enumerate(olens):
@@ -128,7 +125,7 @@ def collate_tts(batch):
     # scale spectrograms to -4 <--> 4
     # mels = (mels * 8.) - 4
 
-    return inputs, ilens, mels, labels, olens, ids, durations, energys, pitches, pitches_avg, pitches_std, pitches_contour 
+    return inputs, ilens, mels, labels, olens, ids, durations, energys, pitches, pitches_avg, pitches_std, pitches_contour
 
 
 class BinnedLengthSampler(Sampler):
