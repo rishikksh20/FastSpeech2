@@ -56,9 +56,9 @@ class TTSDataset(Dataset):
         e = remove_outlier(
             np.load(f"{self.path}energy/{id}.npy")
         )  # self._norm_mean_std(np.load(f'{self.path}energy/{id}.npy'), self.e_mean, self.e_std, True)
-        # p = remove_outlier(
-        #     np.load(f"{self.path}pitch/{id}.npy")
-        # )  # self._norm_mean_std(np.load(f'{self.path}pitch/{id}.npy'), self.f0_mean, self.f0_std, True)
+        p = remove_outlier(
+            np.load(f"{self.path}pitch/{id}.npy")
+        )  # self._norm_mean_std(np.load(f'{self.path}pitch/{id}.npy'), self.f0_mean, self.f0_std, True)
         p_avg = np.load(f"{self.path}p_avg/{id}.npy")
         p_std = np.load(f"{self.path}p_std/{id}.npy")
         p_cwt_cont = np.load(f"{self.path}p_cwt_coef/{id}.npy")
@@ -73,7 +73,7 @@ class TTSDataset(Dataset):
             mel_len,
             np.array(durations),
             e,
-            #p,
+            p,
             p_avg,
             p_std,
             p_cwt_cont

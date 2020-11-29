@@ -1,6 +1,6 @@
 data:
-  data_dir: '/dataset/LJSpeech/good_file/'
-  wav_dir: '/dataset/LJSpeech/good_file/preprocessed/'
+  data_dir: './data/LJSpeech/good_file/'
+  wav_dir: './data/LJSpeech/good_file/preprocessed/'
   # Compute statistics
   e_mean: 21.578571319580078
   e_std: 18.916799545288086
@@ -46,7 +46,7 @@ model:
   aheads: 2
   elayers: 4
   eunits: 1024
-  ddim: 384
+  ddim: 256
   dlayers: 4
   dunits: 1024
   positionwise_layer_type : "conv1d" # linear

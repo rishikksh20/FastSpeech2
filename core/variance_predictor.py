@@ -238,14 +238,28 @@ class PitchPredictor(torch.nn.Module):
         f0_spec = self.spectrogram_out(xs)  # (B, Tmax, 10)
 
         if x_masks is not None:
+            # print("olen:", olens)
+            #f0_spec = f0_spec.transpose(1, -1)
+            # print("F0 spec dimension:", f0_spec.shape)
+            # print("x_masks dimension:", x_masks.shape)
             f0_spec = f0_spec.masked_fill(x_masks, 0.0)
+            #f0_spec = f0_spec.transpose(1, -1)
+            # print("F0 spec dimension:", f0_spec.shape)
+            #xs = xs.transpose(1, -1)
             xs = xs.masked_fill(x_masks, 0.0)
-        x_avg = xs.sum(dim=1) / olens
+            #xs = xs.transpose(1, -1)
+            # print("xs dimension:", xs.shape)
+        x_avg = xs.sum(dim=1).squeeze(1)
+        # print(x_avg)
+        # print("xs dim :", x_avg.shape)
+        # print("olens ;", olens.shape)
+        x_avg = x_avg / olens.unsqueeze(1)
+        # print(x_avg)
         f0_mean = self.mean(x_avg).squeeze(-1)
         f0_std = self.std(x_avg).squeeze(-1)
 
-        if x_masks is not None:
-            f0_spec = f0_spec.masked_fill(x_masks, 0.0)
+        # if x_masks is not None:
+        #     f0_spec = f0_spec.masked_fill(x_masks, 0.0)
 
         return f0_spec, f0_mean, f0_std
 

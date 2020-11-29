@@ -211,9 +211,10 @@ class FeedForwardTransformer(torch.nn.Module):
             # print("d_outs:", d_outs.shape)      #  torch.Size([32, 121])
             hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
             # print("After Hs:",hs.shape)  #torch.Size([32, 868, 256])
-            e_outs = self.energy_predictor(hs, olens, mel_masks)
+            e_outs = self.energy_predictor(hs, mel_masks)
             # print("e_outs:", e_outs.shape)  #torch.Size([32, 868])
-            p_outs, p_avg_outs, p_std_outs = self.pitch_predictor(hs, mel_masks)
+            mel_masks = make_pad_mask(olens).unsqueeze(-1).to(xs.device)
+            p_outs, p_avg_outs, p_std_outs = self.pitch_predictor(hs, olens, mel_masks)
             # print("p_outs:", p_outs.shape)   #torch.Size([32, 868])
         hs = hs + self.pitch_embed(one_hot_pitch)  # (B, Lmax, adim)
         hs = hs + self.energy_embed(one_hot_energy)  # (B, Lmax, adim)
@@ -251,6 +252,7 @@ class FeedForwardTransformer(torch.nn.Module):
         ds: torch.Tensor,
         es: torch.Tensor,
         ps: torch.Tensor,
+        ps_spec: torch.Tensor,
         ps_avg: torch.Tensor = None,
         ps_std: torch.Tensor = None,
     ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
@@ -280,6 +282,7 @@ class FeedForwardTransformer(torch.nn.Module):
         #     ys = ys[:, :max_olen]
 
         # apply mask to remove padded part
+
         if self.use_masking:
             in_masks = make_non_pad_mask(ilens).to(xs.device)
             d_outs = d_outs.masked_select(in_masks)
@@ -288,11 +291,11 @@ class FeedForwardTransformer(torch.nn.Module):
             mel_masks = make_non_pad_mask(olens).to(ys.device)
             before_outs = before_outs.masked_select(out_masks)
             es = es.masked_select(mel_masks)  # Write size
-            ps = ps.masked_select(mel_masks)  # Write size
+            ps_spec = ps_spec.masked_select(out_masks)  # Write size
             e_outs = e_outs.masked_select(mel_masks)  # Write size
-            p_outs = p_outs.masked_select(mel_masks)  # Write size
-            p_avg_outs = p_avg_outs.masked_select(mel_masks)  # Write size
-            p_std_outs = p_std_outs.masked_select(mel_masks)  # Write size
+            p_outs = p_outs.masked_select(out_masks)  # Write size
+            #p_avg_outs = p_avg_outs.masked_select(mel_masks)  # Write size
+            #p_std_outs = p_std_outs.masked_select(mel_masks)  # Write size
             after_outs = (
                 after_outs.masked_select(out_masks) if after_outs is not None else None
             )
@@ -306,7 +309,7 @@ class FeedForwardTransformer(torch.nn.Module):
             l1_loss = before_loss + after_loss
         duration_loss = self.duration_criterion(d_outs, ds)
         energy_loss = self.energy_criterion(e_outs, es)
-        pitch_loss = self.pitch_criterion(p_outs, ps)
+        pitch_loss = self.pitch_criterion(p_outs, ps_spec)
         pitch__mean_loss = self.pitch_criterion(p_avg_outs, ps_avg)
         pitch_std_loss = self.pitch_criterion(p_std_outs, ps_std)
 
