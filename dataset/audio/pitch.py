@@ -87,7 +87,7 @@ class Dio():
                 for p, fl in zip(pitch, feats_lengths)
             ]
         pitch, mean, std = self._normalize(pitch, durations)
-        coefs = self._cwt(pitch)
+        coefs = self._cwt(pitch.numpy())
         # (Optional): Average by duration to calculate token-wise f0
         if self.use_token_averaged_f0:
             pitch = self._average_by_duration(pitch, durations)
@@ -161,13 +161,14 @@ class Dio():
         return torch.stack(x_avg)
 
     def _normalize(self, x: torch.Tensor, d: torch.Tensor) -> torch.Tensor :
-        if d.sum() != len(x):
-            d[-1] += 1
-        d_cumsum = F.pad(d.cumsum(dim=0), (1, 0))
-        norm_pitch = []
-        p_average = []
-        p_std = []
+        #if d.sum() != len(x):
+        #    d[-1] += 1
+        #d_cumsum = F.pad(d.cumsum(dim=0), (1, 0))
+        norm_pitch = (x - x.mean())/x.std()
+        p_average = x.mean()
+        p_std = x.std()
 
+        """
         for i in range(0, len(d_cumsum)-1):
             pitch_i = x[d_cumsum[i]: d_cumsum[i+1]]
             #print(pitch_i, "Pitch input")
@@ -178,8 +179,8 @@ class Dio():
             norm_pitch.extend((pitch_i - pitch_i.mean())/pitch_i.std())
             #print(norm_pitch[i], "Normalised pitch")
         #print(norm_pitch, p_average, p_std)
-
-        return np.array(norm_pitch), np.array(p_average), np.array(p_std)
+        """
+        return norm_pitch, p_average, p_std
 
     def _cwt(self, x: torch.Tensor) -> torch.Tensor:
         scales = np.arange(1,11)

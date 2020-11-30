@@ -68,9 +68,9 @@ def preprocess(data_path, hp, file):
 
         np.save("{}/{}.npy".format(mel_path, id), mel.numpy(), allow_pickle=False)
         np.save("{}/{}.npy".format(energy_path, id), e.numpy(), allow_pickle=False)
-        np.save("{}/{}.npy".format(pitch_path, id), p, allow_pickle=False)
-        np.save("{}/{}.npy".format(pitch_avg_path, id), avg, allow_pickle=False)
-        np.save("{}/{}.npy".format(pitch_std_path, id), std, allow_pickle=False)
+        np.save("{}/{}.npy".format(pitch_path, id), p.numpy(), allow_pickle=False)
+        np.save("{}/{}.npy".format(pitch_avg_path, id), avg.numpy(), allow_pickle=False)
+        np.save("{}/{}.npy".format(pitch_std_path, id), std.numpy(), allow_pickle=False)
         np.save("{}/{}.npy".format(pitch_cwt_coefs, id), p_coef.reshape(-1,10), allow_pickle=False)
 
 

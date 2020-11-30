@@ -113,8 +113,8 @@ def collate_tts(batch):
     energys = pad_list([torch.from_numpy(y[5]).float() for y in batch], 0)
     pitches = pad_list([torch.from_numpy(y[6]).float() for y in batch], 0)
 
-    pitches_avg = pad_list([torch.from_numpy(y[7]).float() for y in batch], 0)
-    pitches_std = pad_list([torch.from_numpy(y[8]).float() for y in batch], 0)
+    pitches_avg = torch.Tensor([torch.from_numpy(x[7]).float() for x in batch])  #pad_list([torch.from_numpy(y[7]).float() for y in batch], 0)
+    pitches_std = torch.Tensor([torch.from_numpy(x[8]).float() for x in batch]) #pad_list([torch.from_numpy(y[8]).float() for y in batch], 0)
     pitches_contour = pad_list([torch.from_numpy(y[9]).float() for y in batch], 0)
 
     # make labels for stop prediction
