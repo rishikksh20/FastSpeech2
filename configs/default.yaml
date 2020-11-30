@@ -11,7 +11,7 @@ data:
   f0_std:  53.633228905750336
   p_min: 71.0
   p_max: 676.2260946528305 # 799.8901977539062
-  train_filelist: "./filelists/valid_filelist.txt"
+  train_filelist: "./filelists/train_filelist.txt"
   valid_filelist: "./filelists/valid_filelist.txt"
   tts_cleaner_names: ['english_cleaners']
 
@@ -110,7 +110,7 @@ train:
   # optimization related
   eos: False #True
   opt: 'noam'
-  accum_grad: 4
+  accum_grad: 1
   grad_clip: 1.0
   weight_decay: 0.001
   patience: 0
@@ -126,7 +126,7 @@ train:
   seed: 1       # random seed number
   resume: ""    # the snapshot path to resume (if set empty, no effect)
   use_phonemes: True
-  batch_size : 4
+  batch_size : 48
   # other
   melgan_vocoder : True
   save_interval : 1000
