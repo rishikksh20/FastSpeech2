@@ -166,7 +166,7 @@ def train(args, hp, hp_str, logger, vocoder):
                             p_avg_.cuda(),
                             p_std_.cuda()
                         )
-                        
+
                         mels_ = model.inference(x_[-1].cuda())  # [T, num_mel]
 
                     model.train()
