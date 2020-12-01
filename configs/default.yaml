@@ -1,6 +1,6 @@
 data:
   data_dir: './data/LJSpeech/good_file/'
-  wav_dir: './data/LJSpeech/good_file/preprocessed/'
+  wav_dir: '/mnt/Karan/LJSpeech-1.1/wavs/'
   # Compute statistics
   e_mean: 21.578571319580078
   e_std: 18.916799545288086

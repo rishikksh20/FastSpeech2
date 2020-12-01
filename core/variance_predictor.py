@@ -3,6 +3,7 @@ import torch.nn.functional as F
 from typing import Optional
 from core.modules import LayerNorm
 import pycwt
+import numpy as np
 
 class VariancePredictor(torch.nn.Module):
     def __init__(
@@ -253,7 +254,8 @@ class PitchPredictor(torch.nn.Module):
         # print(x_avg)
         # print("xs dim :", x_avg.shape)
         # print("olens ;", olens.shape)
-        x_avg = x_avg / olens.unsqueeze(1)
+        if olens is not None:
+            x_avg = x_avg / olens.unsqueeze(1)
         # print(x_avg)
         f0_mean = self.mean(x_avg).squeeze(-1)
         f0_std = self.std(x_avg).squeeze(-1)
@@ -281,7 +283,7 @@ class PitchPredictor(torch.nn.Module):
 
         # NOTE: calculate in log domain
         xs = xs.transpose(1, -1)
-        f0_spec, f0_mean, f0_std = self.forward(xs)  # (B, Tmax, 10)
+        f0_spec, f0_mean, f0_std = self.forward(xs, olens = None ,x_masks=None)  # (B, Tmax, 10)
         f0_reconstructed = self.inverse(f0_spec, f0_mean, f0_std)
 
         return self.to_one_hot(f0_reconstructed)
@@ -295,10 +297,12 @@ class PitchPredictor(torch.nn.Module):
 
     def inverse(self, f0_spec, f0_mean, f0_std):
         scales = np.arange(1,11)
+        print(f0_spec.shape)
         mother = mother = pycwt.MexicanHat()
-        f0_reconstructed = pycwt.icwt(f0_spec.numpy(), scales, 0.25, 0.5, mother)
-        f0_reconstructed = (f0_reconstructed*f0_std) + f0_mean
-        return f0_reconstructed
+        f0_reconstructed = pycwt.icwt(f0_spec.squeeze(0).cpu().numpy().reshape(10,-1), scales, 0.25, 0.5, mother)
+        f0_reconstructed = (torch.Tensor(f0_reconstructed).cuda()*f0_std) + f0_mean
+        print(f0_reconstructed.shape)
+        return f0_reconstructed.reshape(1,-1)
 
 
 class PitchPredictorLoss(torch.nn.Module):
