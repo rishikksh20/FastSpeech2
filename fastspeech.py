@@ -192,17 +192,17 @@ class FeedForwardTransformer(torch.nn.Module):
         if is_inference:
             d_outs = self.duration_predictor.inference(hs, d_masks)  # (B, Tmax)
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
-            one_hot_energy = self.energy_predictor.inference(hs)  # (B, Lmax, adim)
-            one_hot_pitch = self.pitch_predictor.inference(hs)  # (B, Lmax, adim)
+            one_hot_energy = self.energy_predictor.inference(hs.detach())  # (B, Lmax, adim)
+            one_hot_pitch = self.pitch_predictor.inference(hs.detach())  # (B, Lmax, adim)
         else:
             with torch.no_grad():
                 # ds = self.duration_calculator(xs, ilens, ys, olens)  # (B, Tmax)
                 one_hot_energy = self.energy_predictor.to_one_hot(
-                    es
+                    es.detach()
                 )  # (B, Lmax, adim)   torch.Size([32, 868, 256])
                 # print("one_hot_energy:", one_hot_energy.shape)
                 one_hot_pitch = self.pitch_predictor.to_one_hot(
-                    ps
+                    ps.detach()
                 )  # (B, Lmax, adim)   torch.Size([32, 868, 256])
                 # print("one_hot_pitch:", one_hot_pitch.shape)
             mel_masks = make_pad_mask(olens).to(xs.device)
@@ -211,10 +211,10 @@ class FeedForwardTransformer(torch.nn.Module):
             # print("d_outs:", d_outs.shape)      #  torch.Size([32, 121])
             hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
             # print("After Hs:",hs.shape)  #torch.Size([32, 868, 256])
-            e_outs = self.energy_predictor(hs, mel_masks)
+            e_outs = self.energy_predictor(hs.detach(), mel_masks)
             # print("e_outs:", e_outs.shape)  #torch.Size([32, 868])
             mel_masks = make_pad_mask(olens).unsqueeze(-1).to(xs.device)
-            p_outs, p_avg_outs, p_std_outs = self.pitch_predictor(hs, olens, mel_masks)
+            p_outs, p_avg_outs, p_std_outs = self.pitch_predictor(hs.detach(), olens, mel_masks)
             # print("p_outs:", p_outs.shape)   #torch.Size([32, 868])
         hs = hs + self.pitch_embed(one_hot_pitch)  # (B, Lmax, adim)
         hs = hs + self.energy_embed(one_hot_energy)  # (B, Lmax, adim)
