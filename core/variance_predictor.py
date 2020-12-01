@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 from typing import Optional
 from core.modules import LayerNorm
-
+import pycwt
 
 class VariancePredictor(torch.nn.Module):
     def __init__(
@@ -281,8 +281,10 @@ class PitchPredictor(torch.nn.Module):
 
         # NOTE: calculate in log domain
         xs = xs.transpose(1, -1)
-        f0_spec = self.spectrogram_out(xs)  # (B, Tmax, 10)
-        return self.to_one_hot(f0_spec)
+        f0_spec, f0_mean, f0_std = self.forward(xs)  # (B, Tmax, 10)
+        f0_reconstructed = self.inverse(f0_spec, f0_mean, f0_std)
+
+        return self.to_one_hot(f0_reconstructed)
 
     def to_one_hot(self, x: torch.Tensor):
         # e = de_norm_mean_std(e, hp.e_mean, hp.e_std)
@@ -290,6 +292,13 @@ class PitchPredictor(torch.nn.Module):
 
         quantize = torch.bucketize(x, self.pitch_bins).to(device=x.device)  # .cuda()
         return F.one_hot(quantize.long(), 256).float()
+
+    def inverse(self, f0_spec, f0_mean, f0_std):
+        scales = np.arange(1,11)
+        mother = mother = pycwt.MexicanHat()
+        f0_reconstructed = pycwt.icwt(f0_spec.numpy(), scales, 0.25, 0.5, mother)
+        f0_reconstructed = (f0_reconstructed*f0_std) + f0_mean
+        return f0_reconstructed
 
 
 class PitchPredictorLoss(torch.nn.Module):

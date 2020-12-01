@@ -193,7 +193,8 @@ class FeedForwardTransformer(torch.nn.Module):
             d_outs = self.duration_predictor.inference(hs, d_masks)  # (B, Tmax)
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
             one_hot_energy = self.energy_predictor.inference(hs.detach())  # (B, Lmax, adim)
-            one_hot_pitch = self.pitch_predictor.inference(hs.detach())  # (B, Lmax, adim)
+            one_hot_pitch = self.pitch_predictor.inference(hs.detach())
+            #one_hot_pitch = self.pitch_predictor.inverse(f0, f_mean, f_std)  # (B, Lmax, adim)
         else:
             with torch.no_grad():
                 # ds = self.duration_calculator(xs, ilens, ys, olens)  # (B, Tmax)
