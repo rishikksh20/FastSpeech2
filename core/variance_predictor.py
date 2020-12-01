@@ -265,7 +265,7 @@ class PitchPredictor(torch.nn.Module):
 
         return f0_spec, f0_mean, f0_std
 
-    def inference(self, xs: torch.Tensor, alpha: float = 1.0):
+    def inference(self, xs: torch.Tensor, olens = None, alpha: float = 1.0):
         """Inference duration.
 
         Args:
@@ -276,14 +276,7 @@ class PitchPredictor(torch.nn.Module):
             LongTensor: Batch of predicted durations in linear domain (B, Tmax).
 
         """
-        #### WIP #####
-        xs = xs.transpose(1, -1)  # (B, idim, Tmax)
-        for f in self.conv:
-            xs = f(xs)  # (B, C, Tmax)
-
-        # NOTE: calculate in log domain
-        xs = xs.transpose(1, -1)
-        f0_spec, f0_mean, f0_std = self.forward(xs, olens = None ,x_masks=None)  # (B, Tmax, 10)
+        f0_spec, f0_mean, f0_std = self.forward(xs, olens, x_masks=None)  # (B, Tmax, 10)
         f0_reconstructed = self.inverse(f0_spec, f0_mean, f0_std)
 
         return self.to_one_hot(f0_reconstructed)
@@ -297,11 +290,11 @@ class PitchPredictor(torch.nn.Module):
 
     def inverse(self, f0_spec, f0_mean, f0_std):
         scales = np.arange(1,11)
-        print(f0_spec.shape)
+        #print(f0_spec.shape)
         mother = mother = pycwt.MexicanHat()
         f0_reconstructed = pycwt.icwt(f0_spec.squeeze(0).cpu().numpy().reshape(10,-1), scales, 0.25, 0.5, mother)
         f0_reconstructed = (torch.Tensor(f0_reconstructed).cuda()*f0_std) + f0_mean
-        print(f0_reconstructed.shape)
+        #print(f0_reconstructed.shape)
         return f0_reconstructed.reshape(1,-1)
 
 
