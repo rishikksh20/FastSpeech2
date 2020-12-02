@@ -118,9 +118,10 @@ class Dio():
         if self.use_continuous_f0:
             f0 = self._convert_to_continuous_f0(f0)
 
+        f0_log = np.zeros_like(f0)
+        
         if self.use_log_f0:
             nonzero_idxs = np.where(f0 != 0)[0]
-            f0_log = np.zeros_like(f0)
             f0_log[nonzero_idxs] = np.log(f0[nonzero_idxs])
 
         return input.new_tensor(f0.reshape(-1), dtype=torch.float), input.new_tensor(f0_log.reshape(-1), dtype=torch.float)
