@@ -25,3 +25,11 @@ idea/*
 dataset/audio/__pycache__/__init__.cpython-36.pyc
 *.pyc
 Untitled.ipynb
+mel.npy
+*.png
+*.npy
+Testing/2log_v2/no_exp_before_bins_fs2v2_2_31k_test_tts.wav
+Testing/exp_log/test_tts.wav
+Testing/exp_log_v2/exp_before_bins_fs2v2_2_31k_test_tts.wav
+mel.png
+mel.npy

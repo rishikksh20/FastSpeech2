@@ -278,7 +278,9 @@ class PitchPredictor(torch.nn.Module):
         """
         f0_spec, f0_mean, f0_std = self.forward(xs, olens, x_masks=None)  # (B, Tmax, 10)
         f0_reconstructed = self.inverse(f0_spec, f0_mean, f0_std)
-
+        #print(f0_reconstructed)
+        f0_reconstructed = torch.exp(f0_reconstructed)
+        #print(f0_reconstructed)
         return self.to_one_hot(f0_reconstructed)
 
     def to_one_hot(self, x: torch.Tensor):

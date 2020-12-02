@@ -79,15 +79,20 @@ class Dio():
         # F0 extraction
 
         # input shape = [T,]
-        pitch = self._calculate_f0(input)
+        pitch, pitch_log = self._calculate_f0(input)
         # (Optional): Adjust length to match with the mel-spectrogram
         if feats_lengths is not None:
             pitch = [
                 self._adjust_num_frames(p, fl).view(-1)
                 for p, fl in zip(pitch, feats_lengths)
             ]
-        pitch, mean, std = self._normalize(pitch, durations)
-        coefs = self._cwt(pitch.numpy())
+            pitch_log = [
+                self._adjust_num_frames(p, fl).view(-1)
+                for p, fl in zip(pitch_log, feats_lengths)
+            ]
+
+        pitch_log_norm, mean, std = self._normalize(pitch_log, durations)
+        coefs = self._cwt(pitch_log_norm.numpy())
         # (Optional): Average by duration to calculate token-wise f0
         if self.use_token_averaged_f0:
             pitch = self._average_by_duration(pitch, durations)
@@ -112,10 +117,12 @@ class Dio():
         f0 = pyworld.stonemask(x, f0, timeaxis, self.fs)
         if self.use_continuous_f0:
             f0 = self._convert_to_continuous_f0(f0)
+
         if self.use_log_f0:
             nonzero_idxs = np.where(f0 != 0)[0]
-            f0[nonzero_idxs] = np.log(f0[nonzero_idxs])
-        return input.new_tensor(f0.reshape(-1), dtype=torch.float)
+            f0_log[nonzero_idxs] = np.log(f0[nonzero_idxs])
+
+        return input.new_tensor(f0.reshape(-1), dtype=torch.float), input.new_tensor(f0_log.reshape(-1), dtype=torch.float)
 
 
     @staticmethod
