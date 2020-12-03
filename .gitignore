@@ -37,3 +37,5 @@ Testing/v2_2/test_tts.wav
 *.npy
 *.png
 mel.png
+*.wav
+*.npy

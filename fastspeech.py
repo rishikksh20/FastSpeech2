@@ -191,7 +191,12 @@ class FeedForwardTransformer(torch.nn.Module):
 
         if is_inference:
             d_outs = self.duration_predictor.inference(hs, d_masks)  # (B, Tmax)
+            #print(d_outs.sum(dim=1), d_outs.shape)
+            #d_outs = torch.Tensor([[3, 3, 10, 2, 6, 13, 21, 10, 12, 6, 3, 10, 9, 8, 3, 9, 14, 10, 8, 8, 5, 3, 5, 3, 5, 8, 8, 6, 9, 9, 7, 5, 9, 4, 3, 6, 7, 3, 3, 8, 4, 4, 6, 12, 21, 5, 7, 36, 7, 6, 9, 14, 18, 2, 6, 2, 3, 8, 5, 15, 9, 6, 3, 10, 7, 9, 9, 4, 3, 3, 7, 24, 5, 5, 8, 8, 4, 9, 5, 4, 3, 2, 11, 3, 14, 9, 6, 8, 9, 4, 7, 3, 3, 9, 4, 3, 6, 5, 4, 15, 3, 3, 9, 5, 8, 7, 4, 6, 9, 9, 6, 19]]).cuda()
+            #print(d_outs.sum(dim=1), d_outs.shape)
+            #print(hs.shape, "Hs shape before LR")
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
+            print(hs.shape, "Hs shape")
             one_hot_energy = self.energy_predictor.inference(hs.detach())  # (B, Lmax, adim)
             one_hot_pitch = self.pitch_predictor.inference(hs.detach(), d_outs.sum(dim=1))
             #one_hot_pitch = self.pitch_predictor.inverse(f0, f_mean, f_std)  # (B, Lmax, adim)

@@ -89,7 +89,7 @@ def preprocess(text):
     clean_content = english_cleaners(text)
     clean_content = punctuation_removers(clean_content)
     phonemes = g2p(clean_content)
- 
+
     phonemes = ["" if x == " " else x for x in phonemes]
     phonemes = ["pau" if x == "," else x for x in phonemes]
     phonemes = ["pau" if x == "." else x for x in phonemes]
@@ -125,6 +125,7 @@ def synth(text, model, hp):
 
     with torch.no_grad():
         print("predicting")
+        print(text.shape)
         outs = model.inference(text)  # model(text) for jit script
         mel = outs
     return mel

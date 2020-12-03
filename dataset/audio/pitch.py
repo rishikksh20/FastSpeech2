@@ -119,7 +119,7 @@ class Dio():
             f0 = self._convert_to_continuous_f0(f0)
 
         f0_log = np.zeros_like(f0)
-        
+
         if self.use_log_f0:
             nonzero_idxs = np.where(f0 != 0)[0]
             f0_log[nonzero_idxs] = np.log(f0[nonzero_idxs])
@@ -192,7 +192,8 @@ class Dio():
         return norm_pitch, p_average, p_std
 
     def _cwt(self, x: torch.Tensor) -> torch.Tensor:
-        scales = np.arange(1,11)
-        coefs, freq = pywt.cwt(x, scales, 'mexh') #coefs shape = [10, T]
+        mother = pycwt.MexicanHat()
+        coefs, scales, _, _, _, _ = pycwt.cwt(norm_pitch, 0.25, 0.25, 0.5, J=9, wavelet=mother) #
+         #coefs shape = [10, T]
 
-        return coefs
+        return coefs.real

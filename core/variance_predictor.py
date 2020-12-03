@@ -150,6 +150,9 @@ class EnergyPredictor(torch.nn.Module):
 
         """
         out = self.predictor.inference(xs, False, alpha=alpha)
+        #print(out.shape, type(out))
+        #out = torch.from_numpy(np.load("/results/chkpts/LJ/Fastspeech2_V2/data/energy/LJ001-0001.npy")).cuda()
+        #print(out, "Energy Pricted")
         return self.to_one_hot(out)  # Need to do One hot code
 
     def to_one_hot(self, x):
@@ -277,10 +280,13 @@ class PitchPredictor(torch.nn.Module):
 
         """
         f0_spec, f0_mean, f0_std = self.forward(xs, olens, x_masks=None)  # (B, Tmax, 10)
+        #print(f0_spec)
         f0_reconstructed = self.inverse(f0_spec, f0_mean, f0_std)
         #print(f0_reconstructed)
-        f0_reconstructed = torch.exp(f0_reconstructed)
-        #print(f0_reconstructed)
+        #f0_reconstructed = torch.from_numpy(np.load("/results/chkpts/LJ/Fastspeech2_V2/data/pitch/LJ001-0001.npy").reshape(1,-1)).cuda()
+        #print(f0_reconstructed, "Pitch coef output")
+        print("I am here")
+
         return self.to_one_hot(f0_reconstructed)
 
     def to_one_hot(self, x: torch.Tensor):
@@ -291,11 +297,12 @@ class PitchPredictor(torch.nn.Module):
         return F.one_hot(quantize.long(), 256).float()
 
     def inverse(self, f0_spec, f0_mean, f0_std):
-        scales = np.arange(1,11)
-        #print(f0_spec.shape)
-        mother = mother = pycwt.MexicanHat()
+        scales =  np.array([0.5 , 0.59460356, 0.70710678, 0.84089642, 1. , 1.18920712, 1.41421356, 1.68179283, 2., 2.37841423])  #np.arange(1,11)
+         #print(f0_spec.shape)
+        mother = pycwt.MexicanHat()
         f0_reconstructed = pycwt.icwt(f0_spec.squeeze(0).cpu().numpy().reshape(10,-1), scales, 0.25, 0.5, mother)
         f0_reconstructed = (torch.Tensor(f0_reconstructed).cuda()*f0_std) + f0_mean
+        f0_reconstructed = torch.exp(f0_reconstructed)
         #print(f0_reconstructed.shape)
         return f0_reconstructed.reshape(1,-1)
 
