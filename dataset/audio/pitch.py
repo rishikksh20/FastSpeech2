@@ -10,7 +10,7 @@ import numpy as np
 import pyworld
 import torch
 import torch.nn.functional as F
-import pywt
+import pycwt
 
 from scipy.interpolate import interp1d
 from typeguard import check_argument_types
