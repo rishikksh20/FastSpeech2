@@ -197,8 +197,8 @@ class FeedForwardTransformer(torch.nn.Module):
             #print(hs.shape, "Hs shape before LR")
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
             print(hs.shape, "Hs shape")
-            one_hot_energy = self.energy_predictor.inference(hs.detach())  # (B, Lmax, adim)
-            one_hot_pitch = self.pitch_predictor.inference(hs.detach(), d_outs.sum(dim=1))
+            one_hot_energy = self.energy_predictor.inference(hs)  # (B, Lmax, adim)
+            one_hot_pitch = self.pitch_predictor.inference(hs, d_outs.sum(dim=1))
             #one_hot_pitch = self.pitch_predictor.inverse(f0, f_mean, f_std)  # (B, Lmax, adim)
         else:
             with torch.no_grad():
@@ -217,10 +217,10 @@ class FeedForwardTransformer(torch.nn.Module):
             # print("d_outs:", d_outs.shape)      #  torch.Size([32, 121])
             hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
             # print("After Hs:",hs.shape)  #torch.Size([32, 868, 256])
-            e_outs = self.energy_predictor(hs.detach(), mel_masks)
+            e_outs = self.energy_predictor(hs, mel_masks)
             # print("e_outs:", e_outs.shape)  #torch.Size([32, 868])
             mel_masks = make_pad_mask(olens).unsqueeze(-1).to(xs.device)
-            p_outs, p_avg_outs, p_std_outs = self.pitch_predictor(hs.detach(), olens, mel_masks)
+            p_outs, p_avg_outs, p_std_outs = self.pitch_predictor(hs, olens, mel_masks)
             # print("p_outs:", p_outs.shape)   #torch.Size([32, 868])
         hs = hs + self.pitch_embed(one_hot_pitch)  # (B, Lmax, adim)
         hs = hs + self.energy_embed(one_hot_energy)  # (B, Lmax, adim)
