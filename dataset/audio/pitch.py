@@ -92,7 +92,7 @@ class Dio():
             ]
 
         pitch_log_norm, mean, std = self._normalize(pitch_log, durations)
-        coefs = self._cwt(pitch_log_norm.numpy())
+        coefs = self._cwt(pitch_log_norm)
         # (Optional): Average by duration to calculate token-wise f0
         if self.use_token_averaged_f0:
             pitch = self._average_by_duration(pitch, durations)
@@ -193,7 +193,7 @@ class Dio():
 
     def _cwt(self, x: torch.Tensor) -> torch.Tensor:
         mother = pycwt.MexicanHat()
-        coefs, scales, _, _, _, _ = pycwt.cwt(norm_pitch, 0.25, 0.25, 0.5, J=9, wavelet=mother) #
+        coefs, scales, _, _, _, _ = pycwt.cwt(x.numpy(), 0.25, 0.25, 0.5, J=9, wavelet=mother) #
          #coefs shape = [10, T]
 
         return coefs.real
