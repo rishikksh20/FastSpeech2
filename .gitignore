@@ -33,3 +33,7 @@ Testing/exp_log/test_tts.wav
 Testing/exp_log_v2/exp_before_bins_fs2v2_2_31k_test_tts.wav
 mel.png
 mel.npy
+Testing/v2_2/test_tts.wav
+*.npy
+*.png
+mel.png
