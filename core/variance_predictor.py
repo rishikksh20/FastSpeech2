@@ -2,8 +2,9 @@ import torch
 import torch.nn.functional as F
 from typing import Optional
 from core.modules import LayerNorm
-import pycwt
+#import pycwt
 import numpy as np
+from sklearn import preprocessing
 
 class VariancePredictor(torch.nn.Module):
     def __init__(
@@ -175,7 +176,7 @@ class PitchPredictor(torch.nn.Module):
         min=0,
         max=0,
         n_bins=256,
-        out=10,
+        out=5,
     ):
         """Initilize pitch predictor module.
 
@@ -285,7 +286,6 @@ class PitchPredictor(torch.nn.Module):
         #print(f0_reconstructed)
         #f0_reconstructed = torch.from_numpy(np.load("/results/chkpts/LJ/Fastspeech2_V2/data/pitch/LJ001-0001.npy").reshape(1,-1)).cuda()
         #print(f0_reconstructed, "Pitch coef output")
-        print("I am here")
 
         return self.to_one_hot(f0_reconstructed)
 
@@ -296,12 +296,18 @@ class PitchPredictor(torch.nn.Module):
         quantize = torch.bucketize(x, self.pitch_bins).to(device=x.device)  # .cuda()
         return F.one_hot(quantize.long(), 256).float()
 
-    def inverse(self, f0_spec, f0_mean, f0_std):
-        scales =  np.array([0.5 , 0.59460356, 0.70710678, 0.84089642, 1. , 1.18920712, 1.41421356, 1.68179283, 2., 2.37841423])  #np.arange(1,11)
-         #print(f0_spec.shape)
-        mother = pycwt.MexicanHat()
-        f0_reconstructed = pycwt.icwt(f0_spec.squeeze(0).cpu().numpy().reshape(10,-1), scales, 0.25, 0.5, mother)
-        f0_reconstructed = (torch.Tensor(f0_reconstructed).cuda()*f0_std) + f0_mean
+    def inverse(self, Wavelet_lf0, f0_mean, f0_std):
+        scales =  np.array(array([0.01, 0.02, 0.04, 0.08, 0.16]))  #np.arange(1,11)
+        print(Wavelet_lf0.shape)
+        lf0_rec = np.zeros([Wavelet_lf0.shape[0], len(scales)])
+        for i in range(0,len(scales)):
+            lf0_rec[:,i] = Wavelet_lf0[:,i]*((i+200+2.5)**(-2.5))
+
+        lf0_rec_sum = np.sum(lf0_rec,axis = 1)
+        lf0_rec_sum_norm = preprocessing.scale(lf0_rec_sum)
+
+        f0_reconstructed = (torch.Tensor(lf0_rec_sum_norm).cuda()*f0_std) + f0_mean
+
         f0_reconstructed = torch.exp(f0_reconstructed)
         #print(f0_reconstructed.shape)
         return f0_reconstructed.reshape(1,-1)

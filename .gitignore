@@ -39,3 +39,5 @@ Testing/v2_2/test_tts.wav
 mel.png
 *.wav
 *.npy
+.ipynb_checkpoints/pitch_cwt-checkpoint.ipynb
+pitch_cwt.ipynb

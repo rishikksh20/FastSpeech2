@@ -8,7 +8,7 @@ from utils.stft import TacotronSTFT
 from utils.util import read_wav_np
 from dataset.audio_processing import pitch
 from utils.hparams import HParam
-from dataset.audio.pitch import Dio
+from dataset.audio.pitch_mod import Dio
 from utils.util import str_to_int_list
 import torch.nn.functional as F
 import pywt
@@ -66,18 +66,20 @@ def preprocess(data_path, hp, file):
 
         id = os.path.basename(wavpath).split(".")[0]
 
+        assert(e.numpy().shape == p.shape)
+
         np.save("{}/{}.npy".format(mel_path, id), mel.numpy(), allow_pickle=False)
         np.save("{}/{}.npy".format(energy_path, id), e.numpy(), allow_pickle=False)
-        np.save("{}/{}.npy".format(pitch_path, id), p.numpy(), allow_pickle=False)
-        np.save("{}/{}.npy".format(pitch_avg_path, id), avg.numpy(), allow_pickle=False)
-        np.save("{}/{}.npy".format(pitch_std_path, id), std.numpy(), allow_pickle=False)
-        np.save("{}/{}.npy".format(pitch_cwt_coefs, id), p_coef.reshape(-1,10), allow_pickle=False)
+        np.save("{}/{}.npy".format(pitch_path, id), p, allow_pickle=False)
+        np.save("{}/{}.npy".format(pitch_avg_path, id), avg, allow_pickle=False)
+        np.save("{}/{}.npy".format(pitch_std_path, id), std, allow_pickle=False)
+        np.save("{}/{}.npy".format(pitch_cwt_coefs, id), p_coef.reshape(-1,5), allow_pickle=False)
 
 
 
 def main(args, hp):
-    print("Preprocess Training dataset :")
-    preprocess(args.data_path, hp, hp.data.train_filelist)
+    #print("Preprocess Training dataset :")
+    #preprocess(args.data_path, hp, hp.data.train_filelist)
     print("Preprocess Validation dataset :")
     preprocess(args.data_path, hp, hp.data.valid_filelist)
 
