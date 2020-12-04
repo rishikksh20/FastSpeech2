@@ -297,8 +297,9 @@ class PitchPredictor(torch.nn.Module):
         return F.one_hot(quantize.long(), 256).float()
 
     def inverse(self, Wavelet_lf0, f0_mean, f0_std):
-        scales =  np.array(array([0.01, 0.02, 0.04, 0.08, 0.16]))  #np.arange(1,11)
-        print(Wavelet_lf0.shape)
+        scales =  np.array([0.01, 0.02, 0.04, 0.08, 0.16])  #np.arange(1,11)
+        #print(Wavelet_lf0.shape)
+        Wavelet_lf0 = Wavelet_lf0.squeeze(0).cpu().numpy()
         lf0_rec = np.zeros([Wavelet_lf0.shape[0], len(scales)])
         for i in range(0,len(scales)):
             lf0_rec[:,i] = Wavelet_lf0[:,i]*((i+200+2.5)**(-2.5))
@@ -309,6 +310,7 @@ class PitchPredictor(torch.nn.Module):
         f0_reconstructed = (torch.Tensor(lf0_rec_sum_norm).cuda()*f0_std) + f0_mean
 
         f0_reconstructed = torch.exp(f0_reconstructed)
+        #print(f0_reconstructed.shape)
         #print(f0_reconstructed.shape)
         return f0_reconstructed.reshape(1,-1)
 
