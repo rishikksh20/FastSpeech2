@@ -6,12 +6,10 @@ import argparse
 import numpy as np
 from utils.stft import TacotronSTFT
 from utils.util import read_wav_np
-from dataset.audio_processing import pitch
 from utils.hparams import HParam
 from dataset.audio.pitch_mod import Dio
 from utils.util import str_to_int_list
-import torch.nn.functional as F
-import pywt
+
 
 
 def preprocess(data_path, hp, file):
