@@ -196,7 +196,6 @@ class FeedForwardTransformer(torch.nn.Module):
             #print(d_outs.sum(dim=1), d_outs.shape)
             #print(hs.shape, "Hs shape before LR")
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
-            print(hs.shape, "Hs shape")
             one_hot_energy = self.energy_predictor.inference(hs)  # (B, Lmax, adim)
             one_hot_pitch = self.pitch_predictor.inference(hs, d_outs.sum(dim=1))
             #one_hot_pitch = self.pitch_predictor.inverse(f0, f_mean, f_std)  # (B, Lmax, adim)

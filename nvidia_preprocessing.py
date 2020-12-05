@@ -76,8 +76,8 @@ def preprocess(data_path, hp, file):
 
 
 def main(args, hp):
-    #print("Preprocess Training dataset :")
-    #preprocess(args.data_path, hp, hp.data.train_filelist)
+    print("Preprocess Training dataset :")
+    preprocess(args.data_path, hp, hp.data.train_filelist)
     print("Preprocess Validation dataset :")
     preprocess(args.data_path, hp, hp.data.valid_filelist)
 

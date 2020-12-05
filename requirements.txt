@@ -12,4 +12,5 @@ configargparse
 tensorboardX
 typeguard==2.9.1
 g2p_en
+pycwt
 

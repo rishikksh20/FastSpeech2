@@ -10,7 +10,7 @@ data:
   f0_mean: 206.5135564772342
   f0_std:  53.633228905750336
   p_min: 71.0
-  p_max: 500 # 799.8901977539062
+  p_max: 500.0 # 799.8901977539062
   train_filelist: "./filelists/train_filelist.txt"
   valid_filelist: "./filelists/valid_filelist.txt"
   tts_cleaner_names: ['english_cleaners']
