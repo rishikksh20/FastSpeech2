@@ -109,6 +109,7 @@ class FeedForwardTransformer(torch.nn.Module):
             dropout_rate=hp.model.duration_predictor_dropout_rate,
             min=hp.data.p_min,
             max=hp.data.p_max,
+            out = hp.audio.cwt_bins
         )
         self.pitch_embed = torch.nn.Linear(hp.model.adim, hp.model.adim)
 
