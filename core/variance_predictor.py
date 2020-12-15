@@ -155,7 +155,7 @@ class EnergyPredictor(torch.nn.Module):
         #out = torch.from_numpy(np.load("/results/chkpts/LJ/Fastspeech2_V2/data/energy/LJ001-0001.npy")).cuda()
         #print(out, "Energy Pricted")
         out = torch.exp(out)
-        return self.to_one_hot(out)  # Need to do One hot code
+        return self.to_one_hot(out), out  # Need to do One hot code
 
     def to_one_hot(self, x):
         # e = de_norm_mean_std(e, hp.e_mean, hp.e_std)
@@ -288,7 +288,7 @@ class PitchPredictor(torch.nn.Module):
         #f0_reconstructed = torch.from_numpy(np.load("/results/chkpts/LJ/Fastspeech2_V2/data/pitch/LJ001-0001.npy").reshape(1,-1)).cuda()
         #print(f0_reconstructed, "Pitch coef output")
 
-        return self.to_one_hot(f0_reconstructed)
+        return self.to_one_hot(f0_reconstructed), f0_reconstructed
 
     def to_one_hot(self, x: torch.Tensor):
         # e = de_norm_mean_std(e, hp.e_mean, hp.e_std)
