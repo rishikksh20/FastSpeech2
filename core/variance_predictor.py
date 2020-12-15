@@ -154,6 +154,7 @@ class EnergyPredictor(torch.nn.Module):
         #print(out.shape, type(out))
         #out = torch.from_numpy(np.load("/results/chkpts/LJ/Fastspeech2_V2/data/energy/LJ001-0001.npy")).cuda()
         #print(out, "Energy Pricted")
+        out = torch.exp(out)
         return self.to_one_hot(out)  # Need to do One hot code
 
     def to_one_hot(self, x):
