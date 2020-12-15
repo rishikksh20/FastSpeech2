@@ -314,7 +314,7 @@ class FeedForwardTransformer(torch.nn.Module):
             after_loss = self.criterion(after_outs, ys)
             l1_loss = before_loss + after_loss
         duration_loss = self.duration_criterion(d_outs, ds)
-        energy_loss = self.energy_criterion(e_outs, es)
+        energy_loss = self.energy_criterion(e_outs, torch.log(es))
         pitch_loss = self.pitch_criterion(p_outs, ps_spec)
         pitch__mean_loss = self.pitch_criterion(p_avg_outs, ps_avg)
         pitch_std_loss = self.pitch_criterion(p_std_outs, ps_std)
