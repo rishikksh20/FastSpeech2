@@ -12,7 +12,7 @@ import random
 import tqdm
 import time
 from evaluation import evaluate
-from utils.plot import generate_audio, plot_spectrogram_to_numpy
+from utils.plot import generate_audio, plot_spectrogram_to_numpy, plot_waveform_to_numpy
 from core.optimizer import get_std_opt
 from utils.util import read_wav_np
 from dataset.texts import valid_symbols
@@ -167,7 +167,7 @@ def train(args, hp, hp_str, logger, vocoder):
                             p_std_.cuda()
                         )
 
-                        mels_ = model.inference(x_[-1].cuda())  # [T, num_mel]
+                        mels_, pitch_reconstructed, energy_reconstructed = model.inference(x_[-1].cuda())  # [T, num_mel]
 
                     model.train()
                     for r in report_dict_:
@@ -180,6 +180,7 @@ def train(args, hp, hp_str, logger, vocoder):
                                 writer.add_scalar("validation/{}".format(k), v, step)
 
                     mels_ = mels_.T  # Out: [num_mels, T]
+
                     writer.add_image(
                         "melspectrogram_target_{}".format(ids_[-1]),
                         plot_spectrogram_to_numpy(
@@ -192,17 +193,32 @@ def train(args, hp, hp_str, logger, vocoder):
                         "melspectrogram_prediction_{}".format(ids_[-1]),
                         plot_spectrogram_to_numpy(mels_.data.cpu().numpy()),
                         step,
-                        dataformats="HWC",
+                        dataformats="HWC"
                     )
 
+                    writer.add_figure(
+                    "Pitch_target_vs_prediction/{}".format(ids_[-1]),
+                    plot_waveform_to_numpy(pitch_reconstructed.cpu().numpy().reshape(-1,), p_.cpu().numpy().reshape(-1,)),
+                    step,
+                    )
 
-                    audio = generate_audio(
-                        mels_.unsqueeze(0), vocoder
-                    )  # selecting the last data point to match mel generated above
-                    audio = audio.cpu().float().numpy()
+                    writer.add_figure(
+                    "Energy_target_vs_prediction/{}".format(ids_[-1]),
+                    plot_waveform_to_numpy(energy_reconstructed.cpu().numpy().reshape(-1,), e_.cpu().numpy().reshape(-1,)),
+                    step,
+                    )
+
+                    mels = mels_.unsqueeze(0)
+                    zero = torch.full((1, 80, 10), -11.5129).to(mels.device)
+                    mels = torch.cat((mels, zero), dim=2)
+
+
+                    audio = vocoder(mels) #generate_audio(mels_.unsqueeze(0), vocoder)  # selecting the last data point to match mel generated above
+                    audio = audio.detach().cpu().float().numpy()
                     audio = audio / (
                         audio.max() - audio.min()
                     )  # get values between -1 and 1
+                    audio = audio.reshape(-1,1)
 
                     writer.add_audio(
                         tag="generated_audio_{}".format(ids_[-1]),
@@ -448,9 +464,7 @@ def main(cmd_args):
     random.seed(hp.train.seed)
     np.random.seed(hp.train.seed)
 
-    vocoder = torch.hub.load(
-        "seungwonpark/melgan", "melgan"
-    )  # load the vocoder for validation
+    vocoder = torch.jit.load('vocgan_jared_first_1871233_2220.pt').cuda() # torch.hub.load( "seungwonpark/melgan", "melgan"    )  # load the vocoder for validation
 
     if hp.train.GTA:
         create_gta(args, hp, hp_str, logger)
