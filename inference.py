@@ -181,16 +181,19 @@ def main(args):
     if hp.train.melgan_vocoder:
         m = m.unsqueeze(0)
         print("Mel shape: ", m.shape)
-        vocoder = torch.hub.load("seungwonpark/melgan", "melgan")
+        vocoder = torch.jit.load("/results/chkpts/JARED/Hifi-GAN/v1/hifigan_jared_1105k.pt")         # LJ/Hifi-GAN/original/hifigan_pre_trained_v1.pt torch.hub.load("seungwonpark/melgan", "melgan")
         vocoder.eval()
+        zero = torch.full((1, 80, 10), -11.5129).to(m.device)
+        m = torch.cat((m, zero), dim=2)
         if torch.cuda.is_available():
             vocoder = vocoder.cuda()
             mel = m.cuda()
 
         with torch.no_grad():
-            wav = vocoder.inference(
+            wav = vocoder(
                 mel
             )  # mel ---> batch, num_mels, frames [1, 80, 234]
+            print(wav)
             wav = wav.cpu().float().numpy()
     else:
         stft = STFT(filter_length=1024, hop_length=256, win_length=1024)
@@ -199,7 +202,7 @@ def main(args):
         wav = griffin_lim(m, stft, 30)
         wav = wav.cpu().numpy()
     save_path = "{}/test_tts.wav".format(args.out)
-    write(save_path, hp.audio.sample_rate, wav.astype("int16"))
+    write(save_path, hp.audio.sample_rate, wav.astype("float32"))
 
 
 # NOTE: you need this func to generate our sphinx doc
