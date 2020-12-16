@@ -126,7 +126,7 @@ def synth(text, model, hp):
     with torch.no_grad():
         print("predicting")
         print(text.shape)
-        outs = model.inference(text)  # model(text) for jit script
+        outs, p, e = model.inference(text)  # model(text) for jit script
         mel = outs
     return mel
 
