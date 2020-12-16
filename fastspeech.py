@@ -109,6 +109,7 @@ class FeedForwardTransformer(torch.nn.Module):
             dropout_rate=hp.model.duration_predictor_dropout_rate,
             min=hp.data.p_min,
             max=hp.data.p_max,
+            out = hp.audio.cwt_bins
         )
         self.pitch_embed = torch.nn.Linear(hp.model.adim, hp.model.adim)
 
@@ -196,8 +197,8 @@ class FeedForwardTransformer(torch.nn.Module):
             #print(d_outs.sum(dim=1), d_outs.shape)
             #print(hs.shape, "Hs shape before LR")
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
-            one_hot_energy = self.energy_predictor.inference(hs)  # (B, Lmax, adim)
-            one_hot_pitch = self.pitch_predictor.inference(hs, d_outs.sum(dim=1))
+            one_hot_energy, energy_output = self.energy_predictor.inference(hs)  # (B, Lmax, adim)
+            one_hot_pitch, pitch_reconstructed = self.pitch_predictor.inference(hs, d_outs.sum(dim=1))
             #one_hot_pitch = self.pitch_predictor.inverse(f0, f_mean, f_std)  # (B, Lmax, adim)
         else:
             with torch.no_grad():
@@ -244,7 +245,7 @@ class FeedForwardTransformer(torch.nn.Module):
             ).transpose(1, 2)
 
         if is_inference:
-            return before_outs, after_outs, d_outs, one_hot_energy, one_hot_pitch
+            return before_outs, after_outs, d_outs, one_hot_energy, one_hot_pitch, pitch_reconstructed, energy_output
         else:
             return before_outs, after_outs, d_outs, e_outs, p_outs, p_avg_outs, p_std_outs
 
@@ -313,7 +314,7 @@ class FeedForwardTransformer(torch.nn.Module):
             after_loss = self.criterion(after_outs, ys)
             l1_loss = before_loss + after_loss
         duration_loss = self.duration_criterion(d_outs, ds)
-        energy_loss = self.energy_criterion(e_outs, es)
+        energy_loss = self.energy_criterion(e_outs, torch.log(es))
         pitch_loss = self.pitch_criterion(p_outs, ps_spec)
         pitch__mean_loss = self.pitch_criterion(p_avg_outs, ps_avg)
         pitch_std_loss = self.pitch_criterion(p_std_outs, ps_std)
@@ -368,9 +369,9 @@ class FeedForwardTransformer(torch.nn.Module):
         xs = x.unsqueeze(0)
 
         # inference
-        _, outs, _, _, _ = self._forward(xs, ilens, is_inference=True)  # (L, odim)
+        _, outs, _, _, _, pitch, energy = self._forward(xs, ilens, is_inference=True)  # (L, odim)
 
-        return outs[0]
+        return outs[0], pitch, energy
 
     def _source_mask(self, ilens: torch.Tensor) -> torch.Tensor:
         """Make masks for self-attention.

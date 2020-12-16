@@ -36,10 +36,11 @@ class Dio():
             n_fft: int = 1024,
             hop_length: int = 256,
             f0min: Optional[int] = 71,
-            f0max: Optional[int] = 500,
+            f0max: Optional[int] = 400,
             use_token_averaged_f0: bool = False,
             use_continuous_f0: bool = True,
             use_log_f0: bool = True,
+            J: int = 10
     ):
         assert check_argument_types()
         super().__init__()
@@ -52,6 +53,7 @@ class Dio():
         self.use_token_averaged_f0 = use_token_averaged_f0
         self.use_continuous_f0 = use_continuous_f0
         self.use_log_f0 = use_log_f0
+        self.J = J
 
     def output_size(self) -> int:
         return 1
@@ -174,7 +176,7 @@ class Dio():
         dt = 0.005
         dj = 2
         s0 = dt*2
-        J = 5 - 1
+        J = self.J - 1
         Wavelet_lf0, scales, freqs, coi, fft, fftfreqs = wavelet.cwt(x, dt, dj, s0, J, mother)
         Wavelet_lf0 = np.real(Wavelet_lf0).T
 
