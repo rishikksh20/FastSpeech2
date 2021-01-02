@@ -84,7 +84,14 @@ def train(args, hp, hp_str, logger, vocoder):
             # x : [batch , num_char], input_length : [batch], y : [batch, T_in, num_mel]
             #             # stop_token : [batch, T_in], out_length : [batch]
 
-            loss, report_dict = model(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda(), dur.cuda(), e.cuda(),
+            adv_loss = 0.0
+            loss_d = 0.0
+
+            # forward propagation
+            ##################
+            ## FastSpeech 2 ##
+            ##################
+            loss, report_dict, _, _ = model(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda(), dur.cuda(), e.cuda(),
                                       p.cuda())
             loss = loss.mean() / hp.train.accum_grad
             running_loss += loss.item()
@@ -127,7 +134,7 @@ def train(args, hp, hp_str, logger, vocoder):
                     x_, input_length_, y_, _, out_length_, ids_, dur_, e_, p_ = valid
                     model.eval()
                     with torch.no_grad():
-                        loss_, report_dict_ = model(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda(),
+                        loss_, report_dict_, _, _ = model(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda(),
                                                     dur_.cuda(), e_.cuda(),
                                                     p_.cuda())
 

@@ -258,22 +258,22 @@ class FeedForwardTransformer(torch.nn.Module):
             ds = ds.masked_select(in_masks)
             out_masks = make_non_pad_mask(olens).unsqueeze(-1).to(ys.device)
             mel_masks = make_non_pad_mask(olens).to(ys.device)
-            before_outs = before_outs.masked_select(out_masks)
+            #before_outs = before_outs.masked_select(out_masks)
             es = es.masked_select(mel_masks)  # Write size
             ps = ps.masked_select(mel_masks)  # Write size
             e_outs = e_outs.masked_select(mel_masks) # Write size
             p_outs = p_outs.masked_select(mel_masks) # Write size
-            after_outs = (
-                after_outs.masked_select(out_masks) if after_outs is not None else None
-            )
+            # after_outs = (
+            #     after_outs.masked_select(out_masks) if after_outs is not None else None
+            # )
             ys = ys.masked_select(out_masks)
 
-        # calculate loss
-        before_loss = self.criterion(before_outs, ys)
-        after_loss = 0
-        if after_outs is not None:
-            after_loss = self.criterion(after_outs, ys)
-            l1_loss = before_loss + after_loss
+            # calculate loss
+            before_loss = self.criterion(before_outs.masked_select(out_masks) if self.use_masking else before_outs, ys)
+            after_loss = 0
+            if after_outs is not None:
+                after_loss = self.criterion(after_outs.masked_select(out_masks) if self.use_masking else after_outs, ys)
+                l1_loss = before_loss + after_loss
         duration_loss = self.duration_criterion(d_outs, ds)
         energy_loss = self.energy_criterion(e_outs, es)
         pitch_loss = self.pitch_criterion(p_outs, ps)
@@ -308,7 +308,7 @@ class FeedForwardTransformer(torch.nn.Module):
 
         #self.reporter.report(report_keys)
 
-        return loss, report_keys
+        return loss, report_keys, after_outs, before_outs
 
 
     def inference(self, x: torch.Tensor) -> torch.Tensor:
