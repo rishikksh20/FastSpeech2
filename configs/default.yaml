@@ -104,9 +104,23 @@ model:
 
   attn_plot : False
 
+gan:
+  gan_train: True
+  discriminator_train_start_steps: 20000
+  feat_loss: 5
+  gan_loss: 1
+  l1_loss: 1
+  frames_per_seg: 64
+  discriminatorlr: 0.0001
+  beta1: 0.9
+  beta2: 0.98
+  lambda_adv: 2.5
+
+
 
 train:
   # optimization related
+  adversarial_train: True
   eos: False #True
   opt: 'noam'
   accum_grad: 4

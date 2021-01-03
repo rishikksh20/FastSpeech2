@@ -12,11 +12,15 @@ import random
 import tqdm
 import time
 from utils.plot import generate_audio, plot_spectrogram_to_numpy
+from core.discriminator import MultiScaleDiscriminator
 from core.optimizer import get_std_opt
 from utils.util import read_wav_np
 from dataset.texts import valid_symbols
-from utils.util import get_commit_hash
+from utils.util import get_commit_hash, variable_random_window
 from utils.hparams import HParam
+from utils.losses import generator_loss, discriminator_loss, feature_loss
+
+
 
 BATCH_COUNT_CHOICES = ["auto", "seq", "bin", "frame"]
 BATCH_SORT_KEY_CHOICES = ["input", "output", "shuffle"]
@@ -34,6 +38,10 @@ def train(args, hp, hp_str, logger, vocoder):
     idim = len(valid_symbols)
     odim = hp.audio.num_mels
     model = fastspeech.FeedForwardTransformer(idim, odim, hp)
+    if hp.train.adversarial_train:
+        disc = MultiScaleDiscriminator().to(device)
+        optim_d = torch.optim.Adam(disc.parameters(),
+                                   lr=hp.gan.discriminatorlr, betas=(hp.gan.beta1, hp.gan.beta2))
     # set torch device
     model = model.to(device)
     print("Model is loaded ...")
@@ -45,6 +53,9 @@ def train(args, hp, hp_str, logger, vocoder):
             model.load_state_dict(checkpoint['model'])
             optimizer = get_std_opt(model, hp.model.adim, hp.model.transformer_warmup_steps, model.hp.transformer_lr)
             optimizer.load_state_dict(checkpoint['optim'])
+            if hp.train.adversarial_train:
+                disc.load_state_dict(checkpoint['disc'])
+                optim_d.load_state_dict(checkpoint['optim_d'])
             global_step = checkpoint['step']
 
             if hp_str != checkpoint['hp_str']:
@@ -91,10 +102,32 @@ def train(args, hp, hp_str, logger, vocoder):
             ##################
             ## FastSpeech 2 ##
             ##################
-            loss, report_dict, _, _ = model(x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda(), dur.cuda(), e.cuda(),
-                                      p.cuda())
+            loss, report_dict, after_outs, before_outs, hs = model(x.cuda(), input_length.cuda(), y.cuda(),
+                                                               out_length.cuda(), dur.cuda(), e.cuda(), p.cuda())
+
+            if hp.train.adversarial_train and global_step >= hp.gan.discriminator_train_start_steps:
+                y, after_outs, hs = variable_random_window(y.cuda(), after_outs, hs, out_length.cuda(), hp.gan.frames_per_seg)
+
+                ###################
+                ## Discriminator ##
+                ###################
+                # Discriminator Loss
+                optim_d.zero_grad()
+                disc_real_feat, disc_real_outputs = disc(y, hs.detach())
+                disc_fake_feat, disc_fake_outputs = disc(after_outs.detach(), hs.detach())
+                loss_d, loss_d_real, loss_d_fake = discriminator_loss(disc_real_outputs, disc_fake_outputs)
+                feat_loss = feature_loss(disc_real_feat, disc_fake_feat)
+                loss_d += hp.gan.feat_loss * feat_loss
+                loss_d.backward()
+                optim_d.step()
+
+                # Generator loss
+                gen_score = disc(after_outs, hs)
+                adv_loss = generator_loss(gen_score)
+
             loss = loss.mean() / hp.train.accum_grad
             running_loss += loss.item()
+            loss += hp.gan.lambda_adv * adv_loss
 
             loss.backward()
 
@@ -134,7 +167,7 @@ def train(args, hp, hp_str, logger, vocoder):
                     x_, input_length_, y_, _, out_length_, ids_, dur_, e_, p_ = valid
                     model.eval()
                     with torch.no_grad():
-                        loss_, report_dict_, _, _ = model(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda(),
+                        loss_, report_dict_, _, _, _ = model(x_.cuda(), input_length_.cuda(), y_.cuda(), out_length_.cuda(),
                                                     dur_.cuda(), e_.cuda(),
                                                     p_.cuda())
 

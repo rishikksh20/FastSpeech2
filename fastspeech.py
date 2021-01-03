@@ -223,7 +223,7 @@ class FeedForwardTransformer(torch.nn.Module):
         if is_inference:
             return before_outs, after_outs, d_outs
         else:
-            return before_outs, after_outs, d_outs, e_outs, p_outs
+            return before_outs, after_outs, d_outs, e_outs, p_outs, hs
 
     def forward(self, xs: torch.Tensor, ilens: torch.Tensor, ys: torch.Tensor, olens: torch.Tensor, ds: torch.Tensor,
                 es: torch.Tensor, ps: torch.Tensor) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
@@ -242,7 +242,7 @@ class FeedForwardTransformer(torch.nn.Module):
         ys = ys[:, :max(olens)] # torch.Size([32, 868, 80]) -> [B, Lmax, odim]
 
         # forward propagation
-        before_outs, after_outs, d_outs, e_outs, p_outs = self._forward(xs, ilens, olens, ds, es, ps,
+        before_outs, after_outs, d_outs, e_outs, p_outs, hs = self._forward(xs, ilens, olens, ds, es, ps,
                                                                         is_inference=False)
 
         # modifiy mod part of groundtruth
@@ -308,7 +308,7 @@ class FeedForwardTransformer(torch.nn.Module):
 
         #self.reporter.report(report_keys)
 
-        return loss, report_keys, after_outs, before_outs
+        return loss, report_keys, after_outs, before_outs, hs
 
 
     def inference(self, x: torch.Tensor) -> torch.Tensor:

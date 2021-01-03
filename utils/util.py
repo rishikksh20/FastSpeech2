@@ -14,7 +14,7 @@ import librosa
 import glob
 from typing import List
 import torch.nn.functional as F
-
+import random
 
 def weights_init(m):
     classname = m.__class__.__name__
@@ -23,6 +23,22 @@ def weights_init(m):
     elif classname.find("BatchNorm2d") != -1:
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
+
+
+def variable_random_window(output_real, output_gen, hs, ilens, min_frame = 40):
+    n_batch = len(output_real)
+    frames_per_seg = random.randint(min_frame, torch.min(ilens) - min_frame)
+    dim = output_real.shape[-1]
+    hs_dim = hs.shape[-1]
+    new_output_real = torch.zeros((n_batch, frames_per_seg, dim), dtype=output_real.dtype, device=output_real.device)
+    new_output_fake = torch.zeros((n_batch, frames_per_seg, dim), dtype=output_gen.dtype, device=output_gen.device)
+    new_hidden_state = torch.zeros((n_batch, frames_per_seg, hs_dim), dtype=output_gen.dtype, device=output_gen.device)
+    for i in range(n_batch):
+        start = random.randint(0, ilens[i] - frames_per_seg - 1)
+        new_output_real[i, :, :] = output_real[i, start:start + frames_per_seg, :]
+        new_output_fake[i, :, :] = output_gen[i, start:start + frames_per_seg, :]
+        new_hidden_state[i, :, :] = output_gen[i, start:start + frames_per_seg, :]
+    return new_output_real.transpose(1, 2), new_output_fake.transpose(1, 2), new_hidden_state.transpose(1, 2)
 
 
 def get_files(path, extension='.wav') :
