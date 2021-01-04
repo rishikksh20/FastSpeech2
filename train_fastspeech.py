@@ -163,6 +163,10 @@ def train(args, hp, hp_str, logger, vocoder):
                                 k = k.get()
                             writer.add_scalar("main/{}".format(k), v, step)
 
+            writer.add_scalar("main/disc_loss", loss_d, step)
+            writer.add_scalar("main/feat_loss", feat_loss, step)
+            writer.add_scalar("main/adv_loss", adv_loss, step)
+
             if step % hp.train.validation_step == 0:
 
                 for valid in validloader:
