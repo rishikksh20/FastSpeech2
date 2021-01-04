@@ -25,9 +25,11 @@ def weights_init(m):
         m.bias.data.fill_(0)
 
 
-def variable_random_window(output_real, output_gen, hs, ilens, min_frame = 40):
+def variable_random_window(output_real, output_gen, hs, ilens, min_frame = 40, max_frame = 300):
     n_batch = len(output_real)
-    frames_per_seg = random.randint(min_frame, torch.min(ilens) - min_frame)
+    if torch.min(ilens) < max_frame:
+        max_frame = torch.min(ilens)
+    frames_per_seg = random.randint(min_frame, max_frame - min_frame)
     dim = output_real.shape[-1]
     hs_dim = hs.shape[-1]
     new_output_real = torch.zeros((n_batch, frames_per_seg, dim), dtype=output_real.dtype, device=output_real.device)
