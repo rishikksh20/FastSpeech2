@@ -200,10 +200,16 @@ def train(args, hp, hp_str, logger, vocoder):
 
                 # print(mels.unsqueeze(0).shape)
 
-                audio = generate_audio(mels_.unsqueeze(0),
-                                       vocoder)  # selecting the last data point to match mel generated above
-                audio = audio.cpu().float().numpy()
-                audio = audio / (audio.max() - audio.min())  # get values between -1 and 1
+                mels = mels_.unsqueeze(0)
+                zero = torch.full((1, 80, 10), -11.5129).to(mels.device)
+                mels = torch.cat((mels, zero), dim=2)
+
+                audio = vocoder(mels)
+                audio = audio.detach().cpu().float().numpy()
+                audio = audio / (
+                        audio.max() - audio.min()
+                )  # get values between -1 and 1
+                audio = audio.reshape(-1, 1)
 
                 writer.add_audio(tag=f"generated {ids_[-1]}.wav",
                                  snd_tensor=torch.Tensor(audio),
