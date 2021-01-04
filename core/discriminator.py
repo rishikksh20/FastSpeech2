@@ -1,21 +1,22 @@
 import torch.nn as nn
+import torch
 from utils.util import weights_init
 
 
 class Dblock(nn.Module):
     def __init__(self, input_dim, output_dim, hidden_dim = 256):
         super(Dblock, self).__init__()
-        self.input_spec = nn.utils.weight_norm(nn.Conv1d(input_dim, output_dim, kernel_size=3, stride=1))
-        self.input_cond = nn.utils.weight_norm(nn.Conv1d(hidden_dim, output_dim, kernel_size=3, stride=1))
+        self.input_spec = nn.utils.weight_norm(nn.Conv1d(input_dim, output_dim, kernel_size=3, stride=1, padding=1))
+        self.input_cond = nn.utils.weight_norm(nn.Conv1d(hidden_dim, output_dim, kernel_size=3, stride=1, padding=1))
 
         self.output_spec = nn.Sequential(
             nn.LeakyReLU(0.2, True),
-            nn.utils.weight_norm(nn.Conv1d(output_dim, output_dim, kernel_size=3, stride=1)),
+            nn.utils.weight_norm(nn.Conv1d(output_dim, output_dim, kernel_size=3, stride=1, padding=1)),
         )
 
         self.output_cond = nn.Sequential(
             nn.LeakyReLU(0.2, True),
-            nn.utils.weight_norm(nn.Conv1d(output_dim, hidden_dim, kernel_size=3, stride=1)),
+            nn.utils.weight_norm(nn.Conv1d(output_dim, hidden_dim, kernel_size=3, stride=1, padding=1)),
         )
 
     def forward(self, spec, cond):
@@ -72,10 +73,25 @@ class MultiScaleDiscriminator(nn.Module):
         self.apply(weights_init)
 
     def forward(self, x, y):
-        results = []
+        outputs = []
+        features = []
         for key, disc in self.model.items():
-            results.append(disc(x, y))
+            feats, out = disc(x, y)
+            outputs.append(out)
+            features.append(feats)
             x = self.downsample(x)
             y = self.downsample(y)
-        return results
+        return features, outputs
 
+if __name__ == '__main__':
+    # model = SubFreqDiscriminator()
+    model = Dblock(80, 160)
+    x = torch.randn(4, 80, 300)
+    cond = torch.ones(4, 256, 300)
+    print(x.shape)
+
+    out = model(x, cond)
+    print("Shape of output :", out.shape)
+
+    pytorch_total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(pytorch_total_params)

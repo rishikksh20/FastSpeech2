@@ -96,6 +96,7 @@ def train(args, hp, hp_str, logger, vocoder):
             #             # stop_token : [batch, T_in], out_length : [batch]
 
             adv_loss = 0.0
+            feat_loss = 0.0
             loss_d = 0.0
 
             # forward propagation
@@ -113,21 +114,22 @@ def train(args, hp, hp_str, logger, vocoder):
                 ###################
                 # Discriminator Loss
                 optim_d.zero_grad()
-                disc_real_feat, disc_real_outputs = disc(y, hs.detach())
-                disc_fake_feat, disc_fake_outputs = disc(after_outs.detach(), hs.detach())
+                _, disc_real_outputs = disc(y, hs.detach())
+                _, disc_fake_outputs = disc(after_outs.detach(), hs.detach())
                 loss_d, loss_d_real, loss_d_fake = discriminator_loss(disc_real_outputs, disc_fake_outputs)
-                feat_loss = feature_loss(disc_real_feat, disc_fake_feat)
-                loss_d += hp.gan.feat_loss * feat_loss
                 loss_d.backward()
                 optim_d.step()
 
                 # Generator loss
-                gen_score = disc(after_outs, hs)
+                gen_feat, gen_score = disc(after_outs, hs)
+                real_feat, real_score = disc(y, hs)
+                feat_loss = feature_loss(real_feat, gen_feat)
                 adv_loss = generator_loss(gen_score)
 
             loss = loss.mean() / hp.train.accum_grad
             running_loss += loss.item()
             loss += hp.gan.lambda_adv * adv_loss
+            loss += hp.gan.feat_loss * feat_loss
 
             loss.backward()
 
@@ -150,7 +152,7 @@ def train(args, hp, hp_str, logger, vocoder):
 
             if step % hp.train.summary_interval == 0:
                 pbar.set_description(
-                    "Average Loss %.04f Loss %.04f | step %d" % (running_loss / j, loss.item(), step))
+                    "Average Loss %.04f Loss %.04f Disc Loss %.04f Adv Loss %.04f Feat Loss %.04f | step %d" % (running_loss / j, loss.item(), loss_d, adv_loss, feat_loss, step))
 
                 for r in report_dict:
                     for k, v in r.items():
@@ -218,7 +220,9 @@ def train(args, hp, hp_str, logger, vocoder):
 
                 torch.save({
                     'model': model.state_dict(),
+                    'disc': disc.state_dict(),
                     'optim': optimizer.state_dict(),
+                    'optim_d': optim_d.state_dict(),
                     'step': step,
                     'hp_str': hp_str,
                     'githash': githash,

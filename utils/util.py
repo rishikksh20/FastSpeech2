@@ -37,7 +37,7 @@ def variable_random_window(output_real, output_gen, hs, ilens, min_frame = 40):
         start = random.randint(0, ilens[i] - frames_per_seg - 1)
         new_output_real[i, :, :] = output_real[i, start:start + frames_per_seg, :]
         new_output_fake[i, :, :] = output_gen[i, start:start + frames_per_seg, :]
-        new_hidden_state[i, :, :] = output_gen[i, start:start + frames_per_seg, :]
+        new_hidden_state[i, :, :] = hs[i, start:start + frames_per_seg, :]
     return new_output_real.transpose(1, 2), new_output_fake.transpose(1, 2), new_hidden_state.transpose(1, 2)
 
 

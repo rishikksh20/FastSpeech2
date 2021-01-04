@@ -1,18 +1,18 @@
 data:
-  data_dir: 'H:\Deepsync\backup\fastspeech\data\'
-  wav_dir: 'H:\Deepsync\backup\deepsync\LJSpeech-1.1\wavs\'
+  data_dir: './data/'
+  wav_dir: '/home/deepsync/data/wavs_normalize_audio/'
   # Compute statistics
   e_mean: 21.578571319580078
   e_std: 18.916799545288086
-  e_min: 0.01786651276051998
-  e_max: 130.5338592529297
+  e_min: 0.0059929778799414635
+  e_max: 222.77793884277344
 
   f0_mean: 206.5135564772342
   f0_std:  53.633228905750336
   p_min: 71.0
-  p_max: 676.2260946528305 # 799.8901977539062
-  train_filelist: "./filelists/train_filelist.txt"
-  valid_filelist: "./filelists/valid_filelist.txt"
+  p_max: 604.1592056217197 # 799.8901977539062
+  train_filelist: "/home/deepsync/Dev/fastpitch2/filelists/train.txt"
+  valid_filelist: "/home/deepsync/Dev/fastpitch2/filelists/valid.txt"
   tts_cleaner_names: ['english_cleaners']
 
 # feature extraction related
@@ -106,8 +106,8 @@ model:
 
 gan:
   gan_train: True
-  discriminator_train_start_steps: 20000
-  feat_loss: 5
+  discriminator_train_start_steps: 10
+  feat_loss: 10
   gan_loss: 1
   l1_loss: 1
   frames_per_seg: 64
@@ -123,7 +123,7 @@ train:
   adversarial_train: True
   eos: False #True
   opt: 'noam'
-  accum_grad: 4
+  accum_grad: 1
   grad_clip: 1.0
   weight_decay: 0.001
   patience: 0
@@ -145,7 +145,7 @@ train:
   save_interval : 1000
   chkpt_dir : './checkpoints'
   log_dir : './logs'
-  summary_interval : 200
+  summary_interval : 20
   validation_step : 500
   tts_max_mel_len : 870              # if you have a couple of extremely long spectrograms you might want to use this
   tts_bin_lengths : True              # bins the spectrogram lengths before sampling in data loader - speeds up training

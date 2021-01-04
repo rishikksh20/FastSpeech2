@@ -1,13 +1,13 @@
 import numpy as np
 import os
-from utils.files import get_files
+from utils.util import get_files
 from tqdm import tqdm
 from utils.util import remove_outlier
 from utils.hparams import HParam
 
 if __name__ == '__main__':
 
-    hp = HParam('./config/default.yaml')
+    hp = HParam('./configs/default.yaml')
 
     min_e = []
     min_p = []
