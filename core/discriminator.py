@@ -27,9 +27,9 @@ class Dblock(nn.Module):
         out2 = self.output_cond(y1)
         return out1 + x1, out2 + cond
 
-class Discriminator(nn.Module):
+class MSGDiscriminator(nn.Module):
     def __init__(self, nf = 80, n_layers = 4, hidden_dim = 256):
-        super(Discriminator, self).__init__()
+        super(MSGDiscriminator, self).__init__()
         discriminator = nn.ModuleDict()
 
         for n in range(1, n_layers + 1):
@@ -57,15 +57,15 @@ class Discriminator(nn.Module):
             features.append(x)
         out  = self.disc_spec(x) + self.disc_cond(y)
         features.append(out)
-        return features[:-1], features[-1]
+        return features[:-1], torch.flatten(features[-1], 1, -1)
 
 
-class MultiScaleDiscriminator(nn.Module):
+class MultiMSGDiscriminator(nn.Module):
     def __init__(self, num_D = 3, ndf = 80, n_layers = 4, downsampling_factor = 2, hidden_dim = 256):
         super().__init__()
         self.model = nn.ModuleDict()
         for i in range(num_D):
-            self.model[f"disc_{i}"] = Discriminator(
+            self.model[f"disc_{i}"] = MSGDiscriminator(
                 ndf, n_layers, hidden_dim
             )
 
@@ -82,6 +82,80 @@ class MultiScaleDiscriminator(nn.Module):
             x = self.downsample(x)
             y = self.downsample(y)
         return features, outputs
+
+
+class MelGANDiscriminator(nn.Module):
+
+    def __init__(self, input_dim, ndf=16, n_layers=3, disc_out=512):
+        super(MelGANDiscriminator, self).__init__()
+        discriminator = nn.ModuleDict()
+        discriminator["layer_0"] = nn.Sequential(
+            nn.utils.weight_norm(nn.Conv1d(input_dim, ndf, kernel_size=3, stride=1)),
+            nn.LeakyReLU(0.2, True),
+        )
+
+        nf = ndf
+        for n in range(1, n_layers + 1):
+            nf_prev = nf
+
+            discriminator["layer_%d" % n] = nn.Sequential(
+                nn.utils.weight_norm(nn.Conv1d(
+                    nf_prev,
+                    nf,
+                    kernel_size=3,
+                    stride=2,
+                    padding=1,
+                )),
+                nn.LeakyReLU(0.2, True),
+            )
+        nf = min(nf * 2, disc_out)
+        discriminator["layer_%d" % (n_layers + 1)] = nn.Sequential(
+            nn.utils.weight_norm(nn.Conv1d(nf, disc_out, kernel_size=3, stride=1, padding=2)),
+            nn.LeakyReLU(0.2, True),
+        )
+
+        discriminator["layer_%d" % (n_layers + 2)] = nn.utils.weight_norm(nn.Conv1d(
+            nf, 1, kernel_size=3, stride=1, padding=1
+        ))
+        self.discriminator = discriminator
+
+    def forward(self, x):
+        '''
+            returns: (list of 6 features, discriminator score)
+            we directly predict score without last sigmoid function
+            since we're using Least Squares GAN (https://arxiv.org/abs/1611.04076)
+        '''
+        features = list()
+        for key, module in self.discriminator.items():
+            x = module(x)
+            features.append(x)
+        return features[:-1], features[-1]
+
+
+class MultiScaleDiscriminator(nn.Module):
+    def __init__(self, num_D = 3, ndf = 80, n_layers = 4, downsampling_factor = 2, hidden_dim = 256):
+        super().__init__()
+        self.model = nn.ModuleDict()
+        for i in range(num_D):
+            self.model[f"disc_{i}"] = MSGDiscriminator(
+                ndf, n_layers, hidden_dim
+            )
+
+        self.downsample = nn.AvgPool1d(downsampling_factor, stride=2, padding=1, count_include_pad=False)
+        self.apply(weights_init)
+
+    def forward(self, x):
+        outputs = []
+        features = []
+        for key, disc in self.model.items():
+            feats, out = disc(x)
+            outputs.append(out)
+            features.append(feats)
+            x = self.downsample(x)
+        return features, outputs
+
+
+
 
 if __name__ == '__main__':
     # model = SubFreqDiscriminator()

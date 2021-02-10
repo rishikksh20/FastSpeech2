@@ -12,7 +12,7 @@ import random
 import tqdm
 import time
 from utils.plot import generate_audio, plot_spectrogram_to_numpy
-from core.discriminator import MultiScaleDiscriminator
+from core.discriminator import MultiMSGDiscriminator
 from core.optimizer import get_std_opt
 from utils.util import read_wav_np
 from dataset.texts import valid_symbols
@@ -39,7 +39,7 @@ def train(args, hp, hp_str, logger, vocoder):
     odim = hp.audio.num_mels
     model = fastspeech.FeedForwardTransformer(idim, odim, hp)
     if hp.train.adversarial_train:
-        disc = MultiScaleDiscriminator().to(device)
+        disc = MultiMSGDiscriminator().to(device)
         optim_d = torch.optim.Adam(disc.parameters(),
                                    lr=hp.gan.discriminatorlr, betas=(hp.gan.beta1, hp.gan.beta2))
     # set torch device
