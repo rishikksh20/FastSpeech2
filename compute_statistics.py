@@ -7,7 +7,7 @@ from utils.hparams import HParam
 
 if __name__ == "__main__":
 
-    hp = HParam("./config/default.yaml")
+    hp = HParam("./configs/default.yaml")
 
     min_e = []
     min_p = []
