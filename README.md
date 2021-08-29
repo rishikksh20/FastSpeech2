@@ -76,7 +76,7 @@ python export_torchscript.py -c configs/default.yaml -n fastspeech_scrip --outdi
 * Loss curve for F0 is quite high.
 * I am using raw F0 and energy for train a model, but we can also use normalize F0 and energy for stable training.
 * Using `Postnet` for better audio quality.
-* For more complete and end to end Voice cloning or Text to Speech (TTS) toolbox please visit [Deepsync Technologies](https://deepsync.co/).
+* For more complete and end to end Voice cloning or Text to Speech (TTS) toolbox ⚡ please visit [Deepsync Technologies](https://deepsync.co/).
 
 ## References
 - [FastSpeech 2: Fast and High-Quality End-to-End Text to Speech](https://arxiv.org/abs/2006.04558)
