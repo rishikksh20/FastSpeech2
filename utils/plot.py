@@ -63,20 +63,22 @@ def save_figure_to_numpy(fig, spectrogram=False):
     return data
 
 
-def plot_waveform_to_numpy(waveform):
-    fig, ax = plt.subplots(figsize=(12, 3))
-    ax.plot()
-    ax.plot(range(len(waveform)), waveform, linewidth=0.1, alpha=0.7, color="blue")
+def plot_waveform_to_numpy(waveform1, waveform2):
+    if len(waveform1) < len(waveform2):
+        l = len(waveform1)
+    else:
+        l = len(waveform2)
+
+    fig = plt.figure(figsize = (12,7))
+    x = np.linspace(1, l, l)
+    plt.plot(x, waveform1[0:l], label = "reconstructed" , color="blue")
+    plt.plot(x, waveform2[0:l], label = "ground_truth", color="orange")
 
     plt.xlabel("Samples")
     plt.ylabel("Amplitude")
-    plt.ylim(-1, 1)
     plt.tight_layout()
 
-    fig.canvas.draw()
-    data = save_figure_to_numpy(fig)
-    plt.close()
-    return data
+    return fig
 
 
 def plot_spectrogram_to_numpy(spectrogram):

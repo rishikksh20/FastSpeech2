@@ -1,6 +1,6 @@
 data:
-  data_dir: 'H:\Deepsync\backup\fastspeech\data\'
-  wav_dir: 'H:\Deepsync\backup\deepsync\LJSpeech-1.1\wavs\'
+  data_dir: './data/LJSpeech/good_file/'
+  wav_dir: '/mnt/Karan/LJSpeech-1.1/wavs/'
   # Compute statistics
   e_mean: 21.578571319580078
   e_std: 18.916799545288086
@@ -10,7 +10,7 @@ data:
   f0_mean: 206.5135564772342
   f0_std:  53.633228905750336
   p_min: 71.0
-  p_max: 676.2260946528305 # 799.8901977539062
+  p_max: 500.0 # 799.8901977539062
   train_filelist: "./filelists/train_filelist.txt"
   valid_filelist: "./filelists/valid_filelist.txt"
   tts_cleaner_names: ['english_cleaners']
@@ -30,6 +30,7 @@ audio:
   bits : 9                            # bit depth of signal
   mu_law : True                       # Recommended to suppress noise if using raw bits in hp.voc_mode below
   peak_norm : False                   # Normalise to the peak of each wav file
+  cwt_bins : 10
 
 
 
@@ -46,7 +47,7 @@ model:
   aheads: 2
   elayers: 4
   eunits: 1024
-  ddim: 384
+  ddim: 256
   dlayers: 4
   dunits: 1024
   positionwise_layer_type : "conv1d" # linear
@@ -110,7 +111,7 @@ train:
   # optimization related
   eos: False #True
   opt: 'noam'
-  accum_grad: 4
+  accum_grad: 1
   grad_clip: 1.0
   weight_decay: 0.001
   patience: 0
@@ -126,7 +127,7 @@ train:
   seed: 1       # random seed number
   resume: ""    # the snapshot path to resume (if set empty, no effect)
   use_phonemes: True
-  batch_size : 16
+  batch_size : 48
   # other
   melgan_vocoder : True
   save_interval : 1000

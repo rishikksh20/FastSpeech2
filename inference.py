@@ -89,7 +89,7 @@ def preprocess(text):
     clean_content = english_cleaners(text)
     clean_content = punctuation_removers(clean_content)
     phonemes = g2p(clean_content)
- 
+
     phonemes = ["" if x == " " else x for x in phonemes]
     phonemes = ["pau" if x == "," else x for x in phonemes]
     phonemes = ["pau" if x == "." else x for x in phonemes]
@@ -125,7 +125,8 @@ def synth(text, model, hp):
 
     with torch.no_grad():
         print("predicting")
-        outs = model.inference(text)  # model(text) for jit script
+        print(text.shape)
+        outs, p, e = model.inference(text)  # model(text) for jit script
         mel = outs
     return mel
 
@@ -180,25 +181,23 @@ def main(args):
     if hp.train.melgan_vocoder:
         m = m.unsqueeze(0)
         print("Mel shape: ", m.shape)
-        vocoder = torch.hub.load("seungwonpark/melgan", "melgan")
+        vocoder = torch.jit.load("/results/chkpts/david/hifi-gan/v2/hifigan_david_v2_1370k.pt")         # LJ/Hifi-GAN/original/hifigan_pre_trained_v1.pt torch.hub.load("seungwonpark/melgan", "melgan") JARED/Hifi-GAN/v1/hifigan_jared_1105k.pt
         vocoder.eval()
+        zero = torch.full((1, 80, 10), -11.5129).to(m.device)
+        m = torch.cat((m, zero), dim=2)
+
         if torch.cuda.is_available():
             vocoder = vocoder.cuda()
             mel = m.cuda()
-
-        with torch.no_grad():
-            wav = vocoder.inference(
-                mel
-            )  # mel ---> batch, num_mels, frames [1, 80, 234]
-            wav = wav.cpu().float().numpy()
-    else:
-        stft = STFT(filter_length=1024, hop_length=256, win_length=1024)
-        print(m.size())
-        m = m.unsqueeze(0)
-        wav = griffin_lim(m, stft, 30)
-        wav = wav.cpu().numpy()
-    save_path = "{}/test_tts.wav".format(args.out)
-    write(save_path, hp.audio.sample_rate, wav.astype("int16"))
+            for i in range(0,len(para_mel)):
+                with torch.no_grad():
+                    wav = vocoder(
+                        para_mel[i].unsqueeze(0)
+                    )  # mel ---> batch, num_mels, frames [1, 80, 234]
+                    #print(wav)
+                    wav = wav.cpu().float().numpy()
+                save_path = f"{args.out}/fastspeech2_v2_david_hifigan_v2_{i}.wav"
+                write(save_path, hp.audio.sample_rate, wav.astype("float32"))
 
 
 # NOTE: you need this func to generate our sphinx doc

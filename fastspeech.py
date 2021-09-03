@@ -109,6 +109,7 @@ class FeedForwardTransformer(torch.nn.Module):
             dropout_rate=hp.model.duration_predictor_dropout_rate,
             min=hp.data.p_min,
             max=hp.data.p_max,
+            out = hp.audio.cwt_bins
         )
         self.pitch_embed = torch.nn.Linear(hp.model.adim, hp.model.adim)
 
@@ -191,18 +192,23 @@ class FeedForwardTransformer(torch.nn.Module):
 
         if is_inference:
             d_outs = self.duration_predictor.inference(hs, d_masks)  # (B, Tmax)
+            #print(d_outs.sum(dim=1), d_outs.shape)
+            #d_outs = torch.Tensor([[3, 3, 10, 2, 6, 13, 21, 10, 12, 6, 3, 10, 9, 8, 3, 9, 14, 10, 8, 8, 5, 3, 5, 3, 5, 8, 8, 6, 9, 9, 7, 5, 9, 4, 3, 6, 7, 3, 3, 8, 4, 4, 6, 12, 21, 5, 7, 36, 7, 6, 9, 14, 18, 2, 6, 2, 3, 8, 5, 15, 9, 6, 3, 10, 7, 9, 9, 4, 3, 3, 7, 24, 5, 5, 8, 8, 4, 9, 5, 4, 3, 2, 11, 3, 14, 9, 6, 8, 9, 4, 7, 3, 3, 9, 4, 3, 6, 5, 4, 15, 3, 3, 9, 5, 8, 7, 4, 6, 9, 9, 6, 19]]).cuda()
+            #print(d_outs.sum(dim=1), d_outs.shape)
+            #print(hs.shape, "Hs shape before LR")
             hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
-            one_hot_energy = self.energy_predictor.inference(hs)  # (B, Lmax, adim)
-            one_hot_pitch = self.pitch_predictor.inference(hs)  # (B, Lmax, adim)
+            one_hot_energy, energy_output = self.energy_predictor.inference(hs)  # (B, Lmax, adim)
+            one_hot_pitch, pitch_reconstructed = self.pitch_predictor.inference(hs, d_outs.sum(dim=1))
+            #one_hot_pitch = self.pitch_predictor.inverse(f0, f_mean, f_std)  # (B, Lmax, adim)
         else:
             with torch.no_grad():
                 # ds = self.duration_calculator(xs, ilens, ys, olens)  # (B, Tmax)
                 one_hot_energy = self.energy_predictor.to_one_hot(
-                    es
+                    es.detach()
                 )  # (B, Lmax, adim)   torch.Size([32, 868, 256])
                 # print("one_hot_energy:", one_hot_energy.shape)
                 one_hot_pitch = self.pitch_predictor.to_one_hot(
-                    ps
+                    ps.detach()
                 )  # (B, Lmax, adim)   torch.Size([32, 868, 256])
                 # print("one_hot_pitch:", one_hot_pitch.shape)
             mel_masks = make_pad_mask(olens).to(xs.device)
@@ -213,7 +219,8 @@ class FeedForwardTransformer(torch.nn.Module):
             # print("After Hs:",hs.shape)  #torch.Size([32, 868, 256])
             e_outs = self.energy_predictor(hs, mel_masks)
             # print("e_outs:", e_outs.shape)  #torch.Size([32, 868])
-            p_outs = self.pitch_predictor(hs, mel_masks)
+            mel_masks = make_pad_mask(olens).unsqueeze(-1).to(xs.device)
+            p_outs, p_avg_outs, p_std_outs = self.pitch_predictor(hs, olens, mel_masks)
             # print("p_outs:", p_outs.shape)   #torch.Size([32, 868])
         hs = hs + self.pitch_embed(one_hot_pitch)  # (B, Lmax, adim)
         hs = hs + self.energy_embed(one_hot_energy)  # (B, Lmax, adim)
@@ -238,9 +245,9 @@ class FeedForwardTransformer(torch.nn.Module):
             ).transpose(1, 2)
 
         if is_inference:
-            return before_outs, after_outs, d_outs, one_hot_energy, one_hot_pitch
+            return before_outs, after_outs, d_outs, one_hot_energy, one_hot_pitch, pitch_reconstructed, energy_output
         else:
-            return before_outs, after_outs, d_outs, e_outs, p_outs
+            return before_outs, after_outs, d_outs, e_outs, p_outs, p_avg_outs, p_std_outs
 
     def forward(
         self,
@@ -251,6 +258,9 @@ class FeedForwardTransformer(torch.nn.Module):
         ds: torch.Tensor,
         es: torch.Tensor,
         ps: torch.Tensor,
+        ps_spec: torch.Tensor,
+        ps_avg: torch.Tensor = None,
+        ps_std: torch.Tensor = None,
     ) -> Tuple[torch.Tensor, Dict[str, torch.Tensor]]:
         """Calculate forward propagation.
         Args:
@@ -267,7 +277,7 @@ class FeedForwardTransformer(torch.nn.Module):
         ys = ys[:, : max(olens)]  # torch.Size([32, 868, 80]) -> [B, Lmax, odim]
 
         # forward propagation
-        before_outs, after_outs, d_outs, e_outs, p_outs = self._forward(
+        before_outs, after_outs, d_outs, e_outs, p_outs, p_avg_outs, p_std_outs = self._forward(
             xs, ilens, olens, ds, es, ps, is_inference=False
         )
 
@@ -278,6 +288,7 @@ class FeedForwardTransformer(torch.nn.Module):
         #     ys = ys[:, :max_olen]
 
         # apply mask to remove padded part
+
         if self.use_masking:
             in_masks = make_non_pad_mask(ilens).to(xs.device)
             d_outs = d_outs.masked_select(in_masks)
@@ -286,9 +297,11 @@ class FeedForwardTransformer(torch.nn.Module):
             mel_masks = make_non_pad_mask(olens).to(ys.device)
             before_outs = before_outs.masked_select(out_masks)
             es = es.masked_select(mel_masks)  # Write size
-            ps = ps.masked_select(mel_masks)  # Write size
+            ps_spec = ps_spec.masked_select(out_masks)  # Write size
             e_outs = e_outs.masked_select(mel_masks)  # Write size
-            p_outs = p_outs.masked_select(mel_masks)  # Write size
+            p_outs = p_outs.masked_select(out_masks)  # Write size
+            #p_avg_outs = p_avg_outs.masked_select(mel_masks)  # Write size
+            #p_std_outs = p_std_outs.masked_select(mel_masks)  # Write size
             after_outs = (
                 after_outs.masked_select(out_masks) if after_outs is not None else None
             )
@@ -301,8 +314,10 @@ class FeedForwardTransformer(torch.nn.Module):
             after_loss = self.criterion(after_outs, ys)
             l1_loss = before_loss + after_loss
         duration_loss = self.duration_criterion(d_outs, ds)
-        energy_loss = self.energy_criterion(e_outs, es)
-        pitch_loss = self.pitch_criterion(p_outs, ps)
+        energy_loss = self.energy_criterion(e_outs, torch.log(es))
+        pitch_loss = self.pitch_criterion(p_outs, ps_spec)
+        pitch__mean_loss = self.pitch_criterion(p_avg_outs, ps_avg)
+        pitch_std_loss = self.pitch_criterion(p_std_outs, ps_std)
 
         # make weighted mask and apply it
         if self.use_weighted_masking:
@@ -321,7 +336,7 @@ class FeedForwardTransformer(torch.nn.Module):
                 duration_loss.mul(duration_weights).masked_select(duration_masks).sum()
             )
 
-        loss = l1_loss + duration_loss + energy_loss + pitch_loss
+        loss = l1_loss + duration_loss + energy_loss + pitch_loss + pitch__mean_loss + pitch_std_loss
         report_keys = [
             {"l1_loss": l1_loss.item()},
             {"before_loss": before_loss.item()},
@@ -329,6 +344,8 @@ class FeedForwardTransformer(torch.nn.Module):
             {"duration_loss": duration_loss.item()},
             {"energy_loss": energy_loss.item()},
             {"pitch_loss": pitch_loss.item()},
+            {"pitch__mean_loss": pitch__mean_loss.item()},
+            {"pitch_std_loss": pitch_std_loss.item()},
             {"loss": loss.item()},
         ]
 
@@ -352,9 +369,9 @@ class FeedForwardTransformer(torch.nn.Module):
         xs = x.unsqueeze(0)
 
         # inference
-        _, outs, _, _, _ = self._forward(xs, ilens, is_inference=True)  # (L, odim)
+        _, outs, _, _, _, pitch, energy = self._forward(xs, ilens, is_inference=True)  # (L, odim)
 
-        return outs[0]
+        return outs[0], pitch, energy
 
     def _source_mask(self, ilens: torch.Tensor) -> torch.Tensor:
         """Make masks for self-attention.

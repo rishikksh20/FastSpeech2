@@ -12,7 +12,7 @@ import random
 import tqdm
 import time
 from evaluation import evaluate
-from utils.plot import generate_audio, plot_spectrogram_to_numpy
+from utils.plot import generate_audio, plot_spectrogram_to_numpy, plot_waveform_to_numpy
 from core.optimizer import get_std_opt
 from utils.util import read_wav_np
 from dataset.texts import valid_symbols
@@ -93,7 +93,7 @@ def train(args, hp, hp_str, logger, vocoder):
         pbar = tqdm.tqdm(dataloader, desc="Loading train data")
         for data in pbar:
             global_step += 1
-            x, input_length, y, _, out_length, _, dur, e, p = data
+            x, input_length, y, _, out_length, _, dur, e, p, p_avg, p_std, p_cwt_cont = data
             # x : [batch , num_char], input_length : [batch], y : [batch, T_in, num_mel]
             #             # stop_token : [batch, T_in], out_length : [batch]
 
@@ -105,6 +105,9 @@ def train(args, hp, hp_str, logger, vocoder):
                 dur.cuda(),
                 e.cuda(),
                 p.cuda(),
+                p_cwt_cont.cuda(),
+                p_avg.cuda(),
+                p_std.cuda()
             )
             loss = loss.mean() / hp.train.accum_grad
             running_loss += loss.item()
@@ -148,7 +151,7 @@ def train(args, hp, hp_str, logger, vocoder):
             if step % hp.train.validation_step == 0:
 
                 for valid in validloader:
-                    x_, input_length_, y_, _, out_length_, ids_, dur_, e_, p_ = valid
+                    x_, input_length_, y_, _, out_length_, ids_, dur_, e_, p_, p_avg_, p_std_, p_cwt_cont_ = valid
                     model.eval()
                     with torch.no_grad():
                         loss_, report_dict_ = model(
@@ -159,9 +162,12 @@ def train(args, hp, hp_str, logger, vocoder):
                             dur_.cuda(),
                             e_.cuda(),
                             p_.cuda(),
+                            p_cwt_cont_.cuda(),
+                            p_avg_.cuda(),
+                            p_std_.cuda()
                         )
 
-                        mels_ = model.inference(x_[-1].cuda())  # [T, num_mel]
+                        mels_, pitch_reconstructed, energy_reconstructed = model.inference(x_[-1].cuda())  # [T, num_mel]
 
                     model.train()
                     for r in report_dict_:
@@ -174,6 +180,7 @@ def train(args, hp, hp_str, logger, vocoder):
                                 writer.add_scalar("validation/{}".format(k), v, step)
 
                     mels_ = mels_.T  # Out: [num_mels, T]
+
                     writer.add_image(
                         "melspectrogram_target_{}".format(ids_[-1]),
                         plot_spectrogram_to_numpy(
@@ -186,18 +193,32 @@ def train(args, hp, hp_str, logger, vocoder):
                         "melspectrogram_prediction_{}".format(ids_[-1]),
                         plot_spectrogram_to_numpy(mels_.data.cpu().numpy()),
                         step,
-                        dataformats="HWC",
+                        dataformats="HWC"
                     )
 
-                    # print(mels.unsqueeze(0).shape)
+                    writer.add_figure(
+                    "Pitch_target_vs_prediction/{}".format(ids_[-1]),
+                    plot_waveform_to_numpy(pitch_reconstructed.cpu().numpy().reshape(-1,), p_.cpu().numpy().reshape(-1,)),
+                    step,
+                    )
 
-                    audio = generate_audio(
-                        mels_.unsqueeze(0), vocoder
-                    )  # selecting the last data point to match mel generated above
-                    audio = audio.cpu().float().numpy()
+                    writer.add_figure(
+                    "Energy_target_vs_prediction/{}".format(ids_[-1]),
+                    plot_waveform_to_numpy(energy_reconstructed.cpu().numpy().reshape(-1,), e_.cpu().numpy().reshape(-1,)),
+                    step,
+                    )
+
+                    mels = mels_.unsqueeze(0)
+                    zero = torch.full((1, 80, 10), -11.5129).to(mels.device)
+                    mels = torch.cat((mels, zero), dim=2)
+
+
+                    audio = vocoder(mels) #generate_audio(mels_.unsqueeze(0), vocoder)  # selecting the last data point to match mel generated above
+                    audio = audio.detach().cpu().float().numpy()
                     audio = audio / (
                         audio.max() - audio.min()
                     )  # get values between -1 and 1
+                    audio = audio.reshape(-1,1)
 
                     writer.add_audio(
                         tag="generated_audio_{}".format(ids_[-1]),
@@ -218,7 +239,7 @@ def train(args, hp, hp_str, logger, vocoder):
                         sample_rate=hp.audio.sample_rate,
                     )
 
-                ##
+
             if step % hp.train.save_interval == 0:
                 avg_p, avg_e, avg_d = evaluate(hp, validloader, model)
                 writer.add_scalar("evaluation/Pitch_Loss", avg_p, step)
@@ -443,9 +464,7 @@ def main(cmd_args):
     random.seed(hp.train.seed)
     np.random.seed(hp.train.seed)
 
-    vocoder = torch.hub.load(
-        "seungwonpark/melgan", "melgan"
-    )  # load the vocoder for validation
+    vocoder = torch.jit.load('vocgan_jared_first_1871233_2220.pt').cuda() # torch.hub.load( "seungwonpark/melgan", "melgan"    )  # load the vocoder for validation
 
     if hp.train.GTA:
         create_gta(args, hp, hp_str, logger)
