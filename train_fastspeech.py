@@ -96,6 +96,8 @@ def train(args, hp, hp_str, logger, vocoder):
             x, input_length, y, _, out_length, _, dur, e, p = data
             # x : [batch , num_char], input_length : [batch], y : [batch, T_in, num_mel]
             #             # stop_token : [batch, T_in], out_length : [batch]
+            e = e.unsqueeze(1)
+            p = p.unsqueeze(1)
 
             loss, report_dict = model(
                 x.cuda(),
@@ -106,7 +108,7 @@ def train(args, hp, hp_str, logger, vocoder):
                 e.cuda(),
                 p.cuda(),
             )
-            loss = loss.mean() / hp.train.accum_grad
+            loss = loss.mean()  #/ hp.train.accum_grad
             running_loss += loss.item()
 
             loss.backward()
@@ -114,8 +116,8 @@ def train(args, hp, hp_str, logger, vocoder):
             # update parameters
             forward_count += 1
             j = j + 1
-            if forward_count != hp.train.accum_grad:
-                continue
+            #if forward_count != hp.train.accum_grad:
+            #    continue
             forward_count = 0
             step = global_step
 
@@ -150,6 +152,7 @@ def train(args, hp, hp_str, logger, vocoder):
                 for valid in validloader:
                     x_, input_length_, y_, _, out_length_, ids_, dur_, e_, p_ = valid
                     model.eval()
+
                     with torch.no_grad():
                         loss_, report_dict_ = model(
                             x_.cuda(),
@@ -157,8 +160,8 @@ def train(args, hp, hp_str, logger, vocoder):
                             y_.cuda(),
                             out_length_.cuda(),
                             dur_.cuda(),
-                            e_.cuda(),
-                            p_.cuda(),
+                            e_.cuda().unsqueeze(1),
+                            p_.cuda().unsqueeze(1),
                         )
 
                         mels_ = model.inference(x_[-1].cuda())  # [T, num_mel]
@@ -207,8 +210,8 @@ def train(args, hp, hp_str, logger, vocoder):
                     )
 
                     _, target = read_wav_np(
-                        hp.data.wav_dir + f"{ids_[-1]}.wav",
-                        sample_rate=hp.audio.sample_rate,
+                        hp.data.wav_dir + f'{ids_[-1]}.wav' ,
+                        sample_rate=hp.audio.sample_rate ,
                     )
 
                     writer.add_audio(
@@ -220,10 +223,10 @@ def train(args, hp, hp_str, logger, vocoder):
 
                 ##
             if step % hp.train.save_interval == 0:
-                avg_p, avg_e, avg_d = evaluate(hp, validloader, model)
-                writer.add_scalar("evaluation/Pitch_Loss", avg_p, step)
-                writer.add_scalar("evaluation/Energy_Loss", avg_e, step)
-                writer.add_scalar("evaluation/Dur_Loss", avg_d, step)
+                # avg_p, avg_e, avg_d = evaluate(hp, validloader, model)
+                # writer.add_scalar("evaluation/Pitch_Loss", avg_p, step)
+                # writer.add_scalar("evaluation/Energy_Loss", avg_e, step)
+                # writer.add_scalar("evaluation/Dur_Loss", avg_d, step)
                 save_path = os.path.join(
                     hp.train.chkpt_dir,
                     args.name,
@@ -288,7 +291,7 @@ def create_gta(args, hp, hp_str, logger):
             global_step += 1
             x, input_length, y, _, out_length, ids = data
             with torch.no_grad():
-                _, gta, _, _, _ = model._forward(
+                _, gta, _ = model._forward(
                     x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda()
                 )
                 # gta = model._forward(x.cuda(), input_length.cuda(), is_inference=False)
@@ -312,7 +315,7 @@ def create_gta(args, hp, hp_str, logger):
         global_step += 1
         x, input_length, y, _, out_length, ids = data
         with torch.no_grad():
-            gta, _, _ = model._forward(
+            _, gta, _ = model._forward(
                 x.cuda(), input_length.cuda(), y.cuda(), out_length.cuda()
             )
             # gta = model._forward(x.cuda(), input_length.cuda(), is_inference=True)

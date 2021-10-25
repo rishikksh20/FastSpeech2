@@ -9,7 +9,7 @@ from utils.util import set_deterministic_pytorch
 from fastspeech import FeedForwardTransformer
 from dataset.texts import phonemes_to_sequence
 import time
-from dataset.audio_processing import griffin_lim
+from dataset.audio.audio_processing import griffin_lim
 import numpy as np
 from utils.stft import STFT
 from scipy.io.wavfile import write
@@ -19,6 +19,7 @@ from dataset.texts.cleaners import english_cleaners, punctuation_removers
 import matplotlib.pyplot as plt
 from g2p_en import G2p
 
+MAX_WAV_VALUE = 32768.0
 
 def synthesis(args, text, hp):
     """Decode with E2E-TTS model."""
@@ -187,18 +188,34 @@ def main(args):
             mel = m.cuda()
 
         with torch.no_grad():
-            wav = vocoder.inference(
+            audio = vocoder(
                 mel
             )  # mel ---> batch, num_mels, frames [1, 80, 234]
-            wav = wav.cpu().float().numpy()
+            audio = audio.cpu().float().numpy()
     else:
-        stft = STFT(filter_length=1024, hop_length=256, win_length=1024)
-        print(m.size())
         m = m.unsqueeze(0)
-        wav = griffin_lim(m, stft, 30)
-        wav = wav.cpu().numpy()
+        print("Mel shape: ", m.shape)
+        # vocoder = torch.hub.load("seungwonpark/melgan", "melgan")
+        vocoder = torch.jit.load("checkpoints/melgan_jit/vocgan_ex_female_en_1871233_650.pt")
+        vocoder.eval()
+        if torch.cuda.is_available():
+            vocoder = vocoder.cuda()
+            mel = m.cuda()
+        zero = torch.full((1, 80, 10), -11.5129).to(mel.device)
+        mel = torch.cat((mel, zero), dim=2)
+        with torch.no_grad():
+            audio = vocoder(
+                mel
+            )  # mel ---> batch, num_mels, frames [1, 80, 234]
+            #wav = wav.cpu().float().numpy()
+        audio = audio.squeeze()
+        audio = audio[:-(hp.audio.hop_length*10)]
+        audio = MAX_WAV_VALUE * audio
+        audio = audio.clamp(min=-MAX_WAV_VALUE, max=MAX_WAV_VALUE-1)
+        audio = audio.short()
+        audio = audio.cpu().detach().numpy()
     save_path = "{}/test_tts.wav".format(args.out)
-    write(save_path, hp.audio.sample_rate, wav.astype("int16"))
+    write(save_path, hp.audio.sample_rate, audio.astype("int16"))
 
 
 # NOTE: you need this func to generate our sphinx doc

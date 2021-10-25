@@ -6,8 +6,6 @@
 
 """FastSpeech related loss."""
 
-import logging
-
 import torch
 from core.duration_modeling.duration_predictor import DurationPredictor
 from core.duration_modeling.duration_predictor import DurationPredictorLoss
@@ -26,6 +24,14 @@ from typing import Dict, Tuple, Sequence
 
 
 class FeedForwardTransformer(torch.nn.Module):
+    """Feed Forward Transformer for TTS a.k.a. FastSpeech.
+    This is a module of FastSpeech, feed-forward Transformer with duration predictor described in
+    `FastSpeech: Fast, Robust and Controllable Text to Speech`_, which does not require any auto-regressive
+    processing during inference, resulting in fast decoding compared with auto-regressive Transformer.
+    .. _`FastSpeech: Fast, Robust and Controllable Text to Speech`:
+        https://arxiv.org/pdf/1905.09263.pdf
+    """
+
     def __init__(self, idim: int, odim: int, hp: Dict):
         """Initialize feed-forward Transformer module.
         Args:
@@ -84,14 +90,23 @@ class FeedForwardTransformer(torch.nn.Module):
 
         self.energy_predictor = EnergyPredictor(
             idim=hp.model.adim,
-            n_layers=hp.model.duration_predictor_layers,
+            n_layers=5,
             n_chans=hp.model.duration_predictor_chans,
-            kernel_size=hp.model.duration_predictor_kernel_size,
+            kernel_size=5,
             dropout_rate=hp.model.duration_predictor_dropout_rate,
             min=hp.data.e_min,
             max=hp.data.e_max,
         )
-        self.energy_embed = torch.nn.Linear(hp.model.adim, hp.model.adim)
+        # NOTE: continuous enegy + FastPitch style avg
+        self.energy_embed = torch.nn.Sequential(
+            torch.nn.Conv1d(
+                in_channels=1,
+                out_channels=hp.model.adim,
+                kernel_size=hp.model.energy_embed_kernel_size,
+                padding= (int(hp.model.energy_embed_kernel_size) - 1)//2,
+            ),
+            torch.nn.Dropout(hp.model.energy_embed_dropout),
+        )
 
         self.pitch_predictor = PitchPredictor(
             idim=hp.model.adim,
@@ -102,7 +117,16 @@ class FeedForwardTransformer(torch.nn.Module):
             min=hp.data.p_min,
             max=hp.data.p_max,
         )
-        self.pitch_embed = torch.nn.Linear(hp.model.adim, hp.model.adim)
+        # NOTE: continuous pitch + FastPitch style avg
+        self.pitch_embed = torch.nn.Sequential(
+            torch.nn.Conv1d(
+                in_channels=1,
+                out_channels=hp.model.adim,
+                kernel_size=hp.model.pitch_embed_kernel_size,
+                padding=(hp.model.pitch_embed_kernel_size - 1) // 2,
+            ),
+            torch.nn.Dropout(hp.model.pitch_embed_dropout),
+        )
 
         # define length regulator
         self.length_regulator = LengthRegulator()
@@ -110,12 +134,12 @@ class FeedForwardTransformer(torch.nn.Module):
         # define decoder
         # NOTE: we use encoder as decoder because fastspeech's decoder is the same as encoder
         self.decoder = Encoder(
-            idim=256,
-            attention_dim=256,
+            idim=hp.model.adim,
+            attention_dim=hp.model.ddim,
             attention_heads=hp.model.aheads,
             linear_units=hp.model.dunits,
             num_blocks=hp.model.dlayers,
-            input_layer=None,
+            input_layer="linear",
             dropout_rate=0.2,
             positional_dropout_rate=0.2,
             attention_dropout_rate=0.2,
@@ -142,7 +166,7 @@ class FeedForwardTransformer(torch.nn.Module):
         )
 
         # define final projection
-        self.feat_out = torch.nn.Linear(hp.model.adim, odim * hp.model.reduction_factor)
+        self.feat_out = torch.nn.Linear(hp.model.ddim, odim * hp.model.reduction_factor)
 
         # initialize parameters
         self._reset_parameters(
@@ -158,7 +182,11 @@ class FeedForwardTransformer(torch.nn.Module):
         self.criterion = torch.nn.L1Loss(reduction="mean")
         self.use_weighted_masking = hp.model.use_weighted_masking
 
-    def _forward(self, xs: torch.Tensor, ilens: torch.Tensor):
+    def _forward(
+        self,
+        xs: torch.Tensor,
+        ilens: torch.Tensor
+        ) -> torch.Tensor:
         # forward encoder
         x_masks = self._source_mask(
             ilens
@@ -169,34 +197,36 @@ class FeedForwardTransformer(torch.nn.Module):
         )  # (B, Tmax, adim) -> torch.Size([32, 121, 256])
         # print("ys :", ys.shape)
 
-        # # forward duration predictor and length regulator
+        # forward duration predictor and length regulator
         d_masks = make_pad_mask_script(ilens).to(xs.device)
 
+
+
         d_outs = self.duration_predictor.inference(hs, d_masks)  # (B, Tmax)
-        hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
+        p_outs = self.pitch_predictor.inference(hs.detach(), alpha = 1.0)
+        e_outs = self.energy_predictor.inference(hs.detach(), alpha = 1.0)
+        p_embs = self.pitch_embed(p_outs.unsqueeze(1)).transpose(1, 2) # (B, Tmax, adim) .transpose(1, 2)
+        e_embs = self.energy_embed(e_outs.unsqueeze(1)).transpose(1, 2) # (B, Tmax, adim) .transpose(1, 2)
+        hs = hs + e_embs + p_embs
+        hs = self.length_regulator(hs, d_outs, ilens, alpha = 1.0)  # (B, Lmax, adim)
 
-        one_hot_energy = self.energy_predictor.inference(hs)  # (B, Lmax, adim)
 
-        one_hot_pitch = self.pitch_predictor.inference(hs)  # (B, Lmax, adim)
+        # forward decoder
+        h_masks = None
 
-        hs = hs + self.pitch_embed(one_hot_pitch)  # (B, Lmax, adim)
-        hs = hs + self.energy_embed(one_hot_energy)  # (B, Lmax, adim)
-
-        # # forward decoder
-        #  h_masks = self._source_mask(olens) we can find olens from length regulator and then calculate mask
-        # h_masks = torch.empty(0)
-
-        zs, _ = self.decoder(hs, None)  # (B, Lmax, adim)
+        zs, _ = self.decoder(hs, h_masks)  # (B, Lmax, adim)
 
         before_outs = self.feat_out(zs).view(
             zs.size(0), -1, self.odim
         )  # (B, Lmax, odim)
 
         # postnet -> (B, Lmax//r * r, odim)
-        after_outs = before_outs + self.postnet(before_outs.transpose(1, 2)).transpose(
-            1, 2
-        )
+        after_outs = before_outs + self.postnet(
+                before_outs.transpose(1, 2)
+            ).transpose(1, 2)
+
         return after_outs
+
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """Generate the sequence of features given the sequences of characters.
@@ -242,7 +272,7 @@ class FeedForwardTransformer(torch.nn.Module):
     ):
         # initialize parameters
         initialize(self, init_type)
-        #
+
         # initialize alpha in scaled positional encoding
         if self.use_scaled_pos_enc:
             self.encoder.embed[-1].alpha.data = torch.tensor(init_enc_alpha)

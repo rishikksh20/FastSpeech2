@@ -6,7 +6,6 @@
 
 """FastSpeech related loss."""
 
-import logging
 
 import torch
 from core.duration_modeling.duration_predictor import DurationPredictor
@@ -92,14 +91,23 @@ class FeedForwardTransformer(torch.nn.Module):
 
         self.energy_predictor = EnergyPredictor(
             idim=hp.model.adim,
-            n_layers=hp.model.duration_predictor_layers,
+            n_layers=5,
             n_chans=hp.model.duration_predictor_chans,
-            kernel_size=hp.model.duration_predictor_kernel_size,
+            kernel_size=5,
             dropout_rate=hp.model.duration_predictor_dropout_rate,
             min=hp.data.e_min,
             max=hp.data.e_max,
         )
-        self.energy_embed = torch.nn.Linear(hp.model.adim, hp.model.adim)
+        # NOTE: continuous enegy + FastPitch style avg
+        self.energy_embed = torch.nn.Sequential(
+            torch.nn.Conv1d(
+                in_channels=1,
+                out_channels=hp.model.adim,
+                kernel_size=hp.model.energy_embed_kernel_size,
+                padding= (int(hp.model.energy_embed_kernel_size) - 1)//2,
+            ),
+            torch.nn.Dropout(hp.model.energy_embed_dropout),
+        )
 
         self.pitch_predictor = PitchPredictor(
             idim=hp.model.adim,
@@ -110,7 +118,16 @@ class FeedForwardTransformer(torch.nn.Module):
             min=hp.data.p_min,
             max=hp.data.p_max,
         )
-        self.pitch_embed = torch.nn.Linear(hp.model.adim, hp.model.adim)
+        # NOTE: continuous pitch + FastPitch style avg
+        self.pitch_embed = torch.nn.Sequential(
+            torch.nn.Conv1d(
+                in_channels=1,
+                out_channels=hp.model.adim,
+                kernel_size=hp.model.pitch_embed_kernel_size,
+                padding=(hp.model.pitch_embed_kernel_size - 1) // 2,
+            ),
+            torch.nn.Dropout(hp.model.pitch_embed_dropout),
+        )
 
         # define length regulator
         self.length_regulator = LengthRegulator()
@@ -188,35 +205,35 @@ class FeedForwardTransformer(torch.nn.Module):
 
         # forward duration predictor and length regulator
         d_masks = make_pad_mask(ilens).to(xs.device)
+        #print(hs.shape,"Shape of Hidden shape")
+        #print(d_masks.shape, "Shape of D mask")
+        p_outs = self.pitch_predictor(hs.detach(), d_masks) #torch.Size([32, 868])
+        #print(p_outs.shape,"Shape of Pitch Outs shape")
+        e_outs = self.energy_predictor(hs.detach(), d_masks) #torch.Size([32, 868])
+        #print(e_outs.shape,"Shape of Energy Outs shape")
 
         if is_inference:
             d_outs = self.duration_predictor.inference(hs, d_masks)  # (B, Tmax)
-            hs = self.length_regulator(hs, d_outs, ilens)  # (B, Lmax, adim)
-            one_hot_energy = self.energy_predictor.inference(hs)  # (B, Lmax, adim)
-            one_hot_pitch = self.pitch_predictor.inference(hs)  # (B, Lmax, adim)
+            p_outs = self.pitch_predictor.inference(hs.detach(), alpha = 1.0)
+            e_outs = self.energy_predictor.inference(hs.detach(), alpha = 1.0)
+            p_embs = self.pitch_embed(p_outs.unsqueeze(1)).transpose(1, 2) # (B, Tmax, adim) .transpose(1, 2)
+            e_embs = self.energy_embed(e_outs.unsqueeze(1)).transpose(1, 2) # (B, Tmax, adim) .transpose(1, 2)
+            hs = hs + e_embs + p_embs
+            hs = self.length_regulator(hs, d_outs, ilens, alpha = 1.0)  # (B, Lmax, adim)
         else:
             with torch.no_grad():
-                # ds = self.duration_calculator(xs, ilens, ys, olens)  # (B, Tmax)
-                one_hot_energy = self.energy_predictor.to_one_hot(
-                    es
-                )  # (B, Lmax, adim)   torch.Size([32, 868, 256])
-                # print("one_hot_energy:", one_hot_energy.shape)
-                one_hot_pitch = self.pitch_predictor.to_one_hot(
-                    ps
-                )  # (B, Lmax, adim)   torch.Size([32, 868, 256])
-                # print("one_hot_pitch:", one_hot_pitch.shape)
-            mel_masks = make_pad_mask(olens).to(xs.device)
-            # print("Before Hs:", hs.shape)  # torch.Size([32, 121, 256])
+                p_embs = self.pitch_embed(ps).transpose(1, 2) # (B, Tmax, adim)   torch.Size([32, 121, 256]) .transpose(1, 2)
+                e_embs = self.energy_embed(es).transpose(1, 2) # (B, Tmax, adim)   torch.Size([32, 121, 256]) .transpose(1, 2)
+
             d_outs = self.duration_predictor(hs, d_masks)  # (B, Tmax)
             # print("d_outs:", d_outs.shape)      #  torch.Size([32, 121])
+            mel_masks = make_pad_mask(olens).to(xs.device)
+            #print(hs.shape, p_embs.shape, e_embs.shape  )
+            hs = hs + p_embs + e_embs  # (B, Lmax, adim)
+            # print("Before Hs:", hs.shape)  # torch.Size([32, 121, 256])
             hs = self.length_regulator(hs, ds, ilens)  # (B, Lmax, adim)
-            # print("After Hs:",hs.shape)  #torch.Size([32, 868, 256])
-            e_outs = self.energy_predictor(hs, mel_masks)
-            # print("e_outs:", e_outs.shape)  #torch.Size([32, 868])
-            p_outs = self.pitch_predictor(hs, mel_masks)
-            # print("p_outs:", p_outs.shape)   #torch.Size([32, 868])
-        hs = hs + self.pitch_embed(one_hot_pitch)  # (B, Lmax, adim)
-        hs = hs + self.energy_embed(one_hot_energy)  # (B, Lmax, adim)
+        #print(es.shape, "Shape of es in _forward")
+
         # forward decoder
         if olens is not None:
             h_masks = self._source_mask(olens)
@@ -238,7 +255,7 @@ class FeedForwardTransformer(torch.nn.Module):
             ).transpose(1, 2)
 
         if is_inference:
-            return before_outs, after_outs, d_outs, one_hot_energy, one_hot_pitch
+            return before_outs, after_outs, d_outs
         else:
             return before_outs, after_outs, d_outs, e_outs, p_outs
 
@@ -262,6 +279,7 @@ class FeedForwardTransformer(torch.nn.Module):
         Returns:
             Tensor: Loss value.
         """
+        #print(es.shape, "shape ES")
         # remove unnecessary padded part (for multi-gpus)
         xs = xs[:, : max(ilens)]  # torch.Size([32, 121]) -> [B, Tmax]
         ys = ys[:, : max(olens)]  # torch.Size([32, 868, 80]) -> [B, Lmax, odim]
@@ -285,10 +303,12 @@ class FeedForwardTransformer(torch.nn.Module):
             out_masks = make_non_pad_mask(olens).unsqueeze(-1).to(ys.device)
             mel_masks = make_non_pad_mask(olens).to(ys.device)
             before_outs = before_outs.masked_select(out_masks)
-            es = es.masked_select(mel_masks)  # Write size
-            ps = ps.masked_select(mel_masks)  # Write size
-            e_outs = e_outs.masked_select(mel_masks)  # Write size
-            p_outs = p_outs.masked_select(mel_masks)  # Write size
+            #print(es.shape, "shape ES")
+            es = es.squeeze(1).masked_select(in_masks)  # Write size
+            ps = ps.squeeze(1).masked_select(in_masks)  # Write size
+            #print(e_outs.shape, "shape Eot")
+            e_outs = e_outs.masked_select(in_masks)  # Write size
+            p_outs = p_outs.masked_select(in_masks)  # Write size
             after_outs = (
                 after_outs.masked_select(out_masks) if after_outs is not None else None
             )
@@ -301,6 +321,7 @@ class FeedForwardTransformer(torch.nn.Module):
             after_loss = self.criterion(after_outs, ys)
             l1_loss = before_loss + after_loss
         duration_loss = self.duration_criterion(d_outs, ds)
+        #print(e_outs.shape, es.shape)
         energy_loss = self.energy_criterion(e_outs, es)
         pitch_loss = self.pitch_criterion(p_outs, ps)
 
@@ -352,7 +373,7 @@ class FeedForwardTransformer(torch.nn.Module):
         xs = x.unsqueeze(0)
 
         # inference
-        _, outs, _, _, _ = self._forward(xs, ilens, is_inference=True)  # (L, odim)
+        _, outs, _  = self._forward(xs, ilens, is_inference=True)  # (L, odim)
 
         return outs[0]
 
